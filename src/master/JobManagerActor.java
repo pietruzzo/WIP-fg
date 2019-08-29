@@ -21,6 +21,10 @@ import shared.AkkaMessages.LaunchAckMsg;
 import shared.AkkaMessages.DistributeHashMapMsg;
 import shared.AkkaMessages.LaunchMsg;
 import shared.AkkaMessages.SlaveAnnounceMsg;
+import shared.AkkaMessages.modifyGraph.AddEdgeMsg;
+import shared.AkkaMessages.modifyGraph.DeleteEdgeMsg;
+import shared.AkkaMessages.modifyGraph.DeleteVertexMsg;
+import shared.AkkaMessages.modifyGraph.UpdateVertexMsg;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -79,9 +83,10 @@ public class JobManagerActor extends AbstractActorWithStash {
 
 	private final Receive receiveChangeState() { //Compute a new graph change
 		return receiveBuilder().
-		    match(InstallComputationMsg.class, this::onInstallComputationMsg).
-		    match(ChangeEdgeMsg.class, this::onChangeEdgeMsg).
-		    match(ChangeVertexMsg.class, this::onChangeVertexMsg).
+		    match(AddEdgeMsg.class, this::onInstallComputationMsg).
+		    match(DeleteEdgeMsg.class, this::onChangeEdgeMsg).
+		    match(DeleteVertexMsg.class, this::onChangeVertexMsg).
+				match(UpdateVertexMsg.class, this::onChangeVertexMsg).
 		    build();
 	}
 

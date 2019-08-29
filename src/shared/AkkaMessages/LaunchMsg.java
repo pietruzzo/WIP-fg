@@ -7,7 +7,7 @@ public class LaunchMsg implements Serializable {
 
     @Override
     public String toString(){
-        return "Instance Launched";
+        return "Instance Launching";
     }
 
 }

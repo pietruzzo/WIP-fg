@@ -1,14 +1,18 @@
 package shared.AkkaMessages.modifyGraph;
 
-import java.io.Serializable;
+import akka.japi.Pair;
 
-public class deleteEdge implements Serializable {
+
+import java.io.Serializable;
+import java.util.ArrayList;
+
+public class DeleteEdgeMsg implements ModifyGraphMsg {
     private static final long serialVersionUID = 200010L;
 
     final private String sourceName;
     final private String destinationName;
 
-    public deleteEdge(String sourceName, String destinationName) {
+    public DeleteEdgeMsg(String sourceName, String destinationName) {
         this.sourceName = sourceName;
         this.destinationName = destinationName;
     }
@@ -21,4 +25,8 @@ public class deleteEdge implements Serializable {
         return destinationName;
     }
 
+    @Override
+    public String toString() {
+        return "Delete Edge: " + sourceName + " " + destinationName;
+    }
 }

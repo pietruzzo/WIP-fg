@@ -6,12 +6,11 @@ import akka.japi.Pair;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import org.apache.commons.math3.geometry.spherical.twod.Edge;
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.ParameterTool;
+import shared.AkkaMessages.LaunchMsg;
+import shared.AkkaMessages.modifyGraph.ModifyGraphMsg;
+import shared.Lexer;
 import shared.Vertex;
-import shared.VertexState;
 
 import java.io.File;
 import java.util.*;
@@ -40,10 +39,18 @@ public class Client {
 			if (line.equals("q")) {
 				break;
 			}
-			/* TO BE IMPLEMENTED */
-			// Quit
+			// Start
 			if (line.equals("start")) {
-				clientActor.tell(new StartMsg(), ActorRef.noSender());
+				clientActor.tell(new LaunchMsg(), ActorRef.noSender());
+			}
+
+			// Modify Graph
+
+			if (line.trim().startsWith("vertex") || line.trim().startsWith("edge")){
+				List<ModifyGraphMsg> messages = Lexer.parse(Lexer.lex(line));
+				for (ModifyGraphMsg msg: messages) {
+					clientActor.tell(msg, ActorRef.noSender());
+				}
 			}
 			/*
 			// Install computation
@@ -69,60 +76,9 @@ public class Client {
 
 */
 
-			// Add vertex
-			else if (line.startsWith("addVertex")) {
-				final AddVertexMsg msg = new AddVertexMsg(getVertexFromString(line), System.currentTimeMillis());
-				clientActor.tell(msg, ActorRef.noSender());
-			}
-
-			// Add edge
-			else if (line.startsWith("addEdge")) {
-				final AddEdgeMsg msg = new AddEdgeMsg(getEdgeFromString(line), System.currentTimeMillis());
-				clientActor.tell(msg, ActorRef.noSender());
-			}
-
-			// Update vertex
-			else if (line.startsWith("updateVertex")) {
-				final UpdateVertexMsg msg = new UpdateVertexMsg(getVertexFromString(line), System.currentTimeMillis());
-				clientActor.tell(msg, ActorRef.noSender());
-			}
-
-			// Delete vertex
-			else if (line.startsWith("delVertex")) {
-				final DelVertexMsg msg = new DelVertexMsg(getVertexFromString(line), System.currentTimeMillis());
-				clientActor.tell(msg, ActorRef.noSender());
-			}
-
-			// Delete edge
-			else if (line.startsWith("delEdge")) {
-				final DelEdgeMsg msg = new DelEdgeMsg(getEdgeFromString(line), System.currentTimeMillis());
-				clientActor.tell(msg, ActorRef.noSender());
-			}
-
 		}
 		scanner.close();
 		sys.terminate();
-	}
-
-
-	private static final Vertex getVertexFromString(String s, long timestamp) {
-		final StringTokenizer t = new StringTokenizer(s, " ");
-		t.nextToken();
-		final String name = t.nextToken();
-		final VertexState state = new VertexState();
-		while (t.hasMoreTokens()) {
-			final String prop = t.nextToken();
-			state.addToState(prop.split("=")[0], prop.split("=")[1], timestamp);
-		}
-		return new Vertex(name, state);
-	}
-
-	private static final Pair getEdgeFromString(String s, long timestamp) {
-		final StringTokenizer t = new StringTokenizer(s, " ");
-		t.nextToken();
-		final String source = t.nextToken();
-		final String destination = t.nextToken();
-		return new Pair<String, String>(source, destination);
 	}
 
 }
