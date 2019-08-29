@@ -1,5 +1,6 @@
 package shared;
 
+import akka.event.Logging;
 import akka.japi.Pair;
 
 import java.io.Serializable;
@@ -10,9 +11,14 @@ import java.util.Map;
 
 public class VertexState implements Serializable {
 
+    /*
+        Assumption: State versions are in timestamp order
+     */
+    static public final String DELETE_VALUE = "DELETE";
+
     private static final long serialVersionUID = 200002L;
 
-    private Map<String, Versions> versionedAttributes;  //AttributeName - List of Pairs < Timestamp, Value >
+    final private Map<String, Versions> versionedAttributes;  //AttributeName - List of Pairs < Timestamp, Value >
 
     public VertexState(){
         versionedAttributes = new HashMap<>();
@@ -30,41 +36,53 @@ public class VertexState implements Serializable {
     }
 
     public void addToState (VertexState otherState){
-        for (:
-             ) {
 
+    }
+
+    public void removeOldStates(String name, Long timestamp) { //But keeping latest one
+
+        Versions values = versionedAttributes.get(name);
+
+        if (values == null) { //No entry for name
+            return;
+        }
+
+        Versions toBeRemoved = new Versions();
+
+        for (Pair p: values) {
+            if ((Long)p.second()< timestamp && p != values.get(values.size()-1)) toBeRemoved.add(p);
+        }
+        for (Pair rv: toBeRemoved) {
+            values.remove(rv);
+        }
+        toBeRemoved.clear();
+
+        //Remove entry if deleted
+        if (values.isEmpty() || values.size() == 1 && values.get(0).second().equals(DELETE_VALUE)){
+            versionedAttributes.remove(name);
         }
     }
 
-    public void removeOldStates(Long timestamp) { //But keeping latest one
-        Versions toBeRemoved = new Versions();
-        for (Versions v: versionedAttributes.values()) {
-            for (Pair p: v) {
-                if ((Long)p.second()< timestamp && p != v.get(v.size()-1)) toBeRemoved.add(p);
-            }
-            for (Pair rv: toBeRemoved) {
-                v.remove(rv);
-            }
-            toBeRemoved.clear();
+    public void removeOldStates(Long timestamp){
+        for (String name: versionedAttributes.keySet()) {
+            removeOldStates(name, timestamp);
         }
-        Object[] toRemove= versionedAttributes.entrySet().parallelStream().filter(stringVersionsEntry -> stringVersionsEntry.getValue().isEmpty()).toArray();
-        for (Object o: toRemove) {
-            versionedAttributes.remove(((Map.Entry<String, Versions>) o).getKey());
-        }
-
     }
 
     /**
      * Get latest version
-     * @param key
-     * @return
      */
     public String getValue (String key){
         Versions values = versionedAttributes.get(key);
         return values.get(values.size()-1).second();
     }
 
-    public ArrayList<Pair<Long, String>>
+    public Versions getValues (String key, Long t1, Long t2){
+        Versions values = versionedAttributes.get(key);
+        if (values == null || values.isEmpty()) return new Versions();
+        return values.subVersions(t1, t2);
+    }
+
 
     @Override
     public VertexState clone(){
@@ -81,8 +99,19 @@ public class VertexState implements Serializable {
         return newState;
     }
 
+
+    public static class Versions extends ArrayList<Pair<Long, String>> implements Serializable {
+        private static final long serialVersionUID = 200003L;
+
+        public Versions subVersions (long t1, long t2){
+            Versions result = new Versions();
+            for (Pair<Long, String> entry: this) {
+                if (entry.first() > t2) return result;
+                else if (entry.first() >= t1) result.add(new Pair<>(entry.first().longValue(), entry.second()));
+            }
+            return result;
+        }
+    }
+
 }
 
-class Versions extends ArrayList<Pair<Long, String>> {
-    private static final long serialVersionUID = 200003L;
-}

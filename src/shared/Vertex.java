@@ -11,9 +11,9 @@ public class Vertex implements Serializable {
     private static final long serialVersionUID = 200000L;
 
     final private String vertexName;
-    private List<Edge> outgoingEdges = null;
+    final private List<Edge> outgoingEdges;
 
-    private VertexState state;
+    final public VertexState state;
 
     public Vertex(String vertexName, @Nullable VertexState vertexState) {
         this.vertexName = vertexName;
@@ -28,20 +28,6 @@ public class Vertex implements Serializable {
     public void addEdge(String destinationVertex){
         outgoingEdges.add(new Edge(destinationVertex));
     }
-
-    public VertexState getStateClone () {
-        return state.clone();
-    }
-
-    /**
-     * @param updates
-     */
-    public void updateState (Vertex updates){
-        if (!updates.getVertexName().equals(this.vertexName)) return; //Todo: exception
-
-        VertexState toBeAdded = updates.getStateClone();
-
-        toBeAdded.
 
     }
 }
