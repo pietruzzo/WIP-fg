@@ -6,15 +6,14 @@ import akka.actor.ActorSelection;
 import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
-import it.polimi.dist.graphproc.common.Utils;
-import it.polimi.dist.graphproc.common.messages.TaskManagerAnnounceMsg;
-import it.polimi.dist.graphproc.common.messages.TaskManagerInitMsg;
-import it.polimi.dist.graphproc.common.messages.commands.ChangeEdgeMsg;
-import it.polimi.dist.graphproc.common.messages.commands.ChangeVertexMsg;
-import it.polimi.dist.graphproc.common.messages.vertexcentric.*;
-import it.polimi.dist.graphproc.vertexcentric.InOutboxImpl;
-import it.polimi.dist.graphproc.vertexcentric.MsgSenderPair;
-import it.polimi.dist.graphproc.vertexcentric.VertexCentricComputation;
+import shared.AkkaMessages.DistributeHashMapMsg;
+import shared.AkkaMessages.LaunchAckMsg;
+import shared.AkkaMessages.SlaveAnnounceMsg;
+import shared.AkkaMessages.modifyGraph.AddEdgeMsg;
+import shared.AkkaMessages.modifyGraph.DeleteEdgeMsg;
+import shared.AkkaMessages.modifyGraph.DeleteVertexMsg;
+import shared.AkkaMessages.modifyGraph.UpdateVertexMsg;
+import shared.data.DataSet;
 
 import java.util.*;
 import java.util.Map.Entry;
@@ -23,32 +22,33 @@ public class TaskManagerActor extends AbstractActor {
 	private final LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
 
 	private final String name;
-	private final int numMyWorkers;
+	private final int numWorkers;
 	private final String masterAddress;
 
 	private ActorSelection master;
-	private final Map<ActorRef, Integer> slaves = new HashMap<>();
+	private Map<Integer, ActorRef> slaves;
+
+	private final DataSet vertices = new DataSet();
 	//private  VertexCentricComputation computation=null;
 
 	// State for vertex centric computation
-	int numWaitingFor = 0;
-	private InOutboxImpl superstepBox;
+	//private InOutboxImpl superstepBox;
 
     //variables for result unification
-	private List<ResultReplyMsg> msgBuffer = new ArrayList<>();
-	int msgCount = 0;
+	//private List<ResultReplyMsg> msgBuffer = new ArrayList<>();
+	//int msgCount = 0;
 
-	private TaskManagerActor(String name, int numMyWorkers, String masterAddress) {
+	private TaskManagerActor(String name, int numWorkers, String masterAddress) {
 		this.name = name;
-		this.numMyWorkers = numMyWorkers;
+		this.numWorkers = numWorkers;
 		this.masterAddress = masterAddress;
 	}
 
 	@Override
 	public void preStart() throws Exception {
 		super.preStart();
-		jobManager = getContext().actorSelection(jobManagerAddr);
-		jobManager.tell(new TaskManagerAnnounceMsg(name, numMyWorkers), self());
+		master = getContext().actorSelection(masterAddress);
+		master.tell(new SlaveAnnounceMsg(name, numWorkers), self());
 	}
 
 	@Override
@@ -62,19 +62,21 @@ public class TaskManagerActor extends AbstractActor {
 
 	private final Receive preInitState() {
 		return receiveBuilder(). //
-		    match(TaskManagerInitMsg.class, this::onTaskManagerInitMsg). //
+		    match(DistributeHashMapMsg.class, this::onDistributeHashMapMsg). //
 		    build();
 	}
 
 	private final Receive initializedState() {
-		return receiveBuilder(). //
-		    match(ChangeVertexMsg.class, this::onChangeVertexMsg). //
-		    match(ChangeEdgeMsg.class, this::onChangeEdgeMsg). //
-		    match(InstallComputationMsg.class, this::onInstallComputationMsg). //
-		    match(StartComputationMsg.class, this::onStartComputationMsg). //
-		    match(ComputationMsg.class, this::onComputationMsg). //
-		    match(ResultRequestMsg.class, this::onResultRequestMsg). //
-		    match(ResultReplyMsg.class, this::onResultReplyMsg). //
+		return receiveBuilder().
+		    match(AddEdgeMsg.class, this::onChangeVertexMsg). //
+		    match(DeleteEdgeMsg.class, this::onChangeEdgeMsg). //
+			match(DeleteVertexMsg.class, this::onChangeVertexMsg). //
+			match(UpdateVertexMsg.class, this::onChangeEdgeMsg). //
+		    //match(InstallComputationMsg.class, this::onInstallComputationMsg). //
+		    //match(StartComputationMsg.class, this::onStartComputationMsg). //
+		    //match(ComputationMsg.class, this::onComputationMsg). //
+		    //match(ResultRequestMsg.class, this::onResultRequestMsg). //
+		    //match(ResultReplyMsg.class, this::onResultReplyMsg). //
 		    build();
 	}
 
@@ -82,32 +84,17 @@ public class TaskManagerActor extends AbstractActor {
 	 * Message processing
 	 */
 
-	private final void onTaskManagerInitMsg(TaskManagerInitMsg initMsg) {
+	private final void onDistributeHashMapMsg(DistributeHashMapMsg initMsg) {
 		log.info(initMsg.toString());
-		taskManagers = initMsg.getTaskManagers();
-		numAllWorkers = initMsg.getNumWorkers();
+		slaves = initMsg.getHashMapping();
 
-		// Compute the identifier of my first worker
-		int firstWorkerId = 0;
-		for (final Entry<Integer, ActorRef> entry : taskManagers.entrySet()) {
-			if (entry.getValue().equals(self())) {
-				firstWorkerId = entry.getKey();
-				break;
-			}
-		}
-
-		// Initialize my workers
-		for (int i = 0; i < numMyWorkers; i++) {
-			final int workerId = firstWorkerId + i;
-			final ActorRef worker = getContext().actorOf(WorkerActor.props(workerId), name + "_worker_" + i);
-			workers.put(workerId, worker);
-		}
+		master.tell(new LaunchAckMsg(), self());
 
 		getContext().become(initializedState());
 	}
 
 
-
+/*
 	private final void onChangeVertexMsg(ChangeVertexMsg msg) {
 		log.info(msg.toString());
 		final int workerId = Utils.computeResponsibleWorkerFor(msg.getName(), numAllWorkers);
@@ -148,7 +135,7 @@ public class TaskManagerActor extends AbstractActor {
 				}
 			}
 			if (numWaitingFor == 0) {
-				jobManager.tell(new ComputationMsg<>(superstepBox, msg.getSuperstep(), false), self());
+				master.tell(new ComputationMsg<>(superstepBox, msg.getSuperstep(), false), self());
 			}
 		}
 	}
@@ -177,14 +164,14 @@ public class TaskManagerActor extends AbstractActor {
 			HashSet<HashSet<String>> finalResult = (HashSet<HashSet<String>>) computation.mergeResults(results);
 			msgCount = 0;
 			msgBuffer.clear();
-			jobManager.tell(new ResultReplyMsg<>(finalResult), sender());
+			master.tell(new ResultReplyMsg<>(finalResult), sender());
 
 		} else {
 			msgBuffer.add(msg);
 		}
 
 	}
-
+*/
 	/**
 	 * Props for this actor
 	 */

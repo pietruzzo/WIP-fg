@@ -5,18 +5,6 @@ import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
-import it.polimi.dist.graphproc.common.Utils;
-import it.polimi.dist.graphproc.common.messages.TaskManagerAnnounceMsg;
-import it.polimi.dist.graphproc.common.messages.TaskManagerInitMsg;
-import it.polimi.dist.graphproc.common.messages.commands.ChangeEdgeMsg;
-import it.polimi.dist.graphproc.common.messages.commands.ChangeGraphMsg;
-import it.polimi.dist.graphproc.common.messages.commands.ChangeVertexMsg;
-import it.polimi.dist.graphproc.common.messages.commands.StartMsg;
-import it.polimi.dist.graphproc.common.messages.vertexcentric.*;
-import it.polimi.dist.graphproc.vertexcentric.InOutboxImpl;
-import it.polimi.dist.graphproc.vertexcentric.Inbox;
-import it.polimi.dist.graphproc.vertexcentric.MsgSenderPair;
-import it.polimi.dist.graphproc.vertexcentric.VertexCentricComputation;
 import shared.AkkaMessages.LaunchAckMsg;
 import shared.AkkaMessages.DistributeHashMapMsg;
 import shared.AkkaMessages.LaunchMsg;
@@ -25,6 +13,7 @@ import shared.AkkaMessages.modifyGraph.AddEdgeMsg;
 import shared.AkkaMessages.modifyGraph.DeleteEdgeMsg;
 import shared.AkkaMessages.modifyGraph.DeleteVertexMsg;
 import shared.AkkaMessages.modifyGraph.UpdateVertexMsg;
+import shared.PartitionAssignment;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -44,22 +33,9 @@ public class JobManagerActor extends AbstractActorWithStash {
 	private final Map<Integer, ActorRef> hashMapping = new HashMap<>();
 
 	private final AtomicInteger waitingResponses = new AtomicInteger(0);
-	/*
 
-	private VertexCentricComputation computation = null;
-	private List<ResultReplyMsg> msgBuffer = new ArrayList<>();
-	int msgCount = 0;
-	 */
+	private State nextState = this::waitSlaves;
 
-	/**
-	 * State for iterative computations
-	 */
-	/*
-	private Map<Integer, InOutboxImpl> superstepMsgs = new HashMap<>();
-	private int receivedReplies = 0;
-	private int expectedReplies = 0;
-
-	 */
 
 	@Override
 	public Receive createReceive() {
@@ -80,16 +56,26 @@ public class JobManagerActor extends AbstractActorWithStash {
 		    build();
 	}
 
+	private final Receive waitAck() { //Startup phase
+		return receiveBuilder().
+				match(LaunchAckMsg.class, this::onLaunchAckMsg).
+				build();
+	}
+
 
 	private final Receive receiveChangeState() { //Compute a new graph change
 		return receiveBuilder().
-		    match(AddEdgeMsg.class, this::onInstallComputationMsg).
-		    match(DeleteEdgeMsg.class, this::onChangeEdgeMsg).
-		    match(DeleteVertexMsg.class, this::onChangeVertexMsg).
-				match(UpdateVertexMsg.class, this::onChangeVertexMsg).
+		    match(AddEdgeMsg.class, this::onAddEdgeMsg).
+		    match(DeleteEdgeMsg.class, this::onDeleteEdgeMsg).
+		    match(DeleteVertexMsg.class, this::onDeleteVertexMsg).
+			match(UpdateVertexMsg.class, this::onUpdateVertexMsg).
+				//todo:Install Computation
 		    build();
 	}
 
+	private final Receive iterativeComputationState(){
+		return null; //todo
+	}
 	/*
 	private final Receive iterativeComputationState() {
 		return receiveBuilder(). //
@@ -111,6 +97,27 @@ public class JobManagerActor extends AbstractActorWithStash {
 	/**
 	 * Message processing
 	 */
+
+	private final void onAddEdgeMsg(AddEdgeMsg msg){
+		ActorRef slave = getActor(msg.getSourceName());
+		slave.forward(msg, getContext());
+		nextState = this::iterativeComputationState;
+	}
+	private final void onDeleteEdgeMsg(DeleteEdgeMsg msg){
+		ActorRef slave = getActor(msg.getSourceName());
+		slave.forward(msg, getContext());
+		nextState = this::iterativeComputationState;
+	}
+	private final void onDeleteVertexMsg(DeleteVertexMsg msg){
+		ActorRef slave = getActor(msg.getVertexName());
+		slave.forward(msg, getContext());
+		nextState = this::iterativeComputationState;
+	}
+	private final void onUpdateVertexMsg(UpdateVertexMsg msg){
+		ActorRef slave = getActor(msg.getVertexName());
+		slave.forward(msg, getContext());
+		nextState = this::iterativeComputationState;
+	}
 
 	private final void onSlaveAnnounceMsg(SlaveAnnounceMsg msg) {
 		log.info(msg.toString());
@@ -137,11 +144,13 @@ public class JobManagerActor extends AbstractActorWithStash {
 		for (ActorRef slave: slaves.keySet()) {
 			slave.tell(new DistributeHashMapMsg(hashMapping), self());
 		}
+		nextState = this::receiveChangeState;
+		getContext().become(waitAck());
 	}
 
 	private final void onLaunchAckMsg(LaunchAckMsg msg){
 		if(waitingResponses.decrementAndGet() == 0)
-			getContext().become(receiveChangeState());
+			getContext().become(nextState.invoke());
 
 	}
 
@@ -263,5 +272,13 @@ public class JobManagerActor extends AbstractActorWithStash {
 	/*
 		Utils functions
 	 */
+	private ActorRef getActor(String name) {
+		return hashMapping.get(PartitionAssignment.getPartition(name, hashMapping.size()));
+	}
 
+
+	@FunctionalInterface
+	public static interface State{
+		Receive invoke();
+	}
 }
