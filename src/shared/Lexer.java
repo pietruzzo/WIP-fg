@@ -19,7 +19,7 @@ public class Lexer {
         ATTROPEN("<"),
         ATTRCLOSE(">"),
         EQUALITY("="),
-        STRING("[-|?|.|0-9|a-z|A-Z]+"),
+        STRING("[-|?|^_|.|0-9|a-z|A-Z]+"),
         WHITESPACE("[ \t\f\r\n]+");
 
         public final String pattern;
@@ -129,15 +129,15 @@ public class Lexer {
                 state = 6;
             } else if ((state == 3 || state ==5)&& next.type == Type.DELETE){
                 state = 0;
-                if (name2==null)  messages.add(new DeleteVertexMsg(name1));
-                else messages.add(new DeleteEdgeMsg(name1, name2));
+                if (name2==null)  messages.add(new DeleteVertexMsg(name1, null));
+                else messages.add(new DeleteEdgeMsg(name1, name2, null));
             } else if (state == 4 && next.type == Type.STRING) {
                 state = 5;
                 name2 = next.data;
             } else if ((state == 6 || state == 9) && next.data.equals(">")){
                 state = 0;
-                if (name2 == null) messages.add(new UpdateVertexMsg(name1, attributes));
-                else messages.add(new AddEdgeMsg(name1, name2,  attributes));
+                if (name2 == null) messages.add(new UpdateVertexMsg(name1, attributes, null));
+                else messages.add(new AddEdgeMsg(name1, name2, addEdgeName(attributes, name2), null));
             } else if (state == 6 && next.type == Type.STRING){
                 attrName = next.data;
                 state = 7;
@@ -151,6 +151,14 @@ public class Lexer {
             }
         }
         return messages;
+    }
+
+    private static ArrayList<Pair<String, String>> addEdgeName(ArrayList<Pair<String, String>> attributes, String destination) {
+        ArrayList<Pair<String, String>> result = new ArrayList<>();
+        for (Pair<String, String> attribute : attributes) {
+            result.add(new Pair<>(destination + "_" + attribute.first(), attribute.second()));
+        }
+        return result;
     }
 
     public static void main(String[] args) {

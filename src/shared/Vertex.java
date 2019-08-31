@@ -30,6 +30,7 @@ public class Vertex implements Serializable {
 
     public boolean removeEdge(String destinationVertex) {
        return outgoingEdges.remove(destinationVertex);
+       //TODO: Remove associated state
     }
 
 

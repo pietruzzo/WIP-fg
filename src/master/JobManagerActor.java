@@ -100,23 +100,31 @@ public class JobManagerActor extends AbstractActorWithStash {
 
 	private final void onAddEdgeMsg(AddEdgeMsg msg){
 		ActorRef slave = getActor(msg.getSourceName());
-		slave.forward(msg, getContext());
+		slave.tell(new AddEdgeMsg(msg.getSourceName(), msg.getDestinationName(), msg.getAttributes(), System.currentTimeMillis()), self());
+		waitingResponses.set(1);
 		nextState = this::iterativeComputationState;
+		getContext().become(waitAck(), true);
 	}
 	private final void onDeleteEdgeMsg(DeleteEdgeMsg msg){
 		ActorRef slave = getActor(msg.getSourceName());
-		slave.forward(msg, getContext());
+		slave.tell(new DeleteEdgeMsg(msg.getSourceName(), msg.getDestinationName(), System.currentTimeMillis()), self());
+		waitingResponses.set(1);
 		nextState = this::iterativeComputationState;
+		getContext().become(waitAck(), true);
 	}
 	private final void onDeleteVertexMsg(DeleteVertexMsg msg){
 		ActorRef slave = getActor(msg.getVertexName());
-		slave.forward(msg, getContext());
+		slave.tell(new DeleteVertexMsg(msg.getVertexName(),  System.currentTimeMillis()), self());
+		waitingResponses.set(1);
 		nextState = this::iterativeComputationState;
+		getContext().become(waitAck(), true);
 	}
 	private final void onUpdateVertexMsg(UpdateVertexMsg msg){
 		ActorRef slave = getActor(msg.getVertexName());
-		slave.forward(msg, getContext());
+		slave.tell(new UpdateVertexMsg(msg.getVertexName(), msg.getAttributes(), System.currentTimeMillis()), self());
+		waitingResponses.set(1);
 		nextState = this::iterativeComputationState;
+		getContext().become(waitAck(), true);
 	}
 
 	private final void onSlaveAnnounceMsg(SlaveAnnounceMsg msg) {

@@ -6,6 +6,7 @@ import akka.actor.ActorSelection;
 import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
+import akka.japi.Pair;
 import shared.AkkaMessages.DistributeHashMapMsg;
 import shared.AkkaMessages.LaunchAckMsg;
 import shared.AkkaMessages.SlaveAnnounceMsg;
@@ -13,6 +14,7 @@ import shared.AkkaMessages.modifyGraph.AddEdgeMsg;
 import shared.AkkaMessages.modifyGraph.DeleteEdgeMsg;
 import shared.AkkaMessages.modifyGraph.DeleteVertexMsg;
 import shared.AkkaMessages.modifyGraph.UpdateVertexMsg;
+import shared.Vertex;
 import shared.data.DataSet;
 
 import java.util.*;
@@ -68,10 +70,10 @@ public class TaskManagerActor extends AbstractActor {
 
 	private final Receive initializedState() {
 		return receiveBuilder().
-		    match(AddEdgeMsg.class, this::onChangeVertexMsg). //
-		    match(DeleteEdgeMsg.class, this::onChangeEdgeMsg). //
-			match(DeleteVertexMsg.class, this::onChangeVertexMsg). //
-			match(UpdateVertexMsg.class, this::onChangeEdgeMsg). //
+		    match(AddEdgeMsg.class, this::onAddEdgeMsg). //
+		    match(DeleteEdgeMsg.class, this::onDeleteEdgeMsg). //
+			match(DeleteVertexMsg.class, this::onDeleteVertexMsg). //
+			match(UpdateVertexMsg.class, this::onUpdateVertexMsg). //
 		    //match(InstallComputationMsg.class, this::onInstallComputationMsg). //
 		    //match(StartComputationMsg.class, this::onStartComputationMsg). //
 		    //match(ComputationMsg.class, this::onComputationMsg). //
@@ -94,18 +96,43 @@ public class TaskManagerActor extends AbstractActor {
 	}
 
 
-/*
-	private final void onChangeVertexMsg(ChangeVertexMsg msg) {
+
+	private final void onAddEdgeMsg(AddEdgeMsg msg) {
 		log.info(msg.toString());
-		final int workerId = Utils.computeResponsibleWorkerFor(msg.getName(), numAllWorkers);
-		workers.get(workerId).forward(msg, getContext());
+		Vertex vertex = vertices.get(msg.getSourceName());
+		vertex.addEdge(msg.getDestinationName());
+		for (Pair<String, String> attribute : msg.getAttributes()) {
+			vertex.state.addToState(attribute.first(), attribute.second(), msg.getTimestamp());
+		}
+
+		master.tell(new LaunchAckMsg(), self());
 	}
 
-	private final void onChangeEdgeMsg(ChangeEdgeMsg msg) {
+	private final void onDeleteEdgeMsg(DeleteEdgeMsg msg) {
 		log.info(msg.toString());
-		final int workerId = Utils.computeResponsibleWorkerFor(msg.getSource(), numAllWorkers);
-		workers.get(workerId).forward(msg, getContext());
+		Vertex vertex = vertices.get(msg.getSourceName());
+		vertex.removeEdge(msg.getDestinationName());
+
+		master.tell(new LaunchAckMsg(), self());
 	}
+
+	private final void onDeleteVertexMsg(DeleteVertexMsg msg) {
+		log.info(msg.toString());
+		vertices.remove(msg.getVertexName());
+
+		master.tell(new LaunchAckMsg(), self());
+	}
+
+	private final void onUpdateVertexMsg(UpdateVertexMsg msg) {
+		log.info(msg.toString());
+		Vertex vertex = vertices.get(msg.getVertexName());
+		for (Pair<String, String> attribute : msg.getAttributes()) {
+			vertex.state.addToState(attribute.first(), attribute.second(), msg.getTimestamp());
+		}
+
+		master.tell(new LaunchAckMsg(), self());
+	}
+/*
 
 	private final void onInstallComputationMsg(InstallComputationMsg msg) {
 		log.info(msg.toString());
