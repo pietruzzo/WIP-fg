@@ -1,7 +1,9 @@
 package shared.AkkaMessages;
 
+import shared.computation.ComputationId;
+
 import java.io.Serializable;
-import java.util.Map;
+import java.util.HashMap;
 
 public class StepMessage implements Serializable {
 
@@ -10,12 +12,15 @@ public class StepMessage implements Serializable {
     final String destinationVertex;
     final String originVertex;
 
-    final Map<String, String> computationValues;
+    final HashMap<String, String> computationValues;
 
 
-    public StepMessage(String destinationVertex, String originVertex, Map<String, String> computationValues) {
+
+    public StepMessage(String destinationVertex, String originVertex, HashMap<String, String> computationValues, ComputationId computation) {
         this.destinationVertex = destinationVertex;
         this.originVertex = originVertex;
         this.computationValues = computationValues;
     }
+
+
 }

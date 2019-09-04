@@ -9,13 +9,13 @@ import java.util.Map;
 public class DistributeHashMapMsg implements Serializable {
     private static final long serialVersionUID = 200007L;
 
-    private final Map<Integer, ActorRef> hashMapping;
+    private final HashMap<Integer, ActorRef> hashMapping;
 
-    public DistributeHashMapMsg(Map<Integer, ActorRef> hashMapping) {
+    public DistributeHashMapMsg(HashMap<Integer, ActorRef> hashMapping) {
         this.hashMapping = hashMapping;
     }
 
-    public Map<Integer, ActorRef> getHashMapping() {
+    public HashMap<Integer, ActorRef> getHashMapping() {
         return hashMapping;
     }
 }

@@ -44,7 +44,7 @@ public class Vertex implements Serializable {
 
         static public final String DELETE_VALUE = "DELETE";
 
-        final private Map<String, Versions> versionedAttributes;  //AttributeName - List of Pairs < Timestamp, Value >
+        final private HashMap<String, Versions> versionedAttributes;  //AttributeName - List of Pairs < Timestamp, Value >
 
         public State(){
             versionedAttributes = new HashMap<>();
