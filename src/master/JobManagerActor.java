@@ -30,7 +30,7 @@ public class JobManagerActor extends AbstractActorWithStash {
 	/**
 	 * Map hash values to slaves
 	 */
-	private final Map<Integer, ActorRef> hashMapping = new HashMap<>();
+	private final HashMap<Integer, ActorRef> hashMapping = new HashMap<>();
 
 	private final AtomicInteger waitingResponses = new AtomicInteger(0);
 

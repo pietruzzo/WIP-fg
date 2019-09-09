@@ -9,10 +9,10 @@ public class StepMessage implements Serializable {
 
     private static final long serialVersionUID = 200004L;
 
-    final String destinationVertex;
-    final String originVertex;
+    public final String destinationVertex;
+    public final String originVertex;
 
-    final HashMap<String, String> computationValues;
+    public final HashMap<String, String> computationValues;
 
 
 

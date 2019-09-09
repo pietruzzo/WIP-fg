@@ -19,6 +19,9 @@ import shared.data.DataSet;
 
 import java.util.*;
 import java.util.Map.Entry;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 public class TaskManagerActor extends AbstractActor {
 	private final LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
@@ -31,6 +34,8 @@ public class TaskManagerActor extends AbstractActor {
 	private Map<Integer, ActorRef> slaves;
 
 	private final DataSet vertices = new DataSet();
+
+	private ThreadPoolExecutor executors;
 	//private  VertexCentricComputation computation=null;
 
 	// State for vertex centric computation
@@ -89,6 +94,7 @@ public class TaskManagerActor extends AbstractActor {
 	private final void onDistributeHashMapMsg(DistributeHashMapMsg initMsg) {
 		log.info(initMsg.toString());
 		slaves = initMsg.getHashMapping();
+		executors = new ThreadPoolExecutor(numWorkers, numWorkers, 0, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
 
 		master.tell(new LaunchAckMsg(), self());
 

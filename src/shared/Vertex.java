@@ -118,5 +118,6 @@ public class Vertex implements Serializable {
             return result;
         }
     }
+
 }
 
