@@ -1,11 +1,12 @@
 package shared.AkkaMessages;
 
-import shared.computation.ComputationId;
-
 import java.io.Serializable;
 import java.util.HashMap;
 
-public class StepMessage implements Serializable {
+/**
+ * Message that slaves exchange to each other
+ */
+public class StepMsg implements Serializable {
 
     private static final long serialVersionUID = 200004L;
 
@@ -16,7 +17,7 @@ public class StepMessage implements Serializable {
 
 
 
-    public StepMessage(String destinationVertex, String originVertex, HashMap<String, String> computationValues, ComputationId computation) {
+    public StepMsg(String destinationVertex, String originVertex, HashMap<String, String> computationValues) {
         this.destinationVertex = destinationVertex;
         this.originVertex = originVertex;
         this.computationValues = computationValues;

@@ -7,18 +7,15 @@ import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import akka.japi.Pair;
-import shared.AkkaMessages.DistributeHashMapMsg;
-import shared.AkkaMessages.LaunchAckMsg;
-import shared.AkkaMessages.SlaveAnnounceMsg;
+import shared.AkkaMessages.*;
 import shared.AkkaMessages.modifyGraph.AddEdgeMsg;
 import shared.AkkaMessages.modifyGraph.DeleteEdgeMsg;
 import shared.AkkaMessages.modifyGraph.DeleteVertexMsg;
 import shared.AkkaMessages.modifyGraph.UpdateVertexMsg;
 import shared.Vertex;
-import shared.data.DataSet;
+import shared.computation.Computation;
 
 import java.util.*;
-import java.util.Map.Entry;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -33,22 +30,16 @@ public class TaskManagerActor extends AbstractActor {
 	private ActorSelection master;
 	private Map<Integer, ActorRef> slaves;
 
-	private final DataSet vertices = new DataSet();
+	private HashMap<String, Vertex> vertices;
+	private HashMap<String, Computation> computations;
 
 	private ThreadPoolExecutor executors;
-	//private  VertexCentricComputation computation=null;
-
-	// State for vertex centric computation
-	//private InOutboxImpl superstepBox;
-
-    //variables for result unification
-	//private List<ResultReplyMsg> msgBuffer = new ArrayList<>();
-	//int msgCount = 0;
 
 	private TaskManagerActor(String name, int numWorkers, String masterAddress) {
 		this.name = name;
 		this.numWorkers = numWorkers;
 		this.masterAddress = masterAddress;
+		this.computations = new HashMap<>();
 	}
 
 	@Override
@@ -79,8 +70,8 @@ public class TaskManagerActor extends AbstractActor {
 		    match(DeleteEdgeMsg.class, this::onDeleteEdgeMsg). //
 			match(DeleteVertexMsg.class, this::onDeleteVertexMsg). //
 			match(UpdateVertexMsg.class, this::onUpdateVertexMsg). //
-		    //match(InstallComputationMsg.class, this::onInstallComputationMsg). //
-		    //match(StartComputationMsg.class, this::onStartComputationMsg). //
+		    match(InstallComputationMsg.class, this::onInstallComputationMsg). //
+		    match(StartComputationStepMsg.class, this::onStartComputationStepMsg). //
 		    //match(ComputationMsg.class, this::onComputationMsg). //
 		    //match(ResultRequestMsg.class, this::onResultRequestMsg). //
 		    //match(ResultReplyMsg.class, this::onResultReplyMsg). //
@@ -96,7 +87,7 @@ public class TaskManagerActor extends AbstractActor {
 		slaves = initMsg.getHashMapping();
 		executors = new ThreadPoolExecutor(numWorkers, numWorkers, 0, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
 
-		master.tell(new LaunchAckMsg(), self());
+		master.tell(new AckMsg(), self());
 
 		getContext().become(initializedState());
 	}
@@ -111,7 +102,7 @@ public class TaskManagerActor extends AbstractActor {
 			vertex.state.addToState(attribute.first(), attribute.second(), msg.getTimestamp());
 		}
 
-		master.tell(new LaunchAckMsg(), self());
+		master.tell(new AckMsg(), self());
 	}
 
 	private final void onDeleteEdgeMsg(DeleteEdgeMsg msg) {
@@ -119,14 +110,14 @@ public class TaskManagerActor extends AbstractActor {
 		Vertex vertex = vertices.get(msg.getSourceName());
 		vertex.removeEdge(msg.getDestinationName());
 
-		master.tell(new LaunchAckMsg(), self());
+		master.tell(new AckMsg(), self());
 	}
 
 	private final void onDeleteVertexMsg(DeleteVertexMsg msg) {
 		log.info(msg.toString());
 		vertices.remove(msg.getVertexName());
 
-		master.tell(new LaunchAckMsg(), self());
+		master.tell(new AckMsg(), self());
 	}
 
 	private final void onUpdateVertexMsg(UpdateVertexMsg msg) {
@@ -135,76 +126,29 @@ public class TaskManagerActor extends AbstractActor {
 		for (Pair<String, String> attribute : msg.getAttributes()) {
 			vertex.state.addToState(attribute.first(), attribute.second(), msg.getTimestamp());
 		}
-
-		master.tell(new LaunchAckMsg(), self());
+		master.tell(new AckMsg(), self());
 	}
-/*
 
 	private final void onInstallComputationMsg(InstallComputationMsg msg) {
 		log.info(msg.toString());
-		computation=(VertexCentricComputation) msg.getComputationSupplier().get();
-		workers.values().forEach(worker -> worker.tell(msg, self()));
+		computations.put(msg.getIdentifier(), msg.getComputation());
+		master.tell(new AckMsg(), self());
 	}
 
-	private final void onStartComputationMsg(StartComputationMsg msg) {
+	private final void onStartComputationStepMsg(StartComputationStepMsg msg) {
 		log.info(msg.toString());
-		workers.values().forEach(worker -> worker.tell(msg, self()));
-		numWaitingFor = workers.size();
-		superstepBox = new InOutboxImpl<>();
+
+		//Todo
+		//Allocate ComputationRuntime if step = 0
+		//Run RuntimeComputation (in parallel)
+
+
 	}
 
-	private final void onComputationMsg(ComputationMsg msg) {
-		log.info(msg.toString());
-		if (msg.isFromJobManager()) {
-			workers.values().forEach(worker -> worker.tell(msg, self()));
-			log.info("AAAA");
-			numWaitingFor = workers.size();
-			superstepBox = new InOutboxImpl<>();
-		} else {
-			numWaitingFor--;
-			for (final String recipient : (Set<String>) msg.recipients()) {
-				for (final MsgSenderPair pair : (List<MsgSenderPair>) msg.messagesFor(recipient)) {
-					superstepBox.add(recipient, pair);
-				}
-			}
-			if (numWaitingFor == 0) {
-				master.tell(new ComputationMsg<>(superstepBox, msg.getSuperstep(), false), self());
-			}
-		}
-	}
-
-	private final void onResultRequestMsg(ResultRequestMsg msg) {
-		log.info(msg.toString());
-
-
-		log.info(msg.toString());
-		//wait for multiple message before aggregation
-        workers.values().stream().forEach(worker -> worker.tell(msg, self()));
-		//workers.values().stream().findAny().ifPresent(worker -> worker.tell(msg, self()));
-	}
-
-	private final void onResultReplyMsg(ResultReplyMsg msg) {
-		log.info(msg.toString());
-		msgCount++;
-		if (msgCount==workers.size()) {
-			msgBuffer.add(msg);
-			Set<HashSet<HashSet<String>>> results = new HashSet<>();
-			for (ResultReplyMsg msgb : msgBuffer) {
-				HashSet<HashSet<String>> msgResult = (HashSet<HashSet<String>>) msgb.getResult();
-
-				results.add(msgResult);
-			}
-			HashSet<HashSet<String>> finalResult = (HashSet<HashSet<String>>) computation.mergeResults(results);
-			msgCount = 0;
-			msgBuffer.clear();
-			master.tell(new ResultReplyMsg<>(finalResult), sender());
-
-		} else {
-			msgBuffer.add(msg);
-		}
+	private final void onInboxesMsg(){
 
 	}
-*/
+
 	/**
 	 * Props for this actor
 	 */

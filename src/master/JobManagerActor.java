@@ -5,15 +5,13 @@ import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
-import shared.AkkaMessages.LaunchAckMsg;
-import shared.AkkaMessages.DistributeHashMapMsg;
-import shared.AkkaMessages.LaunchMsg;
-import shared.AkkaMessages.SlaveAnnounceMsg;
+import shared.AkkaMessages.*;
 import shared.AkkaMessages.modifyGraph.AddEdgeMsg;
 import shared.AkkaMessages.modifyGraph.DeleteEdgeMsg;
 import shared.AkkaMessages.modifyGraph.DeleteVertexMsg;
 import shared.AkkaMessages.modifyGraph.UpdateVertexMsg;
 import shared.PartitionAssignment;
+import shared.computation.Computation;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -31,6 +29,8 @@ public class JobManagerActor extends AbstractActorWithStash {
 	 * Map hash values to slaves
 	 */
 	private final HashMap<Integer, ActorRef> hashMapping = new HashMap<>();
+
+	private final HashMap<String, Computation> computations = new HashMap<>();
 
 	private final AtomicInteger waitingResponses = new AtomicInteger(0);
 
@@ -52,13 +52,13 @@ public class JobManagerActor extends AbstractActorWithStash {
 		return receiveBuilder().
 		    match(SlaveAnnounceMsg.class, this::onSlaveAnnounceMsg).
 		    match(LaunchMsg.class, this::onLaunchMsg).
-			match(LaunchAckMsg.class, this::onLaunchAckMsg).
+			match(AckMsg.class, this::onLaunchAckMsg).
 		    build();
 	}
 
 	private final Receive waitAck() { //Startup phase
 		return receiveBuilder().
-				match(LaunchAckMsg.class, this::onLaunchAckMsg).
+				match(AckMsg.class, this::onLaunchAckMsg).
 				build();
 	}
 
@@ -69,29 +69,13 @@ public class JobManagerActor extends AbstractActorWithStash {
 		    match(DeleteEdgeMsg.class, this::onDeleteEdgeMsg).
 		    match(DeleteVertexMsg.class, this::onDeleteVertexMsg).
 			match(UpdateVertexMsg.class, this::onUpdateVertexMsg).
-				//todo:Install Computation
+			match(InstallComputationMsg.class, this::onInstallComputationMsg).
 		    build();
 	}
 
 	private final Receive iterativeComputationState(){
 		return null; //todo
 	}
-	/*
-	private final Receive iterativeComputationState() {
-		return receiveBuilder(). //
-		    match(ComputationMsg.class, this::onComputationMsg). //
-		    match(ChangeGraphMsg.class, msg -> stash()). //
-		    build();
-	}
-
-	private final Receive waitingForReplyState() {
-		return receiveBuilder(). //
-		    match(ResultReplyMsg.class, this::onResultReplyMsg). //
-		    match(ChangeGraphMsg.class, msg -> stash()). //
-		    build();
-	}
-	 */
-
 
 
 	/**
@@ -156,13 +140,11 @@ public class JobManagerActor extends AbstractActorWithStash {
 		getContext().become(waitAck());
 	}
 
-	private final void onLaunchAckMsg(LaunchAckMsg msg){
+	private final void onLaunchAckMsg(AckMsg msg){
 		if(waitingResponses.decrementAndGet() == 0)
 			getContext().become(nextState.invoke());
 
 	}
-
-/*
 
 
 
@@ -170,13 +152,16 @@ public class JobManagerActor extends AbstractActorWithStash {
 
 	private final void onInstallComputationMsg(InstallComputationMsg msg) {
 		log.info(msg.toString());
-		computation = (VertexCentricComputation) msg.getComputationSupplier().get();
-		for (final ActorRef taskManager : taskManagers.values()) {
-			taskManager.tell(msg, self());
+		computations.put(msg.getIdentifier(), msg.getComputation());
+		for (final ActorRef slave : slaves.keySet()) {
+			slave.tell(msg, self());
 		}
+		nextState = this::receiveChangeState;
+		waitingResponses.set(slaves.size());
+		getContext().become(waitAck());
 	}
 
-
+/*
 	private final void onChangeVertexMsg(ChangeVertexMsg msg) {
 		log.info(msg.toString());
 		final int responsibleWorker = Utils.computeResponsibleWorkerFor(msg.getName(), numWorkers);
@@ -286,7 +271,7 @@ public class JobManagerActor extends AbstractActorWithStash {
 
 
 	@FunctionalInterface
-	public static interface State{
+	public interface State{
 		Receive invoke();
 	}
 }

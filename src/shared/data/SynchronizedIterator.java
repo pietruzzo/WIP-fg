@@ -14,7 +14,7 @@ public class SynchronizedIterator<T> implements Iterator<T> {
         this.it = iterator;
     }
 
-    @Override
+    @Override @Deprecated
     public synchronized boolean hasNext() {
         return it.hasNext();
     }

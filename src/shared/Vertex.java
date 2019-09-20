@@ -6,6 +6,10 @@ import jdk.internal.jline.internal.Nullable;
 import java.io.Serializable;
 import java.util.*;
 
+/**
+ * edge state is stored in state with a key of type "vertexName-attributeKeyName"
+ * computation result is stored as "value1-value2-value3...-attributeKeyName"
+ */
 public class Vertex implements Serializable {
     private static final long serialVersionUID = 200000L;
 

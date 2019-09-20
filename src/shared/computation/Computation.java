@@ -1,12 +1,11 @@
 package shared.computation;
 
 import akka.japi.Pair;
-import shared.Vertex;
 
+import java.io.Serializable;
 import java.util.List;
-import java.util.Set;
 
-public interface Computation<TMsg> {
+public interface Computation<TMsg> extends Serializable {
 
     /**
      * @param vertex copy of the vertex
@@ -15,6 +14,12 @@ public interface Computation<TMsg> {
      * @return outgoing messages
      */
     List<TMsg> iterate (VertexProxy vertex, List<TMsg> incoming, int iterationStep);
+
+    /**
+     * @param vertex copy of the vertex
+     * @return outgoing messages
+     */
+    List<TMsg> firstIterate (VertexProxy vertex);
 
     /**
      *
