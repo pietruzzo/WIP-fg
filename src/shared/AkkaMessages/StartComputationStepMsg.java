@@ -23,6 +23,9 @@ public class StartComputationStepMsg implements Serializable {
         return computationId;
     }
 
+    /**
+     * @return null if runs over all Free Variables
+     */
     public LinkedHashMap<String, String> getFreeVars() {
         return freeVars;
     }

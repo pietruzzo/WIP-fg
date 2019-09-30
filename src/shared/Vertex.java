@@ -118,6 +118,7 @@ public class Vertex implements Serializable {
             for (Pair<Long, String> entry: this) {
                 if (entry.first() > t2) return result;
                 else if (entry.first() >= t1) result.add(new Pair<>(entry.first().longValue(), entry.second()));
+                //.longValue() is needed to make a copy of the object
             }
             return result;
         }

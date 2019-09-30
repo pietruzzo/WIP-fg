@@ -14,6 +14,8 @@ import shared.AkkaMessages.modifyGraph.DeleteVertexMsg;
 import shared.AkkaMessages.modifyGraph.UpdateVertexMsg;
 import shared.Vertex;
 import shared.computation.Computation;
+import shared.computation.ComputationRuntime;
+import shared.computation.Partitions;
 
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -32,6 +34,7 @@ public class TaskManagerActor extends AbstractActor {
 
 	private HashMap<String, Vertex> vertices;
 	private HashMap<String, Computation> computations;
+	private Partitions partitions;
 
 	private ThreadPoolExecutor executors;
 
@@ -40,6 +43,7 @@ public class TaskManagerActor extends AbstractActor {
 		this.numWorkers = numWorkers;
 		this.masterAddress = masterAddress;
 		this.computations = new HashMap<>();
+		this.partitions = null;
 	}
 
 	@Override
@@ -137,9 +141,16 @@ public class TaskManagerActor extends AbstractActor {
 
 	private final void onStartComputationStepMsg(StartComputationStepMsg msg) {
 		log.info(msg.toString());
-
 		//Todo
-		//Allocate ComputationRuntime if step = 0
+		if (msg.getStepNumber()== 0){
+			//If no partitions are available, no select or free variables have been allocated
+			if (partitions == null)
+
+			//NOTE: Partiions must be reset on emission process
+
+			//Allocate ComputationRuntime
+			//Run first iteration
+		}
 		//Run RuntimeComputation (in parallel)
 
 
@@ -154,5 +165,9 @@ public class TaskManagerActor extends AbstractActor {
 	 */
 	public static final Props props(String name, int numMyWorkers, String jobManagerAddr) {
 		return Props.create(TaskManagerActor.class, name, numMyWorkers, jobManagerAddr);
+	}
+
+	private static ComputationRuntime generateRuntime(){
+		new ComputationRuntime()
 	}
 }
