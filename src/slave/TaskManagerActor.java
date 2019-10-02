@@ -7,20 +7,25 @@ import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import akka.japi.Pair;
+import org.apache.flink.api.java.tuple.Tuple;
 import shared.AkkaMessages.*;
 import shared.AkkaMessages.modifyGraph.AddEdgeMsg;
 import shared.AkkaMessages.modifyGraph.DeleteEdgeMsg;
 import shared.AkkaMessages.modifyGraph.DeleteVertexMsg;
 import shared.AkkaMessages.modifyGraph.UpdateVertexMsg;
+import shared.PartitionAssignment;
 import shared.Vertex;
 import shared.computation.Computation;
 import shared.computation.ComputationRuntime;
 import shared.computation.Partitions;
+import shared.computation.VertexProxy;
+import shared.data.BoxMsg;
+import shared.data.SynchronizedIterator;
 
 import java.util.*;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 public class TaskManagerActor extends AbstractActor {
 	private final LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
@@ -37,6 +42,7 @@ public class TaskManagerActor extends AbstractActor {
 	private Partitions partitions;
 
 	private ThreadPoolExecutor executors;
+	private final AtomicInteger waitingResponses = new AtomicInteger(0);
 
 	private TaskManagerActor(String name, int numWorkers, String masterAddress) {
 		this.name = name;
@@ -80,6 +86,12 @@ public class TaskManagerActor extends AbstractActor {
 		    //match(ResultRequestMsg.class, this::onResultRequestMsg). //
 		    //match(ResultReplyMsg.class, this::onResultReplyMsg). //
 		    build();
+	}
+
+	private final Receive waitingResponseState() {
+		return receiveBuilder().
+				match(BoxMsg.class, this::onInboxMsg).
+				build();
 	}
 
 	/**
@@ -139,25 +151,42 @@ public class TaskManagerActor extends AbstractActor {
 		master.tell(new AckMsg(), self());
 	}
 
-	private final void onStartComputationStepMsg(StartComputationStepMsg msg) {
+	private final void onStartComputationStepMsg(StartComputationStepMsg msg) throws ExecutionException, InterruptedException {
 		log.info(msg.toString());
-		//Todo
-		if (msg.getStepNumber()== 0){
-			//If no partitions are available, no select or free variables have been allocated
-			if (partitions == null)
 
-			//NOTE: Partiions must be reset on emission process
-
-			//Allocate ComputationRuntime
-			//Run first iteration
+		//If no partitions are available, no select or free variables have been allocated
+		if (partitions == null){
+			this.partitions = new Partitions.Leaf(new ComputationRuntime(msg.getTimestamp(), this.computations.get(msg.getComputationId()), null, getAllReadOnlyVertices()));
+			//Run first iteration on selected free variables, if NULL on all free variables
 		}
 		//Run RuntimeComputation (in parallel)
-
+		if (msg.getFreeVars() == null) {
+			//Get all Runtimes and send messages
+			for (ComputationRuntime computationRuntime: partitions.getAll()) {
+				computationRuntime.compute(msg.getStepNumber(), this.executors);
+				sendOutBox(computationRuntime.getOutgoingMessages());
+			}
+		} else {
+			//get and run the specific runtime and send messages
+			ComputationRuntime computationRuntime = partitions.get(msg.getFreeVars());
+			computationRuntime.compute(msg.getStepNumber(), this.executors);
+			sendOutBox(computationRuntime.getOutgoingMessages());
+		}
 
 	}
 
-	private final void onInboxesMsg(){
 
+	/**
+	 * Handle incoming inbox registering messages
+	 * @param incoming
+	 * @implNote Get runtimes and add messages, than decrease waiting, send back ack and if waiting is zero change state
+	 */
+	private final void onInboxMsg(BoxMsg incoming){
+		ComputationRuntime computationRuntime = this.partitions.get(incoming.getPartition());
+		computationRuntime.updateIncomingMsgs(incoming);
+		if (this.waitingResponses.decrementAndGet() == 0){
+			getContext().become(initializedState());
+		}
 	}
 
 	/**
@@ -167,7 +196,55 @@ public class TaskManagerActor extends AbstractActor {
 		return Props.create(TaskManagerActor.class, name, numMyWorkers, jobManagerAddr);
 	}
 
-	private static ComputationRuntime generateRuntime(){
-		new ComputationRuntime()
+	private Map<String, VertexProxy> getAllReadOnlyVertices(){
+		Map<String, VertexProxy> result =
+				this.vertices.values()
+				.parallelStream()
+				.filter(v -> !v.state.getValue("DEL").equals("true"))
+				.map(v -> new VertexProxy(v, (ArrayList<String>)v.getOutgoingEdges().clone()))
+				.collect(Collectors.toMap(v -> v.getVertexName(), v -> v));
+		return result;
+	}
+
+	/**
+	 * Sent ougoing messages to other actors
+	 * @param outgoingBox
+	 */
+	private void sendOutBox(BoxMsg outgoingBox){
+		//Create an outbox for each ActorRef
+		Map<ActorRef, BoxMsg> outboxes = new HashMap();
+		for (ActorRef destinations: this.slaves.values()) {
+			BoxMsg box = new BoxMsg(outgoingBox.getStepNumber());
+			box.setPartition(outgoingBox.getPartition());
+			outboxes.put(destinations, box);
+		}
+		//For each vertex destination retrieve the actor and populate its box
+		SynchronizedIterator<Map.Entry<String, ArrayList>> destIterator = outgoingBox.getSyncIterator();
+		executors.execute(() -> {
+			try {
+				while (true) {
+					//From outgoingBox <destination,Messages> -> <Actor, <destination, Messages>>
+					Map.Entry<String, ArrayList> vertex = destIterator.next();
+					ActorRef destActor = getActor(vertex.getKey());
+					outboxes.get(destActor).put(vertex.getKey(), vertex.getValue());
+				}
+			} catch (NoSuchElementException e){ /* END */}
+		});
+
+		//Increase waiting response and send if not empty
+		for (Map.Entry<ActorRef, BoxMsg> destOutbox: outboxes.entrySet()) {
+			if (!destOutbox.getValue().isEmpty()){
+				this.waitingResponses.incrementAndGet();
+				destOutbox.getKey().tell(destOutbox.getValue(), self());
+			}
+		}
+
+		//Switch to waiting response state
+		getContext().become(waitingResponseState());
+		//End
+	}
+
+	private ActorRef getActor(String vertex) {
+		return this.slaves.get(PartitionAssignment.getPartition(vertex, this.slaves.size()));
 	}
 }

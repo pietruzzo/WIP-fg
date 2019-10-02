@@ -14,25 +14,27 @@ public class ComputationRuntime {
 
     private final long timestamp;
     private final Computation computation;
-    private final LinkedHashMap<String, String> selValues;
-    private final HashMap<String, VertexProxy> vertices; //con gli edges modificati
+    private final LinkedHashMap<String, String> freeVars; //FreeVars
+    private final Map<String, VertexProxy> vertices; //con gli edges modificati
 
     private int stepNumber;
-    private SynchronizedIterator<Map.Entry<String, List<StepMsg>>> ingoingMessages; //Vertex name - List of Messages
     private BoxMsg outgoingMessages;
+    private BoxMsg inboxMessages;
+    private SynchronizedIterator<Map.Entry<String, List<StepMsg>>> ingoingMessages; //Vertex name - List of Messages
 
 
-    public ComputationRuntime(long timestamp, Computation computation, LinkedHashMap<String, String> selValues, HashMap<String, VertexProxy> vertices) {
+    public ComputationRuntime(long timestamp, Computation computation, LinkedHashMap<String, String> freeVars, Map<String, VertexProxy> vertices) {
         this.timestamp = timestamp;
         this.computation = computation;
-        this.selValues = selValues;
+        this.freeVars = freeVars;
         this.vertices = vertices;
+        this.inboxMessages = new BoxMsg(timestamp);
     }
 
-    public BoxMsg<StepMsg> compute (BoxMsg incoming, int stepNumber, ThreadPoolExecutor executors) throws ExecutionException, InterruptedException {
+    public BoxMsg<StepMsg> compute (int stepNumber, ThreadPoolExecutor executors) throws ExecutionException, InterruptedException {
         Collection<Future> executions = new LinkedList<>();
         this.stepNumber = stepNumber;
-        this.ingoingMessages = incoming.getSyncIterator();
+        this.ingoingMessages = this.inboxMessages.getSyncIterator();
         outgoingMessages = new BoxMsg(stepNumber);
         //Launch executors
         for (int i = 0; i < executors.getMaximumPoolSize(); i++) {
@@ -65,15 +67,20 @@ public class ComputationRuntime {
     }
 
 
-    public Map<String, String> getSelValues() {
-        return selValues;
+    public Map<String, String> getPartition() {
+        return freeVars;
     }
 
     public int getStepNumber() {
         return stepNumber;
     }
 
+    /**
+     * Attach partition and return
+     * @return
+     */
     public BoxMsg getOutgoingMessages() {
+        this.outgoingMessages.setPartition(this.freeVars);
         return outgoingMessages;
     }
 
@@ -85,6 +92,26 @@ public class ComputationRuntime {
      */
     private void registerResult(String vertexName, String key, String value) {
         //TODO: we need a callback to original vertex
+    }
+
+    /**
+     * Add incoming messages to existing ones if they have the same timestamp, otherwise flush older version
+     * and add new messages
+     */
+    public <TMes> void updateIncomingMsgs(BoxMsg ingoingMessages){
+        if (ingoingMessages.getStepNumber()> this.inboxMessages.getStepNumber()){
+            this.inboxMessages = new BoxMsg(ingoingMessages.getStepNumber());
+        }
+        SynchronizedIterator<Map.Entry<String, ArrayList<TMes>>> entry = ingoingMessages.getSyncIterator();
+        try{
+            while(true){
+                Map.Entry<String, ArrayList<TMes>> e = entry.next();
+
+                for (TMes message: e.getValue()) {
+                    this.inboxMessages.put(e.getKey(), e.getValue());
+                }
+            }
+        } catch (NoSuchElementException e) {/*End*/}
     }
 
 

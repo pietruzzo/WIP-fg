@@ -14,14 +14,14 @@ public class Vertex implements Serializable {
     private static final long serialVersionUID = 200000L;
 
     final private String vertexName;
-    final private List<String> outgoingEdges;
+    final private ArrayList<String> outgoingEdges;
 
     final public State state;
 
     public Vertex(String vertexName, @Nullable State state) {
         this.vertexName = vertexName;
         this.state = state;
-        outgoingEdges = new ArrayList<>();
+        this.outgoingEdges = new ArrayList<>();
     }
 
     public String getVertexName() {
@@ -37,7 +37,9 @@ public class Vertex implements Serializable {
        //TODO: Remove associated state
     }
 
-
+    public ArrayList<String> getOutgoingEdges(){
+        return outgoingEdges;
+    }
 
 
     public static class State implements Serializable {

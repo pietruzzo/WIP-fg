@@ -1,9 +1,9 @@
 package shared.computation;
 
 import akka.japi.Pair;
+import jdk.internal.jline.internal.Nullable;
 import org.apache.commons.math3.exception.DimensionMismatchException;
 
-import java.nio.charset.MalformedInputException;
 import java.util.*;
 
 public abstract class Partitions {
@@ -11,6 +11,7 @@ public abstract class Partitions {
     abstract public List<String> getNames();
     abstract public void addComputationRuntime(Map<String, String> partition, ComputationRuntime computation);
     abstract public ComputationRuntime get(Map<String, String> partition);
+    abstract public List<ComputationRuntime> getAll();
 
     public static class Node extends Partitions{
 
@@ -45,13 +46,21 @@ public abstract class Partitions {
             return names;
         }
 
+        public List<ComputationRuntime> getAll(){
+            ArrayList<ComputationRuntime> result = new ArrayList<>();
+            for (Partitions partition: nodes.values()) {
+                result.addAll(partition.getAll());
+            }
+            return result;
+        }
+
         public ComputationRuntime get(Map<String, String> partition){
             Partitions child = nodes.get(partition.get(this.varName));
             return child.get(partition);
         }
 
         /*
-        I don't like this
+        I don't like this, too illegible
          */
         public void addComputationRuntime(Map<String, String> partition, ComputationRuntime computation) throws IllegalArgumentException{
             List<Pair<String, String>> orderedPartition = reorder(partition);
@@ -99,6 +108,14 @@ public abstract class Partitions {
 
         private ComputationRuntime computationRuntime;
 
+        public Leaf() {
+            this.computationRuntime = null;
+        }
+
+        public Leaf(ComputationRuntime computationRuntime) {
+            this.computationRuntime = computationRuntime;
+        }
+
         @Override
         public List<String> getNames() {
             return new ArrayList<>();
@@ -110,8 +127,15 @@ public abstract class Partitions {
         }
 
         @Override
-        public ComputationRuntime get(Map<String, String> partition) {
+        public ComputationRuntime get(@Nullable Map<String, String> partition) {
             return this.computationRuntime;
+        }
+
+        @Override
+        public List<ComputationRuntime> getAll() {
+            ArrayList<ComputationRuntime> result = new ArrayList<>();
+            result.add(this.computationRuntime); //Un check se null?
+            return result;
         }
     }
 }
