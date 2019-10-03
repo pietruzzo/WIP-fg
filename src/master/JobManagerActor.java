@@ -10,7 +10,7 @@ import shared.AkkaMessages.modifyGraph.AddEdgeMsg;
 import shared.AkkaMessages.modifyGraph.DeleteEdgeMsg;
 import shared.AkkaMessages.modifyGraph.DeleteVertexMsg;
 import shared.AkkaMessages.modifyGraph.UpdateVertexMsg;
-import shared.PartitionAssignment;
+import shared.Utils;
 import shared.computation.Computation;
 
 import java.util.*;
@@ -266,7 +266,7 @@ public class JobManagerActor extends AbstractActorWithStash {
 		Utils functions
 	 */
 	private ActorRef getActor(String name) {
-		return hashMapping.get(PartitionAssignment.getPartition(name, hashMapping.size()));
+		return hashMapping.get(Utils.getPartition(name, hashMapping.size()));
 	}
 
 

@@ -1,7 +1,9 @@
 package shared.computation;
 
 import akka.japi.Pair;
+import jdk.internal.jline.internal.Nullable;
 import shared.AkkaMessages.StepMsg;
+import shared.Utils;
 import shared.data.BoxMsg;
 import shared.data.SynchronizedIterator;
 
@@ -12,6 +14,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 
 public class ComputationRuntime {
 
+    private final ComputationCallback taskManager;
     private final long timestamp;
     private final Computation computation;
     private final LinkedHashMap<String, String> freeVars; //FreeVars
@@ -20,10 +23,10 @@ public class ComputationRuntime {
     private int stepNumber;
     private BoxMsg outgoingMessages;
     private BoxMsg inboxMessages;
-    private SynchronizedIterator<Map.Entry<String, List<StepMsg>>> ingoingMessages; //Vertex name - List of Messages
 
 
-    public ComputationRuntime(long timestamp, Computation computation, LinkedHashMap<String, String> freeVars, Map<String, VertexProxy> vertices) {
+    public ComputationRuntime(ComputationCallback taskManager, long timestamp, Computation computation, LinkedHashMap<String, String> freeVars, Map<String, VertexProxy> vertices) {
+        this.taskManager = taskManager;
         this.timestamp = timestamp;
         this.computation = computation;
         this.freeVars = freeVars;
@@ -32,18 +35,12 @@ public class ComputationRuntime {
     }
 
     public BoxMsg<StepMsg> compute (int stepNumber, ThreadPoolExecutor executors) throws ExecutionException, InterruptedException {
-        Collection<Future> executions = new LinkedList<>();
         this.stepNumber = stepNumber;
-        this.ingoingMessages = this.inboxMessages.getSyncIterator();
         outgoingMessages = new BoxMsg(stepNumber);
+
         //Launch executors
-        for (int i = 0; i < executors.getMaximumPoolSize(); i++) {
-            executors.submit(new ComputationThread(this));
-        }
-        //Wait executors end
-        for (Future<?> future: executions) {
-            future.get();
-        }
+        Utils.parallelizeAndWait(executors, new ComputationThread(this, new SynchronizedIterator<>(vertices.values().iterator()), this.inboxMessages.getSyncIterator()));
+
         //Return BoxMsg
         return outgoingMessages;
     }
@@ -53,7 +50,7 @@ public class ComputationRuntime {
 
         //Launch executors
         for (int i = 0; i < executors.getMaximumPoolSize(); i++) {
-            executors.submit(new ComputeResultsThread(this));
+            executors.submit(new ComputeResultsThread(this, new SynchronizedIterator<>(vertices.values().iterator()), null));
         }
 
         //Wait executors end
@@ -91,7 +88,7 @@ public class ComputationRuntime {
      * @param value
      */
     private void registerResult(String vertexName, String key, String value) {
-        //TODO: we need a callback to original vertex
+        taskManager.updateState(vertexName, key, value, this.timestamp);
     }
 
     /**
@@ -118,9 +115,13 @@ public class ComputationRuntime {
     static class ComputationThread implements Runnable {
 
         private final ComputationRuntime computationRuntime;
+        private final SynchronizedIterator<VertexProxy> vertexIterator;
+        private final SynchronizedIterator<Map.Entry<String, List<StepMsg>>> ingoingMessages;
 
-        ComputationThread(ComputationRuntime computationRuntime){
+        ComputationThread(ComputationRuntime computationRuntime, @Nullable SynchronizedIterator<VertexProxy> vertexIterator, @Nullable SynchronizedIterator<Map.Entry<String, List<StepMsg>>> ingoingMessages){
             this.computationRuntime = computationRuntime;
+            this.vertexIterator = vertexIterator;
+            this.ingoingMessages = ingoingMessages;
         }
 
         @Override
@@ -137,7 +138,6 @@ public class ComputationRuntime {
         }
 
         private void firstStep(){
-            SynchronizedIterator <VertexProxy> vertexIterator= new SynchronizedIterator<>(computationRuntime.vertices.values().iterator());
             while (true) {
                 VertexProxy vertex = vertexIterator.next();
                 registerOutgoingMsg(computationRuntime.computation.firstIterate(vertex));
@@ -146,7 +146,7 @@ public class ComputationRuntime {
 
         private void step(){
             while (true) {
-                Map.Entry<String, List<StepMsg>> next = computationRuntime.ingoingMessages.next();
+                Map.Entry<String, List<StepMsg>> next = ingoingMessages.next();
                 VertexProxy vertex = computationRuntime.vertices.get(next.getKey());
                 List<StepMsg> messages = next.getValue();
                 int stepNumber = computationRuntime.stepNumber;
@@ -163,25 +163,22 @@ public class ComputationRuntime {
 
     static class ComputeResultsThread extends ComputationThread {
 
-        SynchronizedIterator<VertexProxy> vertexIterator;
-        ComputeResultsThread(ComputationRuntime computationRuntime) {
-            super(computationRuntime);
+
+        ComputeResultsThread(ComputationRuntime computationRuntime, @Nullable SynchronizedIterator<VertexProxy> vertexIterator, @Nullable SynchronizedIterator<Map.Entry<String, List<StepMsg>>> ingoingMessages) {
+            super(computationRuntime, vertexIterator, ingoingMessages);
         }
 
         @Override
         public void run() {
             try {
-                vertexIterator= new SynchronizedIterator<>(super.computationRuntime.vertices.values().iterator());
                 while (true) {
-                    VertexProxy vertex = vertexIterator.next();
+                    VertexProxy vertex = super.vertexIterator.next();
                     List<Pair<String, String>> results = super.computationRuntime.computation.compute_result(vertex);
                     for (Pair<String, String> e: results) {
                         super.computationRuntime.registerResult(vertex.getVertexName(), e.first(), e.second());
                     }
                 }
-            } catch (NoSuchElementException e) {
-                //No more Elements -> End of Execution
-            }
+            } catch (NoSuchElementException e) {/* END */}
         }
     }
 }

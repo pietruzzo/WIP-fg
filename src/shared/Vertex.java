@@ -20,7 +20,11 @@ public class Vertex implements Serializable {
 
     public Vertex(String vertexName, @Nullable State state) {
         this.vertexName = vertexName;
-        this.state = state;
+        if (state == null){
+            this.state = new State();
+        } else{
+            this.state = state;
+        }
         this.outgoingEdges = new ArrayList<>();
     }
 

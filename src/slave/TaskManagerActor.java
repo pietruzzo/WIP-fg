@@ -7,18 +7,14 @@ import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import akka.japi.Pair;
-import org.apache.flink.api.java.tuple.Tuple;
 import shared.AkkaMessages.*;
 import shared.AkkaMessages.modifyGraph.AddEdgeMsg;
 import shared.AkkaMessages.modifyGraph.DeleteEdgeMsg;
 import shared.AkkaMessages.modifyGraph.DeleteVertexMsg;
 import shared.AkkaMessages.modifyGraph.UpdateVertexMsg;
-import shared.PartitionAssignment;
+import shared.Utils;
 import shared.Vertex;
-import shared.computation.Computation;
-import shared.computation.ComputationRuntime;
-import shared.computation.Partitions;
-import shared.computation.VertexProxy;
+import shared.computation.*;
 import shared.data.BoxMsg;
 import shared.data.SynchronizedIterator;
 
@@ -27,7 +23,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-public class TaskManagerActor extends AbstractActor {
+public class TaskManagerActor extends AbstractActor implements ComputationCallback {
 	private final LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
 
 	private final String name;
@@ -139,6 +135,9 @@ public class TaskManagerActor extends AbstractActor {
 	private final void onUpdateVertexMsg(UpdateVertexMsg msg) {
 		log.info(msg.toString());
 		Vertex vertex = vertices.get(msg.getVertexName());
+		if (vertex == null){ //Create a new vertex
+			vertex = new Vertex(msg.vertexName, null);
+		}
 		for (Pair<String, String> attribute : msg.getAttributes()) {
 			vertex.state.addToState(attribute.first(), attribute.second(), msg.getTimestamp());
 		}
@@ -159,7 +158,7 @@ public class TaskManagerActor extends AbstractActor {
 			this.partitions = new Partitions.Leaf(new ComputationRuntime(msg.getTimestamp(), this.computations.get(msg.getComputationId()), null, getAllReadOnlyVertices()));
 			//Run first iteration on selected free variables, if NULL on all free variables
 		}
-		//Run RuntimeComputation (in parallel)
+		//Run RuntimeComputation (in series)
 		if (msg.getFreeVars() == null) {
 			//Get all Runtimes and send messages
 			for (ComputationRuntime computationRuntime: partitions.getAll()) {
@@ -210,7 +209,7 @@ public class TaskManagerActor extends AbstractActor {
 	 * Sent ougoing messages to other actors
 	 * @param outgoingBox
 	 */
-	private void sendOutBox(BoxMsg outgoingBox){
+	private void sendOutBox(BoxMsg outgoingBox) throws ExecutionException, InterruptedException {
 		//Create an outbox for each ActorRef
 		Map<ActorRef, BoxMsg> outboxes = new HashMap();
 		for (ActorRef destinations: this.slaves.values()) {
@@ -220,7 +219,7 @@ public class TaskManagerActor extends AbstractActor {
 		}
 		//For each vertex destination retrieve the actor and populate its box
 		SynchronizedIterator<Map.Entry<String, ArrayList>> destIterator = outgoingBox.getSyncIterator();
-		executors.execute(() -> {
+		Utils.parallelizeAndWait(executors, () -> {
 			try {
 				while (true) {
 					//From outgoingBox <destination,Messages> -> <Actor, <destination, Messages>>
@@ -230,14 +229,13 @@ public class TaskManagerActor extends AbstractActor {
 				}
 			} catch (NoSuchElementException e){ /* END */}
 		});
-
-		//Increase waiting response and send if not empty
-		for (Map.Entry<ActorRef, BoxMsg> destOutbox: outboxes.entrySet()) {
-			if (!destOutbox.getValue().isEmpty()){
-				this.waitingResponses.incrementAndGet();
-				destOutbox.getKey().tell(destOutbox.getValue(), self());
+			//Increase waiting response and send if not empty
+			for (Map.Entry<ActorRef, BoxMsg> destOutbox: outboxes.entrySet()) {
+				if (!destOutbox.getValue().isEmpty()){
+					this.waitingResponses.incrementAndGet();
+					destOutbox.getKey().tell(destOutbox.getValue(), self());
+				}
 			}
-		}
 
 		//Switch to waiting response state
 		getContext().become(waitingResponseState());
@@ -245,6 +243,11 @@ public class TaskManagerActor extends AbstractActor {
 	}
 
 	private ActorRef getActor(String vertex) {
-		return this.slaves.get(PartitionAssignment.getPartition(vertex, this.slaves.size()));
+		return this.slaves.get(Utils.getPartition(vertex, this.slaves.size()));
+	}
+
+	@Override
+	public void updateState(String vertexName, String key, String value, long timestamp) {
+		vertices.get(vertexName).state.addToState(key, value, timestamp);
 	}
 }
