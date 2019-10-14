@@ -12,7 +12,7 @@ computation : '.compute(' computationFunction ')' ;
 
 selection : '.select(' selectionFunction ')' ;
 
-extraction : '.extract(' ( ('EDGE') (label ',')* label)? ')' ;
+extraction : '.extract(' ( 'EDGE'? (label ',')* label)? ')' ;
 
 operation : '.' operationFunction ;
 
@@ -33,7 +33,7 @@ selectionFunction
     ;
 selRecursion
     : BinBoolOperator selectionFunction selRecursion
-    | 'EDGE [' selectionFunction ']' selRecursion
+    | 'EDGE[' selectionFunction ']' selRecursion
     |
     ;
 

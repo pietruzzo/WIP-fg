@@ -1,6 +1,7 @@
 package shared.computation;
 
 import akka.japi.Pair;
+import shared.selection.Variable;
 
 import java.io.Serializable;
 import java.util.List;
