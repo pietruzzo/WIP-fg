@@ -17,7 +17,7 @@ public class ComputationRuntime {
     private final ComputationCallback taskManager;
     private final long timestamp;
     private final Computation computation;
-    private final LinkedHashMap<String, String> freeVars; //FreeVars
+    private final LinkedHashMap<String, String> freeVars; //FreeVars, can be null
     private final Map<String, VertexProxy> vertices; //con gli edges modificati
 
     private int stepNumber;
@@ -45,7 +45,7 @@ public class ComputationRuntime {
         return outgoingMessages;
     }
 
-    public void getResults (ThreadPoolExecutor executors) throws ExecutionException, InterruptedException {
+    public void computeResults(ThreadPoolExecutor executors) throws ExecutionException, InterruptedException {
         Collection<Future> executions = new LinkedList<>();
 
         //Launch executors

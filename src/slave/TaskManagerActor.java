@@ -17,6 +17,7 @@ import shared.Vertex;
 import shared.computation.*;
 import shared.data.BoxMsg;
 import shared.data.SynchronizedIterator;
+import shared.selection.Variable;
 
 import java.util.*;
 import java.util.concurrent.*;
@@ -36,6 +37,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 	private HashMap<String, Vertex> vertices;
 	private HashMap<String, Computation> computations;
 	private Partitions partitions;
+	private HashMap<String, Variable> variables;
 
 	private ThreadPoolExecutor executors;
 	private final AtomicInteger waitingResponses = new AtomicInteger(0);
@@ -46,6 +48,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 		this.masterAddress = masterAddress;
 		this.computations = new HashMap<>();
 		this.partitions = null;
+		this.variables = new HashMap<>();
 	}
 
 	@Override
@@ -78,15 +81,15 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 			match(UpdateVertexMsg.class, this::onUpdateVertexMsg). //
 		    match(InstallComputationMsg.class, this::onInstallComputationMsg). //
 		    match(StartComputationStepMsg.class, this::onStartComputationStepMsg). //
-		    //match(ComputationMsg.class, this::onComputationMsg). //
-		    //match(ResultRequestMsg.class, this::onResultRequestMsg). //
-		    //match(ResultReplyMsg.class, this::onResultReplyMsg). //
+			match(ComputeResultsMsg.class, this::onComputeResultMsg). //
+			match(RegisterVariableMsg.class, this::onRegisterVariableMsg). //
 		    build();
 	}
 
 	private final Receive waitingResponseState() {
 		return receiveBuilder().
-				match(BoxMsg.class, this::onInboxMsg).
+				match(BoxMsg.class, this::onInboxMsg). //
+				match(AckMsg.class, this::onAckMsg). //
 				build();
 	}
 
@@ -155,7 +158,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 
 		//If no partitions are available, no select or free variables have been allocated
 		if (partitions == null){
-			this.partitions = new Partitions.Leaf(new ComputationRuntime(msg.getTimestamp(), this.computations.get(msg.getComputationId()), null, getAllReadOnlyVertices()));
+			this.partitions = new Partitions.Leaf(new ComputationRuntime(this, msg.getTimestamp(), this.computations.get(msg.getComputationId()), null, getAllReadOnlyVertices()));
 			//Run first iteration on selected free variables, if NULL on all free variables
 		}
 		//Run RuntimeComputation (in series)
@@ -171,7 +174,23 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 			computationRuntime.compute(msg.getStepNumber(), this.executors);
 			sendOutBox(computationRuntime.getOutgoingMessages());
 		}
+		master.tell(new AckMsg(), self());
 
+	}
+
+	private final void onComputeResultMsg(ComputeResultsMsg msg) throws ExecutionException, InterruptedException {
+		if (msg.getFreeVars() == null) {
+			//Get all Runtimes and send messages
+			for (ComputationRuntime computationRuntime: partitions.getAll()) {
+				computationRuntime.computeResults(this.executors);
+			}
+		} else {
+			//get and run the specific runtime and send messages
+			ComputationRuntime computationRuntime = partitions.get(msg.getFreeVars());
+			computationRuntime.computeResults(this.executors);
+			sendOutBox(computationRuntime.getOutgoingMessages());
+		}
+		master.tell(new AckMsg(), self());
 	}
 
 
@@ -183,11 +202,22 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 	private final void onInboxMsg(BoxMsg incoming){
 		ComputationRuntime computationRuntime = this.partitions.get(incoming.getPartition());
 		computationRuntime.updateIncomingMsgs(incoming);
+		getSender().tell(new AckMsg(), self());
+	}
+
+	/**
+	 * Other slave has received my Outgoing messages
+	 */
+	private final void onAckMsg(AckMsg msg){
 		if (this.waitingResponses.decrementAndGet() == 0){
 			getContext().become(initializedState());
 		}
 	}
 
+	private final void onRegisterVariableMsg(RegisterVariableMsg msg) {
+		this.variables.put(msg.getVariable().name, msg.getVariable());
+		master.tell(new AckMsg(), self());
+	}
 	/**
 	 * Props for this actor
 	 */
@@ -196,13 +226,11 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 	}
 
 	private Map<String, VertexProxy> getAllReadOnlyVertices(){
-		Map<String, VertexProxy> result =
-				this.vertices.values()
-				.parallelStream()
-				.filter(v -> !v.state.getValue("DEL").equals("true"))
-				.map(v -> new VertexProxy(v, (ArrayList<String>)v.getOutgoingEdges().clone()))
-				.collect(Collectors.toMap(v -> v.getVertexName(), v -> v));
-		return result;
+		return this.vertices.values()
+		.parallelStream()
+		.filter(v -> !v.state.getValue("DEL").equals("true"))
+		.map(v -> new VertexProxy(v, (ArrayList<String>)v.getOutgoingEdges().clone()))
+		.collect(Collectors.toMap(v -> v.getVertexName(), v -> v));
 	}
 
 	/**

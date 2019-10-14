@@ -24,7 +24,7 @@ public interface Computation<TMsg> extends Serializable {
     /**
      *
      * @param vertex copy of the vertex
-     * @return <Key, Value> pairs that will be saved in vertex state
+     * @return THe list of <Key, Value> pairs that will be saved in vertex state
      */
     List<Pair<String, String>> compute_result (VertexProxy vertex);
 
