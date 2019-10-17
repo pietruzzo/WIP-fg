@@ -1,12 +1,12 @@
 grammar Pattern;
 
 temporalPattern :
-    ( basicPattern ( (joinStreams|temporalVariable) (operation)+ emission)* )+ EOF
+    ( basicPattern ( (collectStreams|temporalVariable) (operation)+ emission ';')* )+ EOF
     ;
 
-joinStreams : '(' temporalVariable (',' temporalVariable)* ')'; //EVERY is meaningless
+collectStreams : '(' temporalVariable (',' temporalVariable)* ')'; //EVERY is meaningless
 
-basicPattern :  '.g()' triggerComputation?  (computation | selection)* extraction (operation)* emission ;
+basicPattern :  '.g()' triggerComputation?  (computation | selection)* extraction (operation)* emission ';';
 
 computation : '.compute(' computationFunction ')' ;
 
@@ -20,6 +20,7 @@ computationFunction : functionName ',' label (', [' variable+ ']' )?;
 
 /*selectionFunction :
     boolPredicate
+    | ( label = freeVariable)
 	| ( selectionFunction BinBoolOperator selectionFunction )
     | ( UnaryBoolOperator selectionFunction )
 	| ( '(' selectionFunction  ')' )
@@ -28,6 +29,7 @@ computationFunction : functionName ',' label (', [' variable+ ']' )?;
 
 selectionFunction
     : boolPredicate selRecursion
+    | label '=' freeVariable
     | UnaryBoolOperator selectionFunction selRecursion
     | '(' selectionFunction  ')' selRecursion
     ;
@@ -39,6 +41,11 @@ selRecursion
 
 boolPredicate : (label | temporalVariable) Operator ( value | temporalVariable | label) ;
 
+freeVariable
+    : '$FREE'
+    | variable '.' label
+    ;
+
 operationFunction
     : ( 'map' | 'flatmap' | 'reduce' | 'filter' ) '(' functionName')'
     | ('groupby' | 'collect') '(' label ')'
@@ -47,11 +54,14 @@ operationFunction
 triggerComputation :
     triggerInput
     | triggerTemporal
+    | triggerSensitivity
     ;
 
 triggerInput : '.trigger(' ('edge' | 'vertex') ( 'addition' | 'deletion' | 'update' ) 'as' variable ('[' boolPredicate* ']')? ')' ;
 
 triggerTemporal : '.trigger(' Timeunit ')' ;
+
+triggerSensitivity : '.trigger(' variable ')' ;
 
 emission : '.emit(' variable ')' ;
 
