@@ -1,10 +1,10 @@
 grammar Pattern;
 
 temporalPattern :
-    ( basicPattern ( (collectStreams|temporalVariable) (operation)+ emission ';')* )+ EOF
+    ( basicPattern ( (collectStreams|temporalVariable) (operation)+ (emission | evaluation) ';')* )+ EOF
     ;
 
-collectStreams : '(' temporalVariable (',' temporalVariable)* ')'; //EVERY is meaningless
+collectStreams : '.collect(' temporalVariable (',' temporalVariable)* ')'; //EVERY is meaningless
 
 basicPattern :  '.g()' triggerComputation?  (computation | selection)* extraction (operation)* emission ';';
 
@@ -13,6 +13,8 @@ computation : '.compute(' computationFunction ')' ;
 selection : '.select(' selectionFunction ')' ;
 
 extraction : '.extract(' ( 'EDGE'? (label ',')* label)? ')' ;
+
+evaluation : '.evaluate(' Operator ',' value ',' fireEvent ')' ';' ;
 
 operation : '.' operationFunction ;
 
@@ -49,6 +51,7 @@ freeVariable
 operationFunction
     : ( 'map' | 'flatmap' | 'reduce' | 'filter' ) '(' functionName')'
     | ('groupby' | 'collect') '(' label ')'
+    | 'avg' | 'max' | 'min' | 'count'
     ;
 
 triggerComputation :
@@ -77,6 +80,8 @@ label : Litterals ;
 value : '\''Litterals '\'' ;
 
 variable : '$' Litterals ;
+
+fireEvent : '\"' Litterals '\"' ;
 
 // todo: Definire la precedenza degli operatori
 
