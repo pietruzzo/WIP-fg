@@ -10,10 +10,10 @@ public class AddEdgeMsg implements ModifyGraphMsg {
 
     final private String sourceName;
     final private String destinationName;
-    final private ArrayList<Pair<String, String>> attributes;
+    final private ArrayList<Pair<String, String[]>> attributes;
     final private Long timestamp;
 
-    public AddEdgeMsg(String sourceName, String destinationName, ArrayList<Pair<String, String>> attributes, @Nullable Long timestamp) {
+    public AddEdgeMsg(String sourceName, String destinationName, ArrayList<Pair<String, String[]>> attributes, @Nullable Long timestamp) {
         this.sourceName = sourceName;
         this.destinationName = destinationName;
         this.attributes = attributes;
@@ -28,8 +28,8 @@ public class AddEdgeMsg implements ModifyGraphMsg {
         return destinationName;
     }
 
-    public ArrayList<Pair<String, String>> getAttributes() {
-        return (ArrayList<Pair<String, String>>) attributes.clone();
+    public ArrayList<Pair<String, String[]>> getAttributes() {
+        return attributes;
     }
 
     public Long getTimestamp() {
@@ -39,8 +39,10 @@ public class AddEdgeMsg implements ModifyGraphMsg {
     @Override
     public String toString() {
         String attributesString = "";
-        for (Pair<String, String> p: attributes) {
-            attributesString = attributesString + ", (" + p.first() + ", " + p.second() + ")";
+        for (Pair<String, String[]> p: attributes) {
+            for (String second: p.second()) {
+                attributesString = attributesString + ", (" + p.first() + ", " + second + ")";
+            }
         }
         return "Add Edge: " + sourceName + " " + destinationName + attributesString + " " + timestamp;
     }

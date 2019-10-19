@@ -18,14 +18,14 @@ public class ComputationRuntime {
     private final long timestamp;
     private final Computation computation;
     private final LinkedHashMap<String, String> freeVars; //FreeVars, can be null
-    private final Map<String, VertexProxy> vertices; //con gli edges modificati
+    private final Map<String, Vertex> vertices; //con gli edges modificati
 
     private int stepNumber;
     private BoxMsg outgoingMessages;
     private BoxMsg inboxMessages;
 
 
-    public ComputationRuntime(ComputationCallback taskManager, long timestamp, Computation computation, LinkedHashMap<String, String> freeVars, Map<String, VertexProxy> vertices) {
+    public ComputationRuntime(ComputationCallback taskManager, long timestamp, Computation computation, LinkedHashMap<String, String> freeVars, Map<String, Vertex> vertices) {
         this.taskManager = taskManager;
         this.timestamp = timestamp;
         this.computation = computation;
@@ -85,10 +85,10 @@ public class ComputationRuntime {
      * Register results of computation on node state with the timestamp of computation
      * @param vertexName
      * @param key
-     * @param value
+     * @param values
      */
-    private void registerResult(String vertexName, String key, String value) {
-        taskManager.updateState(vertexName, key, value, this.timestamp);
+    private void registerResult(String vertexName, String key, String[] values) {
+        taskManager.updateState(vertexName, key, values);
     }
 
     /**
@@ -115,10 +115,10 @@ public class ComputationRuntime {
     static class ComputationThread implements Runnable {
 
         private final ComputationRuntime computationRuntime;
-        private final SynchronizedIterator<VertexProxy> vertexIterator;
+        private final SynchronizedIterator<Vertex> vertexIterator;
         private final SynchronizedIterator<Map.Entry<String, List<StepMsg>>> ingoingMessages;
 
-        ComputationThread(ComputationRuntime computationRuntime, @Nullable SynchronizedIterator<VertexProxy> vertexIterator, @Nullable SynchronizedIterator<Map.Entry<String, List<StepMsg>>> ingoingMessages){
+        ComputationThread(ComputationRuntime computationRuntime, @Nullable SynchronizedIterator<Vertex> vertexIterator, @Nullable SynchronizedIterator<Map.Entry<String, List<StepMsg>>> ingoingMessages){
             this.computationRuntime = computationRuntime;
             this.vertexIterator = vertexIterator;
             this.ingoingMessages = ingoingMessages;
@@ -139,7 +139,7 @@ public class ComputationRuntime {
 
         private void firstStep(){
             while (true) {
-                VertexProxy vertex = vertexIterator.next();
+                Vertex vertex = vertexIterator.next();
                 registerOutgoingMsg(computationRuntime.computation.firstIterate(vertex));
             }
         }
@@ -147,7 +147,7 @@ public class ComputationRuntime {
         private void step(){
             while (true) {
                 Map.Entry<String, List<StepMsg>> next = ingoingMessages.next();
-                VertexProxy vertex = computationRuntime.vertices.get(next.getKey());
+                Vertex vertex = computationRuntime.vertices.get(next.getKey());
                 List<StepMsg> messages = next.getValue();
                 int stepNumber = computationRuntime.stepNumber;
                 registerOutgoingMsg(computationRuntime.computation.iterate(vertex, messages, stepNumber));
@@ -164,7 +164,7 @@ public class ComputationRuntime {
     static class ComputeResultsThread extends ComputationThread {
 
 
-        ComputeResultsThread(ComputationRuntime computationRuntime, @Nullable SynchronizedIterator<VertexProxy> vertexIterator, @Nullable SynchronizedIterator<Map.Entry<String, List<StepMsg>>> ingoingMessages) {
+        ComputeResultsThread(ComputationRuntime computationRuntime, @Nullable SynchronizedIterator<Vertex> vertexIterator, @Nullable SynchronizedIterator<Map.Entry<String, List<StepMsg>>> ingoingMessages) {
             super(computationRuntime, vertexIterator, ingoingMessages);
         }
 
@@ -172,10 +172,10 @@ public class ComputationRuntime {
         public void run() {
             try {
                 while (true) {
-                    VertexProxy vertex = super.vertexIterator.next();
-                    List<Pair<String, String>> results = super.computationRuntime.computation.compute_result(vertex);
-                    for (Pair<String, String> e: results) {
-                        super.computationRuntime.registerResult(vertex.getVertexName(), e.first(), e.second());
+                    Vertex vertex = super.vertexIterator.next();
+                    List<Pair<String, String[]>> results = super.computationRuntime.computation.compute_result(vertex);
+                    for (Pair<String, String[]> e: results) {
+                        super.computationRuntime.registerResult(vertex.getNodeId(), e.first(), e.second());
                     }
                 }
             } catch (NoSuchElementException e) {/* END */}

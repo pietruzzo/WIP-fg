@@ -2,7 +2,6 @@ package client;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
-import akka.japi.Pair;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -10,7 +9,6 @@ import org.apache.flink.api.java.utils.ParameterTool;
 import shared.AkkaMessages.LaunchMsg;
 import shared.AkkaMessages.modifyGraph.ModifyGraphMsg;
 import shared.Lexer;
-import shared.Vertex;
 
 import java.io.File;
 import java.util.*;

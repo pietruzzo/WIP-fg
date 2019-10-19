@@ -7,19 +7,19 @@ public class StartComputationStepMsg implements Serializable {
 
     private static final long serialVersionUID = 200014L;
 
-    private final long computationId;
+    private final String computationId;
     private final LinkedHashMap<String, String> freeVars;
     private final int stepNumber;
     private final long timestamp;
 
-    public StartComputationStepMsg(long computationId, LinkedHashMap<String, String> freeVars, int stepNumber, long timestamp) {
+    public StartComputationStepMsg(String computationId, LinkedHashMap<String, String> freeVars, int stepNumber, long timestamp) {
         this.computationId = computationId;
         this.freeVars = freeVars;
         this.stepNumber = stepNumber;
         this.timestamp = timestamp;
     }
 
-    public long getComputationId() {
+    public String getComputationId() {
         return computationId;
     }
 

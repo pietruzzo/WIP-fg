@@ -3,31 +3,224 @@ package shared.selection;
 import akka.japi.Pair;
 import jdk.internal.jline.internal.Nullable;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.tuple.Tuple4;
+import shared.VertexNew;
+import shared.computation.Vertex;
 
-import java.sql.PseudoColumnUsage;
+import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 
-public class SelectionSolver {
+/**
+ * At parse time no labels nor variables can be substituted
+ * before launching the selection on the graph:
+ *  - Substitute aggregates and fixed parameters variables
+ *  - For each node substitute variable and labels and solve
+ */
+public class SelectionSolver implements Cloneable{
 
-    List<Element> elements;
+    /**
+     * Edge property is _edgeName_property
+     */
 
 
-    public interface Element {}
 
-    public static class Solved implements Element{
-        public final boolean solution;
+    private LinkedList<Element> elements;
 
-        public Solved(boolean solution) {
-            this.solution = solution;
+    public SelectionSolver() {
+        this.elements = new LinkedList<>();
+    }
+
+    public void addElementBoolean (Boolean bool) {
+        this.elements.add(new Solved(bool));
+    }
+
+    public void addElementEdgeToken () {
+        this.elements.add(new EdgeToken());
+    }
+
+    public void addElementUnaryOp (UnaryBoolean.OperatorType operatorType) {
+        this.elements.add(new UnaryBoolean(operatorType));
+    }
+
+    public void addElementBinaryOp (BinaryBoolean.OperatorType operatorType) {
+        this.elements.add(new BinaryBoolean(operatorType));
+    }
+
+    public void addElementOperation (SelectionSolver.Operation.Operator operator,
+                                     Pair<String[], String[]> values,
+                                     Pair<SelectionSolver.Operation.Type, SelectionSolver.Operation.Type> type,
+                                     @Nullable Pair<String, String> within,
+                                     @Nullable Pair<SelectionSolver.Operation.WindowType, SelectionSolver.Operation.WindowType> windowType) {
+        this.elements.add(new Operation(operator, values, type, within, windowType));
+    }
+
+    private void addElement(Element element){
+        this.elements.add(element);
+    }
+
+    /**
+     * Strategy: Before substituting all labes/values, focus on part before EDGE token, then select edges
+     */
+    boolean solveVertex (VertexNew vertex) {
+        //TODO Select on vertex
+
+    }
+    Vertex solveEdges (VertexNew vertex) {
+        //TODO select on edges
+    }
+
+    /**
+     * Get the list of the variables that needs to be substituted
+     * vertex = true : getVariables on vertex selection part
+     * edges = true : get variables on edge selection part
+     * @return list of name - timewindow, windowtype
+     */
+    public List<Tuple3<String, String, Operation.WindowType>> getVariables (boolean vertex, boolean edges){
+
+        List<Tuple3<String, String, Operation.WindowType>> result = new ArrayList<>();
+        Element element = null;
+        Iterator<Element> elementIterator = elements.iterator();
+        while(vertex && elementIterator.hasNext() && !((element = elementIterator.next()) instanceof EdgeToken)) {
+                if (element instanceof Operation) {
+                    result.addAll(((Operation) element).getVariableList());
+                }
+        } while (edges && !(element instanceof EdgeToken) && elementIterator.hasNext()){
+            element = elementIterator.next();
+        } while (edges && elementIterator.hasNext()){
+            if (element instanceof Operation) {
+                result.addAll(((Operation) element).getVariableList());
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Get the list of labels that needs to be substituted
+     * vertex = true : getVariables on vertex selection part
+     * edges = true : get variables on edge selection part
+     */
+    List<String> getLabels (boolean edges){
+        List<String> result =  new ArrayList<>();
+
+        for (Element element: elements) {
+            if (element instanceof Operation){
+                result.addAll(((Operation) element).getLabelList());
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Substitute labels and variables with values
+     * @param values list of name - values
+     */
+    void substituteLabels (List<Pair<String, String[]>> values) {
+        for (Element element: elements) {
+            if (element instanceof Operation){
+                for (Pair<String, String[]> value: values) {
+                    ((Operation) element).substituteLabel(value.first(), value.second());
+                }
+            }
         }
     }
 
+    /**
+     * Substitute labels and variables with values
+     * @param values list of name - windowTime, windowType, Values
+     */
+    public void substituteVariables (List<Tuple4<String, String, Operation.WindowType, String[]>> values) {
+        for (Element element: elements) {
+            if (element instanceof Operation){
+                for (Tuple4<String, String, Operation.WindowType, String[]> value: values) {
+                    ((Operation) element).substituteVariable(value);
+                }
+            }
+        }
+    }
+
+    @Override
+    public SelectionSolver clone() {
+        SelectionSolver selectionSolver = new SelectionSolver();
+        for (Element e: this.elements) {
+            selectionSolver.addElement(e.clone());
+        }
+        return selectionSolver;
+    }
+
+    private interface Element extends Serializable, Cloneable {
+        Element clone();
+    }
+
+    private static class Solved implements Element{
+        final boolean solution;
+
+        Solved(boolean solution) {
+            this.solution = solution;
+        }
+
+        @Override
+        public Solved clone() {
+            return new Solved(solution);
+        }
+    }
+
+    private static class EdgeToken implements Element {
+        @Override
+        public EdgeToken clone() {
+            return new EdgeToken();
+        }
+    }
+
+
     public static class BinaryBoolean implements Element{
         public enum OperatorType{AND, OR};
+
+        private final OperatorType operatorType;
+
+        BinaryBoolean(OperatorType operatorType) {
+            this.operatorType = operatorType;
+        }
+
+        public boolean solve(Solved first, Solved second){
+            switch (operatorType){
+                case AND:
+                    return first.solution && second.solution;
+                case OR:
+                    return first.solution || second.solution;
+                default:
+                    System.out.println("first = " + first + ", second = " + second);
+                    System.err.println("not feasible case, returning false");
+                    return false;
+            }
+        }
+
+        @Override
+        public BinaryBoolean clone() {
+            return new BinaryBoolean(operatorType);
+        }
     }
+
     public static class UnaryBoolean implements Element{
         public enum OperatorType{NOT};
+
+        private final OperatorType operatorType;
+
+        UnaryBoolean(OperatorType operatorType) {
+            this.operatorType = operatorType;
+        }
+
+        boolean solve (Solved argument) {
+            return !argument.solution;
+        }
+
+        @Override
+        public UnaryBoolean clone() {
+            return new UnaryBoolean(this.operatorType);
+        }
     }
 
     public static class Operation implements Element {
@@ -45,18 +238,16 @@ public class SelectionSolver {
         /**
          * null if window is not defined, formt "10s"
          */
-        public final Pair<String, String> withinTimeUnits;
+        private final Pair<String, String> withinTimeUnits;
 
         /**
          * null if window is not defined
          */
-        public final Pair<WindowType, WindowType> windowType;
+        private final Pair<WindowType, WindowType> windowType;
 
-        public Operation(Operator operator, Pair<String, String> values, Pair<Type, Type> type, @Nullable Pair<String, String> within, @Nullable Pair<WindowType, WindowType> windowType) {
+        Operation(Operator operator, Pair<String[], String[]> values, Pair<Type, Type> type, @Nullable Pair<String, String> within, @Nullable Pair<WindowType, WindowType> windowType) {
             this.operator = operator;
-            this.values = new Pair<>(new String[1], new String[1]);
-            this.values.first()[0] = values.first();
-            this.values.second()[0] = values.second();
+            this.values = values;
             this.type = type;
             if (within == null) this.withinTimeUnits = new Pair<>(null, null);
             else this.withinTimeUnits = within;
@@ -68,7 +259,7 @@ public class SelectionSolver {
          * @return variable names and related WithinTimeUnit for variable in operation or empty list if no variable types
          * WithinTimeUnit can be null
          */
-        public List<Tuple3<String, String, WindowType>> getVariableList () {
+        List<Tuple3<String, String, WindowType>> getVariableList() {
             ArrayList<Tuple3<String, String, WindowType>> result = new ArrayList<>();
             if (type.first() == Type.VARIABLE) result.add(new Tuple3<>(values.first()[0], withinTimeUnits.first(), windowType.first()));
             if (type.second() == Type.VARIABLE) result.add(new Tuple3<>(values.second()[0], withinTimeUnits.second(), windowType.second()));
@@ -78,19 +269,42 @@ public class SelectionSolver {
         /**
          * @return label names or empty list
          */
-        public List<String> getLabelList () {
+        List<String> getLabelList() {
             ArrayList<String> result = new ArrayList<>();
             if (type.first() == Type.LABEL) result.add(values.first()[0]);
             if (type.second() == Type.LABEL) result.add(values.second()[0]);
             return result;
         }
 
-        public void substituteValue(String name, List<String> values) {
-            if (this.values.first()[0].equals(name)) this.values = new Pair(values, this.values.second());
-            else if (this.values.second()[0].equals(name)) this.values = new Pair(this.values.first(), values);
-            else System.err.println("Value substitution invoked but not effective");
+        void substituteLabel(String name, String[] values) {
+            if (this.type.first()== Type.LABEL && this.values.first()[0].equals(name)) {
+                this.values = new Pair<>(values, this.values.second());
+                this.type= new Pair<>(Type.VALUE, this.type.second());
+            }
+            if (this.type.second()== Type.LABEL && this.values.second()[0].equals(name)) {
+                this.values = new Pair<>(this.values.first(), values);
+                this.type = new Pair<>(type.first(), Type.VALUE);
+            }
+
         }
-        public boolean solve () {
+
+        void substituteVariable(Tuple4<String, String, Operation.WindowType, String[]> values) {
+            if (this.type.first()== Type.VARIABLE && this.withinTimeUnits.first().equals(values.f1) && this.windowType.first().equals(values.f2) && this.values.first()[0].equals(values.f0)) {
+                this.values = new Pair<>(values.f3, this.values.second());
+                this.type= new Pair<>(Type.VALUE, this.type.second());
+            }
+            if (this.type.second()== Type.VARIABLE && this.withinTimeUnits.second().equals(values.f1) && this.windowType.second().equals(values.f2) && this.values.second()[0].equals(values.f0)) {
+                this.values = new Pair<>(this.values.first(), values.f3);
+                this.type = new Pair<>(type.first(), Type.VALUE);
+            }
+
+        }
+
+        /**
+         * TODO: Make it handle multivalue reusing code!
+         * @return
+         */
+        boolean solve () {
             if (!(type.first() == Type.VALUE && type.second() == Type.VALUE)) throw new IllegalStateException("Operation can be solved on values only");
 
             if ((windowType.first() == null ||  windowType.first() == WindowType.AGO) && (windowType.second() == null ||  windowType.second() == WindowType.AGO)){
@@ -221,6 +435,16 @@ public class SelectionSolver {
                 }
                 return false;
             }
+        }
+
+        @Override
+        public Operation clone() {
+            return new Operation(this.operator,
+                    new Pair<>(this.values.first().clone(), this.values.second().clone()),
+                    new Pair<>(this.type.first(), this.type.second()),
+                    new Pair<>(this.withinTimeUnits.first(), this.withinTimeUnits.second()),
+                    new Pair<>(this.windowType.first(), this.windowType.second())
+                    );
         }
     }
 

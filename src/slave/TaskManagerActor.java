@@ -13,7 +13,7 @@ import shared.AkkaMessages.modifyGraph.DeleteEdgeMsg;
 import shared.AkkaMessages.modifyGraph.DeleteVertexMsg;
 import shared.AkkaMessages.modifyGraph.UpdateVertexMsg;
 import shared.Utils;
-import shared.Vertex;
+import shared.VertexNew;
 import shared.computation.*;
 import shared.data.BoxMsg;
 import shared.data.SynchronizedIterator;
@@ -34,7 +34,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 	private ActorSelection master;
 	private Map<Integer, ActorRef> slaves;
 
-	private HashMap<String, Vertex> vertices;
+	private HashMap<String, VertexNew> vertices;
 	private HashMap<String, Computation> computations;
 	private Partitions partitions;
 	private HashMap<String, Variable> variables;
@@ -111,10 +111,10 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 
 	private final void onAddEdgeMsg(AddEdgeMsg msg) {
 		log.info(msg.toString());
-		Vertex vertex = vertices.get(msg.getSourceName());
+		VertexNew vertex = vertices.get(msg.getSourceName());
 		vertex.addEdge(msg.getDestinationName());
-		for (Pair<String, String> attribute : msg.getAttributes()) {
-			vertex.state.addToState(attribute.first(), attribute.second(), msg.getTimestamp());
+		for (Pair<String, String[]> attribute : msg.getAttributes()) {
+			vertex.setLabelEdge(msg.getDestinationName(), attribute.first(), attribute.second());
 		}
 
 		master.tell(new AckMsg(), self());
@@ -122,8 +122,8 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 
 	private final void onDeleteEdgeMsg(DeleteEdgeMsg msg) {
 		log.info(msg.toString());
-		Vertex vertex = vertices.get(msg.getSourceName());
-		vertex.removeEdge(msg.getDestinationName());
+		VertexNew vertex = vertices.get(msg.getSourceName());
+		vertex.deleteEdge(msg.getDestinationName());
 
 		master.tell(new AckMsg(), self());
 	}
@@ -137,12 +137,12 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 
 	private final void onUpdateVertexMsg(UpdateVertexMsg msg) {
 		log.info(msg.toString());
-		Vertex vertex = vertices.get(msg.getVertexName());
+		VertexNew vertex = vertices.get(msg.getVertexName());
 		if (vertex == null){ //Create a new vertex
-			vertex = new Vertex(msg.vertexName, null);
+			vertex = new VertexNew(msg.vertexName, new VertexNew.State());
 		}
-		for (Pair<String, String> attribute : msg.getAttributes()) {
-			vertex.state.addToState(attribute.first(), attribute.second(), msg.getTimestamp());
+		for (Pair<String, String[]> attribute : msg.getAttributes()) {
+			vertex.setLabelVartex(attribute.first(), attribute.second());
 		}
 		master.tell(new AckMsg(), self());
 	}
@@ -225,12 +225,8 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 		return Props.create(TaskManagerActor.class, name, numMyWorkers, jobManagerAddr);
 	}
 
-	private Map<String, VertexProxy> getAllReadOnlyVertices(){
-		return this.vertices.values()
-		.parallelStream()
-		.filter(v -> !v.state.getValue("DEL").equals("true"))
-		.map(v -> new VertexProxy(v, (ArrayList<String>)v.getOutgoingEdges().clone()))
-		.collect(Collectors.toMap(v -> v.getVertexName(), v -> v));
+	private Map<String, Vertex> getAllReadOnlyVertices(){
+		return new HashMap<>(this.vertices);
 	}
 
 	/**
@@ -275,7 +271,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 	}
 
 	@Override
-	public void updateState(String vertexName, String key, String value, long timestamp) {
-		vertices.get(vertexName).state.addToState(key, value, timestamp);
+	public void updateState(String vertexName, String key, String[] values) {
+		vertices.get(vertexName).setLabelVartex(key, values);
 	}
 }
