@@ -57,6 +57,7 @@ public class SelectionSolver implements Cloneable{
         this.elements.add(new Operation(operator, values, type, within, windowType));
     }
 
+
     private void addElement(Element element){
         this.elements.add(element);
     }
@@ -66,10 +67,15 @@ public class SelectionSolver implements Cloneable{
      */
     boolean solveVertex (VertexNew vertex) {
         //TODO Select on vertex
+        //Substitute labels up to EDGE Token
+        //solve up to EDGE
+        //pop and return Solution from elements
+        return false;
 
     }
-    Vertex solveEdges (VertexNew vertex) {
+    boolean solveEdges (VertexNew vertex) {
         //TODO select on edges
+        return false;
     }
 
     /**

@@ -22,7 +22,6 @@ import shared.selection.Variable;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
 public class TaskManagerActor extends AbstractActor implements ComputationCallback {
 	private final LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
@@ -36,7 +35,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 
 	private HashMap<String, VertexNew> vertices;
 	private HashMap<String, Computation> computations;
-	private Partitions partitions;
+	private PartitionComputation partitionComputation;
 	private HashMap<String, Variable> variables;
 
 	private ThreadPoolExecutor executors;
@@ -47,7 +46,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 		this.numWorkers = numWorkers;
 		this.masterAddress = masterAddress;
 		this.computations = new HashMap<>();
-		this.partitions = null;
+		this.partitionComputation = null;
 		this.variables = new HashMap<>();
 	}
 
@@ -157,20 +156,20 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 		log.info(msg.toString());
 
 		//If no partitions are available, no select or free variables have been allocated
-		if (partitions == null){
-			this.partitions = new Partitions.Leaf(new ComputationRuntime(this, msg.getTimestamp(), this.computations.get(msg.getComputationId()), null, getAllReadOnlyVertices()));
+		if (partitionComputation == null){
+			this.partitionComputation = new PartitionComputation.Leaf(new ComputationRuntime(this, msg.getTimestamp(), this.computations.get(msg.getComputationId()), null, getAllReadOnlyVertices()));
 			//Run first iteration on selected free variables, if NULL on all free variables
 		}
 		//Run RuntimeComputation (in series)
 		if (msg.getFreeVars() == null) {
 			//Get all Runtimes and send messages
-			for (ComputationRuntime computationRuntime: partitions.getAll()) {
+			for (ComputationRuntime computationRuntime: partitionComputation.getAll()) {
 				computationRuntime.compute(msg.getStepNumber(), this.executors);
 				sendOutBox(computationRuntime.getOutgoingMessages());
 			}
 		} else {
 			//get and run the specific runtime and send messages
-			ComputationRuntime computationRuntime = partitions.get(msg.getFreeVars());
+			ComputationRuntime computationRuntime = partitionComputation.get(msg.getFreeVars());
 			computationRuntime.compute(msg.getStepNumber(), this.executors);
 			sendOutBox(computationRuntime.getOutgoingMessages());
 		}
@@ -181,12 +180,12 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 	private final void onComputeResultMsg(ComputeResultsMsg msg) throws ExecutionException, InterruptedException {
 		if (msg.getFreeVars() == null) {
 			//Get all Runtimes and send messages
-			for (ComputationRuntime computationRuntime: partitions.getAll()) {
+			for (ComputationRuntime computationRuntime: partitionComputation.getAll()) {
 				computationRuntime.computeResults(this.executors);
 			}
 		} else {
 			//get and run the specific runtime and send messages
-			ComputationRuntime computationRuntime = partitions.get(msg.getFreeVars());
+			ComputationRuntime computationRuntime = partitionComputation.get(msg.getFreeVars());
 			computationRuntime.computeResults(this.executors);
 			sendOutBox(computationRuntime.getOutgoingMessages());
 		}
@@ -200,7 +199,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 	 * @implNote Get runtimes and add messages, than decrease waiting, send back ack and if waiting is zero change state
 	 */
 	private final void onInboxMsg(BoxMsg incoming){
-		ComputationRuntime computationRuntime = this.partitions.get(incoming.getPartition());
+		ComputationRuntime computationRuntime = this.partitionComputation.get(incoming.getPartition());
 		computationRuntime.updateIncomingMsgs(incoming);
 		getSender().tell(new AckMsg(), self());
 	}
