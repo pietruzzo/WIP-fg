@@ -10,7 +10,7 @@ basicPattern :  '.g()' triggerComputation?  (computation | selection)* extractio
 
 computation : '.compute(' computationFunction ')' ;
 
-selection : '.select(' selectionFunction ')' ;
+selection : '.selectPartition(' selectionFunction ')' ;
 
 extraction : '.extract(' ( 'EDGE'? (label ',')* label)? ')' ;
 
@@ -22,7 +22,7 @@ computationFunction : functionName ',' label (', [' variable+ ']' )?;
 
 /*selectionFunction :
     boolPredicate
-    | ( label = freeVariable)
+    | ( label = freeVariable)+
 	| ( selectionFunction BinBoolOperator selectionFunction )
     | ( UnaryBoolOperator selectionFunction )
 	| ( '(' selectionFunction  ')' )
@@ -31,7 +31,7 @@ computationFunction : functionName ',' label (', [' variable+ ']' )?;
 
 selectionFunction
     : boolPredicate selRecursion
-    | label '=' freeVariable
+    | (label '=' freeVariable (',' label '=' freeVariable)*)
     | UnaryBoolOperator selectionFunction selRecursion
     | '(' selectionFunction  ')' selRecursion
     ;

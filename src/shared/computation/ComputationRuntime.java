@@ -112,7 +112,7 @@ public class ComputationRuntime {
     }
 
 
-    static class ComputationThread implements Runnable {
+    static class ComputationThread implements Utils.DuplicableRunnable {
 
         private final ComputationRuntime computationRuntime;
         private final SynchronizedIterator<Vertex> vertexIterator;
@@ -122,6 +122,12 @@ public class ComputationRuntime {
             this.computationRuntime = computationRuntime;
             this.vertexIterator = vertexIterator;
             this.ingoingMessages = ingoingMessages;
+        }
+
+        private ComputationThread(ComputationThread computationThread){
+            this.computationRuntime = computationThread.computationRuntime;
+            this.vertexIterator = computationThread.vertexIterator;
+            this.ingoingMessages = computationThread.ingoingMessages;
         }
 
         @Override
@@ -158,6 +164,11 @@ public class ComputationRuntime {
             for (StepMsg sm : outbox) {
                 computationRuntime.outgoingMessages.put(sm.destinationVertex, sm);
             }
+        }
+
+        @Override
+        public Utils.DuplicableRunnable getCopy() {
+            return new ComputationThread(this);
         }
     }
 

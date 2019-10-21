@@ -242,16 +242,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 		}
 		//For each vertex destination retrieve the actor and populate its box
 		SynchronizedIterator<Map.Entry<String, ArrayList>> destIterator = outgoingBox.getSyncIterator();
-		Utils.parallelizeAndWait(executors, () -> {
-			try {
-				while (true) {
-					//From outgoingBox <destination,Messages> -> <Actor, <destination, Messages>>
-					Map.Entry<String, ArrayList> vertex = destIterator.next();
-					ActorRef destActor = getActor(vertex.getKey());
-					outboxes.get(destActor).put(vertex.getKey(), vertex.getValue());
-				}
-			} catch (NoSuchElementException e){ /* END */}
-		});
+		Utils.parallelizeAndWait(executors, new PopulateOutbox(this, destIterator, outboxes));
 			//Increase waiting response and send if not empty
 			for (Map.Entry<ActorRef, BoxMsg> destOutbox: outboxes.entrySet()) {
 				if (!destOutbox.getValue().isEmpty()){
@@ -267,6 +258,37 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 
 	private ActorRef getActor(String vertex) {
 		return this.slaves.get(Utils.getPartition(vertex, this.slaves.size()));
+	}
+
+	private static class PopulateOutbox implements Utils.DuplicableRunnable {
+
+		private final TaskManagerActor taskManagerActor;
+		private final SynchronizedIterator<Map.Entry<String, ArrayList>> destIterator;
+		private final Map<ActorRef, BoxMsg> outboxes;
+
+		public PopulateOutbox(TaskManagerActor taskManagerActor, SynchronizedIterator<Map.Entry<String, ArrayList>> destIterator, Map<ActorRef, BoxMsg> outboxes) {
+			this.taskManagerActor = taskManagerActor;
+			this.destIterator = destIterator;
+			this.outboxes = outboxes;
+		}
+
+		@Override
+		public Utils.DuplicableRunnable getCopy() {
+			return new PopulateOutbox(this.taskManagerActor, this.destIterator, this.outboxes);
+		}
+
+		@Override
+		public void run() {
+
+			try {
+				while (true) {
+					//From outgoingBox <destination,Messages> -> <Actor, <destination, Messages>>
+					Map.Entry<String, ArrayList> vertex = destIterator.next();
+					ActorRef destActor = taskManagerActor.getActor(vertex.getKey());
+					outboxes.get(destActor).put(vertex.getKey(), vertex.getValue());
+				}
+			} catch (NoSuchElementException e){ /* END */}
+		}
 	}
 
 	@Override

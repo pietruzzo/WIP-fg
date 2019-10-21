@@ -18,14 +18,15 @@ public class Utils {
         return name.hashCode() % numPartitions;
     }
 
-    public static void parallelizeAndWait (ThreadPoolExecutor executors, Runnable task) throws ExecutionException, InterruptedException {
+    public static void parallelizeAndWait (ThreadPoolExecutor executors, DuplicableRunnable task) throws ExecutionException, InterruptedException {
 
         Collection<Future> executions = new LinkedList<>();
 
         //Parallel execution
-        for (int i = 0; i < executors.getMaximumPoolSize(); i++) {
-            executions.add(executors.submit(task));
+        for (int i = 0; i < executors.getMaximumPoolSize()-1; i++) {
+            executions.add(executors.submit(task.getCopy()));
         }
+        executions.add(executors.submit(task));
 
         //Wait executors end
         for (Future<?> future: executions) {
@@ -56,5 +57,9 @@ public class Utils {
             }
         }
         return result;
+    }
+
+    public interface DuplicableRunnable extends Runnable {
+        DuplicableRunnable getCopy();
     }
 }

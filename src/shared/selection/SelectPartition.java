@@ -1,38 +1,36 @@
 package shared.selection;
 
-import akka.stream.javadsl.RunnableGraph;
 import shared.Utils;
 import shared.VertexNew;
 import shared.computation.Vertex;
 import shared.data.SynchronizedIterator;
 import shared.variables.solver.VariableSolverSlave;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.NoSuchElementException;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 
 
-public class Select { //TODO handle multiple selections and parallelize them
+public class SelectPartition { //TODO handle multiple selections and parallelize them
 
     protected final SelectionSolver selectionSolver;
     protected final VariableSolverSlave variableSolver;
-    protected final ThreadPoolExecutor executors;
+    private final ThreadPoolExecutor executors;
     protected final SynchronizedIterator<VertexNew> vertexIterator;
+    private final HashMap<String, String> partition;
     private final List<Vertex> selectionResult;
 
-    public Select(SelectionSolver selectionSolver, Iterator<VertexNew> vertexIterator, VariableSolverSlave variableSolverSlave, ThreadPoolExecutor executors) {
+    public SelectPartition(SelectionSolver selectionSolver, Iterator<VertexNew> vertexIterator, VariableSolverSlave variableSolverSlave, ThreadPoolExecutor executors, HashMap<String, String> partition) {
         this.selectionSolver = selectionSolver;
         this.vertexIterator = new SynchronizedIterator<>(vertexIterator);
         this.executors = executors;
         this.variableSolver = variableSolverSlave;
+        this.partition = partition;
         this.selectionResult = new ArrayList<>();
     }
 
     /**
-     * @ApiNote requires selectionSolver.getVariables(true, true).isEmpty
+     * @ApiNote Requires aggregates are substituted
      * @return null if vertex isn't selected, otherwise vertex with valid edges
      * TODO: HANDLE PARTITIONING!
      */
@@ -46,27 +44,31 @@ public class Select { //TODO handle multiple selections and parallelize them
             selectionResult.add(vertex);
     }
 
-    private static class SelectNode implements Runnable {
+    private static class SelectNode implements Utils.DuplicableRunnable {
 
-        private final Select select;
+        private final SelectPartition selectPartition;
 
-        public SelectNode(Select select) {
-            this.select = select;
+        public SelectNode(SelectPartition selectPartition) {
+            this.selectPartition = selectPartition;
         }
 
         @Override
         public void run() {
             try{
                 while(true) {
-                    VertexNew vertex = select.vertexIterator.next();
-                    SelectionSolver selectionSolver = select.selectionSolver.clone();
-                    Vertex result = selectionSolver.solveVertex(vertex, select.variableSolver);
-                    select.registerVertex(result);
+                    VertexNew vertex = selectPartition.vertexIterator.next();
+                    SelectionSolver selectionSolver = selectPartition.selectionSolver.clone();
+                    Vertex result = selectionSolver.solveVertex(vertex, selectPartition.variableSolver);
+                    selectPartition.registerVertex(result);
                 }
             } catch (NoSuchElementException e){
                 //End of elements
             }
         }
-    }
 
+        @Override
+        public Utils.DuplicableRunnable getCopy() {
+            return new SelectNode(this.selectPartition);
+        }
+    }
 }
