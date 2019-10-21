@@ -1,9 +1,5 @@
 package shared;
 
-import com.sun.org.apache.xalan.internal.xsltc.compiler.util.MultiHashtable;
-import org.apache.commons.collections.MultiHashMap;
-import org.apache.commons.collections.MultiMap;
-import org.apache.commons.collections.map.MultiValueMap;
 import shared.computation.Vertex;
 
 import java.io.Serializable;
@@ -29,6 +25,14 @@ public class VertexNew implements Serializable, Vertex {
 
     public String getNodeId(){
         return this.nodeId;
+    }
+
+    public State getState() {
+        return state;
+    }
+
+    public State getEdgeState(String edgeName){
+        return edges.get(edgeName);
     }
 
     public void setLabelVartex(String labelName, String[] values) {

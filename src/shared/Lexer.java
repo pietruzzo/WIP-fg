@@ -136,8 +136,8 @@ public class Lexer {
                 name2 = next.data;
             } else if ((state == 6 || state == 9) && next.data.equals(">")){
                 state = 0;
-                if (name2 == null) messages.add(new UpdateVertexMsg(name1, attributes, null));
-                else messages.add(new AddEdgeMsg(name1, name2, addEdgeName(attributes, name2), null));
+                //if (name2 == null) messages.add(new UpdateVertexMsg(name1, attributes, null)); todo: fix vertexUpdate
+                //else messages.add(new AddEdgeMsg(name1, name2, addEdgeName(attributes, name2), null));
             } else if (state == 6 && next.type == Type.STRING){
                 attrName = next.data;
                 state = 7;
@@ -162,7 +162,7 @@ public class Lexer {
     }
 
     public static void main(String[] args) {
-        String input = "vertex pippo <ciao=hello melma=infangata, opla=DELETE> edge pluto paperino";
+        String input = "vertex pippo <ciao=hello melma=hallo, opla=DELETE> edge pluto paperino";
 
         // Create tokens and print them
         ArrayList<Token> tokens = lex(input);

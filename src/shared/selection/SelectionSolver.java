@@ -24,10 +24,10 @@ public class SelectionSolver implements Cloneable{
 
 
 
-    private LinkedList<Element> elements;
+    private ArrayList<Element> elements;
 
     public SelectionSolver() {
-        this.elements = new LinkedList<>();
+        this.elements = new ArrayList<>();
     }
 
     public void addElementBoolean (Boolean bool) {
@@ -51,7 +51,11 @@ public class SelectionSolver implements Cloneable{
                                      Pair<SelectionSolver.Operation.Type, SelectionSolver.Operation.Type> type,
                                      @Nullable Pair<String, String> within,
                                      @Nullable Pair<SelectionSolver.Operation.WindowType, SelectionSolver.Operation.WindowType> windowType) {
-        this.elements.add(new Operation(operator, values, type, within, windowType));
+        String[][] val1 = new String[1][1];
+        String[][] val2 = new String[1][1];
+        val1[0] = values.first();
+        val2[0] = values.second();
+        this.elements.add(new Operation(operator, new Pair<>(val1, val2), type, within, windowType));
     }
 
 
@@ -64,26 +68,81 @@ public class SelectionSolver implements Cloneable{
      * @return null if vertex is not selected
      * @return Vertex with selected edges
      */
-    Vertex solveVertex (VertexNew vertex, VariableSolverSlave variableSolver) { //TODO to be implemented
+    Vertex solveVertex (VertexNew vertex, VariableSolverSlave variableSolver) {
         //Select Vertex
-        //1-Get vertex variables substitute them
+
+        //0-Basecases
+        if  (elements.isEmpty()) return  vertex;
+        //1-Get vertex variables and substitute them
+
+        List<Tuple4<String, String, Operation.WindowType, String[][]>> varToBeSubstituted = new ArrayList<>();
         List<Tuple3<String, String, Operation.WindowType>> variables = this.getVariables(true, false);
+
         for (Tuple3<String, String, Operation.WindowType> variable: variables) {
             if (variable.f1 == null && variable.f2 == null) {
-                variableSolver.getValuesV(variable.f0, vertex.getNodeId());
+                String[] variableValues = variableSolver.getValuesV(variable.f0, vertex.getNodeId());
+                varToBeSubstituted.add(new Tuple4<>(variable.f0, variable.f1, variable.f2, new String[][]{variableValues}));
             } else if (variable.f1 != null && variable.f2 != null) {
-                variableSolver.getValuesV(variable.f0, vertex.getNodeId(), variable.f1, variable.f2);
-            } else throw new NullPointerException("for vertex " + vertex.getNodeId() + ", for variable " + variable.f0 + " windowTime (" + variable.f1 + "), windowType (" + variable.f1 + ") must be both null or ot null)")
+                List<String[]> variableValues = variableSolver.getValuesV(variable.f0, vertex.getNodeId(), variable.f1, variable.f2);
+                varToBeSubstituted.add(new Tuple4<>(variable.f0, variable.f1, variable.f2, (String[][])variableValues.toArray()));
+            } else throw new NullPointerException("for vertex " + vertex.getNodeId() + ", for variable " + variable.f0 + " windowTime (" + variable.f1 + "), windowType (" + variable.f1 + ") must be both null or ot null)");
         }
+        this.substituteVariables(varToBeSubstituted);
+
         //2-Substitute labels with values
+
+        List<String> labelList = this.getLabels(true, false);
+        List<Pair<String, String[]>> labToBeSubstituted = new ArrayList<>();
+        for (String label: labelList) {
+            String[] labelValues = vertex.getLabelVertex(label);
+            labToBeSubstituted.add(new Pair<>(label, labelValues));
+        }
+        this.substituteLabels(labToBeSubstituted);
+
         //3-perform selection up to EDGE / END
+
+        boolean pointEdgeToken = false;
+        int i;
+        for (i = 0; i < elements.size(); i++) {
+            if (elements.get(i) instanceof Operation)
+                elements.set(i,  new Solved(((Operation) elements.get(i)).solve()));
+            else if (elements.get(i) instanceof UnaryBoolean)
+                elements.set(i , new Solved(((UnaryBoolean) elements.get(i)).solve((Solved)elements.get(i-1))));
+            else if (elements.get(i) instanceof BinaryBoolean)
+                elements.set(i, new Solved(((BinaryBoolean) elements.get(i)).solve((Solved)elements.get(i-1), (Solved)elements.get(i-2))));
+            else if (elements.get(i) instanceof EdgeToken){
+                pointEdgeToken = true;
+                break;
+            }
+        }
+
+        if (i >= 1 && pointEdgeToken /*exclude EDGETOKEN at first position*/ || !((Solved)elements.get(i-1)).solution /*node not selected*/) return null;
+        if (!pointEdgeToken) {
+            //No selection on edges, just return
+            if (!((Solved)elements.get(i-1)).solution) return null;
+            else return vertex;
+        }
+
+        elements = (ArrayList<Element>)elements.subList(i, elements.size());
+
+        if (elements.size() == 1){
+            //Selection on edge is empty -> return vertex
+            return vertex;
+        }
         //Select Edges
         //4-clone this for each edge
         //5-call method solveEdge on ech edge
         //6-collect selected edges
+        VertexNew vertexResult = new VertexNew(vertex.getNodeId(), vertex.getState());
+        for (String edge: vertex.getEdges()) {
+            boolean selected = this.clone().selectEdge(vertex, variableSolver, edge);
+            if (selected)
+                vertexResult.addEdge(edge, vertex.getEdgeState(edge));
+        }
+
         //7-return Vertex with selected edges
 
-        return null;
+        return vertexResult;
     }
 
     /**
@@ -91,7 +150,46 @@ public class SelectionSolver implements Cloneable{
      * @param edgeName
      * @return true id edge is selected, otherwise false
      */
-    private boolean selectEdge (String edgeName) {
+    private boolean selectEdge (VertexNew vertex, VariableSolverSlave variableSolver, String edgeName) {
+        //Substitute Variables
+        List<Tuple4<String, String, Operation.WindowType, String[][]>> varToBeSubstituted = new ArrayList<>();
+        List<Tuple3<String, String, Operation.WindowType>> variables = this.getVariables(false, true);
+
+        for (Tuple3<String, String, Operation.WindowType> variable: variables) {
+            if (variable.f1 == null && variable.f2 == null) {
+                String[] variableValues = variableSolver.getValuesE(variable.f0, vertex.getNodeId(), edgeName);
+                varToBeSubstituted.add(new Tuple4<>(variable.f0, variable.f1, variable.f2, new String[][]{variableValues}));
+            } else if (variable.f1 != null && variable.f2 != null) {
+                List<String[]> variableValues = variableSolver.getValuesE(variable.f0, vertex.getNodeId(), edgeName, variable.f1, variable.f2);
+                varToBeSubstituted.add(new Tuple4<>(variable.f0, variable.f1, variable.f2, (String[][])variableValues.toArray()));
+            } else throw new NullPointerException("for vertex " + vertex.getNodeId() + ", for variable " + variable.f0 + " windowTime (" + variable.f1 + "), windowType (" + variable.f1 + ") must be both null or ot null)");
+        }
+        this.substituteVariables(varToBeSubstituted);
+
+        //Substitute labels
+
+        List<String> labelList = this.getLabels(false, true);
+        List<Pair<String, String[]>> labToBeSubstituted = new ArrayList<>();
+        for (String label: labelList) {
+            String[] labelValues = vertex.getLabelEdge(label, edgeName);
+            labToBeSubstituted.add(new Pair<>(label, labelValues));
+        }
+        this.substituteLabels(labToBeSubstituted);
+
+        //Perform operations
+
+        for (int i = 0; i < elements.size(); i++) {
+            if (elements.get(i) instanceof Operation)
+                elements.set(i,  new Solved(((Operation) elements.get(i)).solve()));
+            else if (elements.get(i) instanceof UnaryBoolean)
+                elements.set(i , new Solved(((UnaryBoolean) elements.get(i)).solve((Solved)elements.get(i-1))));
+            else if (elements.get(i) instanceof BinaryBoolean)
+                elements.set(i, new Solved(((BinaryBoolean) elements.get(i)).solve((Solved)elements.get(i-1), (Solved)elements.get(i-2))));
+        }
+
+        //Return true or false
+        if(((Solved)elements.get(elements.size()-1)).solution) return true;
+        else return false;
 
     }
 
@@ -126,12 +224,15 @@ public class SelectionSolver implements Cloneable{
      * vertex = true : getVariables on vertex selection part
      * edges = true : get variables on edge selection part
      */
-    List<String> getLabels (boolean edges){
+    List<String> getLabels (boolean vertex, boolean edge){
         List<String> result =  new ArrayList<>();
+        boolean beforeEDGEToken = true;
 
         for (Element element: elements) {
-            if (element instanceof Operation){
+            if ( ((vertex && beforeEDGEToken) || (edge && !beforeEDGEToken)) && element instanceof Operation){
                 result.addAll(((Operation) element).getLabelList());
+            } else if (element instanceof EdgeToken) {
+                beforeEDGEToken = false;
             }
         }
         return result;
@@ -155,10 +256,10 @@ public class SelectionSolver implements Cloneable{
      * Substitute labels and variables with values
      * @param values list of name - windowTime, windowType, Values
      */
-    public void substituteVariables (List<Tuple4<String, String, Operation.WindowType, String[]>> values) {
+    public void substituteVariables (List<Tuple4<String, String, Operation.WindowType, String[][]>> values) {
         for (Element element: elements) {
             if (element instanceof Operation){
-                for (Tuple4<String, String, Operation.WindowType, String[]> value: values) {
+                for (Tuple4<String, String, Operation.WindowType, String[][]> value: values) {
                     ((Operation) element).substituteVariable(value);
                 }
             }
@@ -247,7 +348,7 @@ public class SelectionSolver implements Cloneable{
     }
 
     public static class Operation implements Element {
-        public enum Operator{EQUAL, MAJOR, MINOR, MAJOREQUAL, MIMOREQUAL};
+        public enum Operator{EQUAL, GREATER, LESS, GREATEREQUAL, LESSEQUAL};
         public enum Type {VALUE, VARIABLE, LABEL};
         public enum WindowType {WITHIN, AGO, EVERYWITHIN};
 
@@ -255,7 +356,8 @@ public class SelectionSolver implements Cloneable{
         /**
          * Values can be multiple in case of time windows, thus with 'variable' type set, otherwise it should be single element list
          */
-        private Pair<String[], String[]> values;
+        //private Pair<String[], String[]> values;
+        private Pair<String[][], String[][]> values;
         private Pair<Type, Type> type;
 
         /**
@@ -276,7 +378,7 @@ public class SelectionSolver implements Cloneable{
          * @param within
          * @param windowType
          */
-        Operation(Operator operator, Pair<String[], String[]> values, Pair<Type, Type> type, Pair<String, String> within, Pair<WindowType, WindowType> windowType) {
+        Operation(Operator operator, Pair<String[][], String[][]> values, Pair<Type, Type> type, Pair<String, String> within, Pair<WindowType, WindowType> windowType) {
             this.operator = operator;
             this.values = values;
             this.type = type;
@@ -291,8 +393,8 @@ public class SelectionSolver implements Cloneable{
          */
         List<Tuple3<String, String, WindowType>> getVariableList() {
             ArrayList<Tuple3<String, String, WindowType>> result = new ArrayList<>();
-            if (type.first() == Type.VARIABLE) result.add(new Tuple3<>(values.first()[0], withinTimeUnits.first(), windowType.first()));
-            if (type.second() == Type.VARIABLE) result.add(new Tuple3<>(values.second()[0], withinTimeUnits.second(), windowType.second()));
+            if (type.first() == Type.VARIABLE) result.add(new Tuple3<>(values.first()[0][0], withinTimeUnits.first(), windowType.first()));
+            if (type.second() == Type.VARIABLE) result.add(new Tuple3<>(values.second()[0][0], withinTimeUnits.second(), windowType.second()));
             return result;
         }
 
@@ -301,29 +403,33 @@ public class SelectionSolver implements Cloneable{
          */
         List<String> getLabelList() {
             ArrayList<String> result = new ArrayList<>();
-            if (type.first() == Type.LABEL) result.add(values.first()[0]);
-            if (type.second() == Type.LABEL) result.add(values.second()[0]);
+            if (type.first() == Type.LABEL) result.add(values.first()[0][0]);
+            if (type.second() == Type.LABEL) result.add(values.second()[0][0]);
             return result;
         }
 
         void substituteLabel(String name, String[] values) {
-            if (this.type.first()== Type.LABEL && this.values.first()[0].equals(name)) {
-                this.values = new Pair<>(values, this.values.second());
+            if (this.type.first()== Type.LABEL && this.values.first()[0][0].equals(name)) {
+                this.values = new Pair<>(new String[][]{values}, this.values.second());
                 this.type= new Pair<>(Type.VALUE, this.type.second());
             }
-            if (this.type.second()== Type.LABEL && this.values.second()[0].equals(name)) {
-                this.values = new Pair<>(this.values.first(), values);
+            if (this.type.second()== Type.LABEL && this.values.second()[0][0].equals(name)) {
+                this.values = new Pair<>(this.values.first(), new String[][]{values});
                 this.type = new Pair<>(type.first(), Type.VALUE);
             }
 
         }
 
-        void substituteVariable(Tuple4<String, String, Operation.WindowType, String[]> values) {
-            if (this.type.first()== Type.VARIABLE && this.withinTimeUnits.first().equals(values.f1) && this.windowType.first().equals(values.f2) && this.values.first()[0].equals(values.f0)) {
+        /**
+         *
+         * @param values
+         */
+        void substituteVariable(Tuple4<String, String, Operation.WindowType, String[][]> values) {
+            if (this.type.first()== Type.VARIABLE && this.withinTimeUnits.first().equals(values.f1) && this.windowType.first().equals(values.f2) && this.values.first()[0][0].equals(values.f0)) {
                 this.values = new Pair<>(values.f3, this.values.second());
                 this.type= new Pair<>(Type.VALUE, this.type.second());
             }
-            if (this.type.second()== Type.VARIABLE && this.withinTimeUnits.second().equals(values.f1) && this.windowType.second().equals(values.f2) && this.values.second()[0].equals(values.f0)) {
+            if (this.type.second()== Type.VARIABLE && this.withinTimeUnits.second().equals(values.f1) && this.windowType.second().equals(values.f2) && this.values.second()[0][0].equals(values.f0)) {
                 this.values = new Pair<>(this.values.first(), values.f3);
                 this.type = new Pair<>(type.first(), Type.VALUE);
             }
@@ -331,7 +437,7 @@ public class SelectionSolver implements Cloneable{
         }
 
         /**
-         * TODO: Make it handle multivalue reusing code!
+         * Will it work at the end? "Ai tester l'ardua sentenza"
          * @return
          */
         boolean solve () {
@@ -368,8 +474,8 @@ public class SelectionSolver implements Cloneable{
          * @param everyWithinValues2
          * @return true if every pair of element satisfies condition
          */
-        private boolean everyWithinAgainstEveryWithin (String[] everyWithinValues1, String[] everyWithinValues2){
-            for (String current: everyWithinValues1) {
+        private boolean everyWithinAgainstEveryWithin (String[][] everyWithinValues1, String[][] everyWithinValues2){
+            for (String[] current: everyWithinValues1) {
                 if (!againstEveryWithin(current, everyWithinValues2)) return false;
             }
             return true;
@@ -380,8 +486,8 @@ public class SelectionSolver implements Cloneable{
          * @param everyWithinValues
          * @return true if at least one element from withinValue match all element of second argument
          */
-        private boolean withinAgainstEveryWithin (String[] withinValues, String[] everyWithinValues){
-            for (String current: withinValues) {
+        private boolean withinAgainstEveryWithin (String[][] withinValues, String[][] everyWithinValues){
+            for (String[] current: withinValues) {
                 if (againstEveryWithin(current, everyWithinValues)) return true;
             }
             return false;
@@ -392,8 +498,8 @@ public class SelectionSolver implements Cloneable{
          * @param values2
          * @return true if at least 1 element from values1 match an element from values2
          */
-        private boolean withinAgainstWithin (String[] values1, String[] values2){
-            for (String current: values1) {
+        private boolean withinAgainstWithin (String[][] values1, String[][] values2){
+            for (String[] current: values1) {
                     if (againstWithin(current, values2)) return true;
             }
             return false;
@@ -404,8 +510,8 @@ public class SelectionSolver implements Cloneable{
          * @param values
          * @return true if there is at least a match of value against values
          */
-        private boolean againstWithin (String value, String[] values){
-            for (String current: values) {
+        private boolean againstWithin (String[] value, String[][] values){
+            for (String[] current: values) {
                 if (executeOperation(value, current)) return true;
             }
             return false;
@@ -417,8 +523,8 @@ public class SelectionSolver implements Cloneable{
          * @param values
          * @return true if it match everytime
          */
-        private boolean againstEveryWithin (String value, String[] values){
-            for (String current: values) {
+        private boolean againstEveryWithin (String[] value, String[][] values){
+            for (String[] current: values) {
                 if (!executeOperation(value, current)) return false;
             }
             return true;
@@ -426,45 +532,51 @@ public class SelectionSolver implements Cloneable{
 
         /**
          * Comparison is lexicographical or after a conversion (if both terms are convertible to long)
-         * @param value1 @NotNull
-         * @param value2 @NotNull
+         * @param values1 @NotNull
+         * @param values2 @NotNull
          * @return
          */
-        private boolean executeOperation (String value1, String value2){
+        private boolean executeOperation (String[] values1, String[] values2){
             Double converted1 = null, converted2 = null;
-            boolean converted = false;
+            boolean converted;
             if (operator == null) throw new IllegalArgumentException("Operator must be defined");
-            if (operator == Operator.EQUAL) return value1.equals(value2);
-            else { //Try to parse as double
-                try{
-                    converted1 = Double.parseDouble(value1);
-                    converted2 = Double.parseDouble(value2);
-                    converted = true;
-                } catch (Exception e){
-                    System.out.println("Parsing as double Failed: " + value1 + " " + value2);
-                }
 
-                if (converted) {
-                    switch (operator) {
-                        case MAJOR:
-                            return converted1 > converted2;
-                        case MINOR:
-                            return converted1 < converted2;
-                        case MAJOREQUAL:
-                            return converted1 >= converted2;
-                        case MIMOREQUAL:
-                            return converted1 <= converted2;
+            for (String value1: values1) {
+                for (String value2: values2) {
+                    converted = false;
+                    if (operator == Operator.EQUAL) return value1.equals(value2);
+                    else { //Try to parse as double
+                        try{
+                            converted1 = Double.parseDouble(value1);
+                            converted2 = Double.parseDouble(value2);
+                            converted = true;
+                        } catch (Exception e){
+                            System.out.println("Parsing as double Failed: " + value1 + " " + value2);
+                        }
+
+                        if (converted) { //Manage as Doubles
+                            switch (operator) {
+                                case GREATER:
+                                    return converted1 > converted2;
+                                case LESS:
+                                    return converted1 < converted2;
+                                case GREATEREQUAL:
+                                    return converted1 >= converted2;
+                                case LESSEQUAL:
+                                    return converted1 <= converted2;
+                            }
+                        }
+                        else { //Manage as strings
+                            int result = value1.compareTo(value2);
+                            if (result > 0 && operator == Operator.GREATER) return true;
+                            if (result >= 0 && operator == Operator.GREATEREQUAL) return true;
+                            if (result < 0 && operator == Operator.LESS) return true;
+                            if (result <= 0 && operator == Operator.LESSEQUAL) return true;
+                        }
                     }
                 }
-                else {
-                    int result = value1.compareTo(value2);
-                    if (result > 0 && operator == Operator.MAJOR) return true;
-                    if (result >= 0 && operator == Operator.MAJOREQUAL) return true;
-                    if (result < 0 && operator == Operator.MINOR) return true;
-                    if (result <= 0 && operator == Operator.MIMOREQUAL) return true;
-                }
-                return false;
             }
+            return false;
         }
 
         @Override

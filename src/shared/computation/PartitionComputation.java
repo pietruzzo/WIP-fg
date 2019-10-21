@@ -1,7 +1,6 @@
 package shared.computation;
 
 import akka.japi.Pair;
-import jdk.internal.jline.internal.Nullable;
 import org.apache.commons.math3.exception.DimensionMismatchException;
 
 import java.util.*;
@@ -127,7 +126,7 @@ public abstract class PartitionComputation {
         }
 
         @Override
-        public ComputationRuntime get(@Nullable Map<String, String> partition) {
+        public ComputationRuntime get(Map<String, String> partition) {
             return this.computationRuntime;
         }
 
