@@ -2,7 +2,7 @@ package shared.selection;
 
 import shared.VertexNew;
 import shared.computation.Vertex;
-import shared.variables.VariableSolver;
+import shared.variables.solver.VariableSolverSlave;
 
 
 public class Select {
@@ -11,7 +11,7 @@ public class Select {
     private final VertexNew vertex;
     private boolean vertexSolved;
 
-    public Select(SelectionSolver selectionSolver, VertexNew vertex, VariableSolver variableSolver) {
+    public Select(SelectionSolver selectionSolver, VertexNew vertex, VariableSolverSlave variableSolverSlave) {
         this.selectionSolver = selectionSolver;
         this.vertex = vertex;
         this.vertexSolved = false;

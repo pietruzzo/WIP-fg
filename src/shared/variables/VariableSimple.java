@@ -6,14 +6,14 @@ public class VariableSimple extends Variable {
     /**
      * Valore Aggregato, solitamente sul master
      */
-    private final String valore;
+    private final String[] value;
 
-    public VariableSimple(String name, long persistence, long timestamp, String valore) {
+    public VariableSimple(String name, long persistence, long timestamp, String[] values) {
         super(name, persistence, timestamp);
-        this.valore = valore;
+        this.value = values;
     }
 
-    public String getValore() {
-        return valore;
+    public String[] getValue() {
+        return value;
     }
 }

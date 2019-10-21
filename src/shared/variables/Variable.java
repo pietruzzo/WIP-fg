@@ -11,4 +11,16 @@ public abstract class Variable {
         this.persistence = persistence;
         this.timestamp = timestamp;
     }
+
+    public String getName() {
+        return name;
+    }
+
+    public long getPersistence() {
+        return persistence;
+    }
+
+    public long getTimestamp() {
+        return timestamp;
+    }
 }

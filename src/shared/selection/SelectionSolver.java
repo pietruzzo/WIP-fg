@@ -6,6 +6,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import shared.VertexNew;
 import shared.computation.Vertex;
+import shared.variables.solver.VariableSolverSlave;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -20,10 +21,6 @@ import java.util.List;
  *  - For each node substitute variable and labels and solve
  */
 public class SelectionSolver implements Cloneable{
-
-    /**
-     * Edge property is _edgeName_property
-     */
 
 
 
@@ -64,18 +61,38 @@ public class SelectionSolver implements Cloneable{
 
     /**
      * Strategy: Before substituting all labes/values, focus on part before EDGE token, then select edges
+     * @return null if vertex is not selected
+     * @return Vertex with selected edges
      */
-    boolean solveVertex (VertexNew vertex) {
-        //TODO Select on vertex
-        //Substitute labels up to EDGE Token
-        //solve up to EDGE
-        //pop and return Solution from elements
-        return false;
+    Vertex solveVertex (VertexNew vertex, VariableSolverSlave variableSolver) { //TODO to be implemented
+        //Select Vertex
+        //1-Get vertex variables substitute them
+        List<Tuple3<String, String, Operation.WindowType>> variables = this.getVariables(true, false);
+        for (Tuple3<String, String, Operation.WindowType> variable: variables) {
+            if (variable.f1 == null && variable.f2 == null) {
+                variableSolver.getValuesV(variable.f0, vertex.getNodeId());
+            } else if (variable.f1 != null && variable.f2 != null) {
+                variableSolver.getValuesV(variable.f0, vertex.getNodeId(), variable.f1, variable.f2);
+            } else throw new NullPointerException("for vertex " + vertex.getNodeId() + ", for variable " + variable.f0 + " windowTime (" + variable.f1 + "), windowType (" + variable.f1 + ") must be both null or ot null)")
+        }
+        //2-Substitute labels with values
+        //3-perform selection up to EDGE / END
+        //Select Edges
+        //4-clone this for each edge
+        //5-call method solveEdge on ech edge
+        //6-collect selected edges
+        //7-return Vertex with selected edges
 
+        return null;
     }
-    boolean solveEdges (VertexNew vertex) {
-        //TODO select on edges
-        return false;
+
+    /**
+     *
+     * @param edgeName
+     * @return true id edge is selected, otherwise false
+     */
+    private boolean selectEdge (String edgeName) {
+
     }
 
     /**
@@ -251,14 +268,21 @@ public class SelectionSolver implements Cloneable{
          */
         private final Pair<WindowType, WindowType> windowType;
 
-        Operation(Operator operator, Pair<String[], String[]> values, Pair<Type, Type> type, @Nullable Pair<String, String> within, @Nullable Pair<WindowType, WindowType> windowType) {
+        /**
+         * it's not checked, but if one element of within is null, the corresponding element in windowType must be null and vice-versa
+         * @param operator
+         * @param values
+         * @param type
+         * @param within
+         * @param windowType
+         */
+        Operation(Operator operator, Pair<String[], String[]> values, Pair<Type, Type> type, Pair<String, String> within, Pair<WindowType, WindowType> windowType) {
             this.operator = operator;
             this.values = values;
             this.type = type;
-            if (within == null) this.withinTimeUnits = new Pair<>(null, null);
-            else this.withinTimeUnits = within;
-            if (windowType == null) this.windowType = new Pair<>(null, null);
-            else this.windowType = windowType;
+            this.withinTimeUnits = within;
+            this.windowType = windowType;
+
         }
 
         /**
