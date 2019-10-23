@@ -3,7 +3,7 @@ package shared.variables.solver;
 import shared.Utils;
 import shared.selection.SelectionSolver;
 import shared.variables.Variable;
-import shared.variables.VariableSimple;
+import shared.variables.VariableAggregate;
 
 import java.util.*;
 
@@ -13,7 +13,7 @@ public class VariableSolverMaster extends VariableSolver{
      * HashMap<variableName , ArrayList<variableVersion>>
      *     New versions are registered in tail inorder
      */
-    private final HashMap<String , LinkedList<VariableSimple>> variablesSimple;
+    private final HashMap<String , LinkedList<VariableAggregate>> variablesSimple;
 
     public VariableSolverMaster() {
         this.variablesSimple = new HashMap<>();
@@ -39,12 +39,12 @@ public class VariableSolverMaster extends VariableSolver{
      */
     public List<String[]> getAggregate(String nameVariable, String timeWindow, SelectionSolver.Operation.WindowType windowType) {
         List<String[]> result = new ArrayList<>();
-        LinkedList<VariableSimple> variables = variablesSimple.get(nameVariable);
+        LinkedList<VariableAggregate> variables = variablesSimple.get(nameVariable);
         if (variables == null) return null;
         long timeSolved = this.currentTimestamp - Utils.solveTime(timeWindow);
 
-        Iterator<VariableSimple> iterator = variables.descendingIterator();
-        VariableSimple current = null;
+        Iterator<VariableAggregate> iterator = variables.descendingIterator();
+        VariableAggregate current = null;
         String[] values = null;
 
         while (iterator.hasNext() && timeSolved > (current = iterator.next()).getTimestamp()){
@@ -60,7 +60,7 @@ public class VariableSolverMaster extends VariableSolver{
 
     @Override
     public void addVariable(Variable variable) {
-        if (variable instanceof VariableSimple) this.addToMap(variablesSimple, (VariableSimple)variable);
+        if (variable instanceof VariableAggregate) this.addToMap(variablesSimple, (VariableAggregate)variable);
         else System.out.println("Wrong instance type for variable: " + variable.getName() + ",  " + variable.getClass().toGenericString());
     }
 

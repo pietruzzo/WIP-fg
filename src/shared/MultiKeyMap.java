@@ -22,6 +22,12 @@ public class MultiKeyMap<T> implements Serializable {
         return keys;
     }
 
+    /**
+     *
+     * @param compositeKey
+     * @return null if value isn't contained for the specified composite key
+     * @throws IllegalArgumentException if there isn't a composite key for the specified key mapping
+     */
     public T getValue (Map<String, String> compositeKey) throws IllegalArgumentException{
         return map.get(composeKey(compositeKey));
     }
@@ -34,6 +40,7 @@ public class MultiKeyMap<T> implements Serializable {
      *
      * @param keyValues Map<key,value>
      * @return
+     * @throws IllegalArgumentException if there isn't mapping for the specified composite key
      *
      */
     private String composeKey(Map<String, String> keyValues) throws IllegalArgumentException{
@@ -43,7 +50,7 @@ public class MultiKeyMap<T> implements Serializable {
             if (next == null) throw new IllegalArgumentException("No mapping for " + key + " inside " + Arrays.toString(keyValues.keySet().toArray()));
             outputKey = outputKey + key + next;
         }
-        return  outputKey;
+        return outputKey;
     }
 
 

@@ -6,13 +6,10 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import shared.VertexNew;
 import shared.computation.Vertex;
-import shared.variables.solver.VariableSolverSlave;
+import shared.variables.solver.VariableSolver;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 
 /**
  * At parse time no labels nor variables can be substituted
@@ -26,8 +23,19 @@ public class SelectionSolver implements Cloneable{
 
     private ArrayList<Element> elements;
 
+    private Map<String, String> partition;
+
     public SelectionSolver() {
         this.elements = new ArrayList<>();
+        partition = null;
+    }
+
+    public Map<String, String> getPartition() {
+        return partition;
+    }
+
+    public void setPartition(Map<String, String> partition) {
+        this.partition = partition;
     }
 
     public void addElementBoolean (Boolean bool) {
@@ -63,12 +71,29 @@ public class SelectionSolver implements Cloneable{
         this.elements.add(element);
     }
 
+    void solveAggregates (VariableSolver variableSolver) {
+
+        //Try with all variable to find an aggregate
+        List<Tuple4<String, String, Operation.WindowType, String[][]>> varToBeSubstituted = new ArrayList<>();
+        List<Tuple3<String, String, Operation.WindowType>> variables = this.getVariables(true, false);
+
+        for (Tuple3<String, String, Operation.WindowType> variable: variables) {
+            if (variable.f1 == null && variable.f2 == null) {
+                String[] variableValues = variableSolver.getAggregate(variable.f0, partition);
+                varToBeSubstituted.add(new Tuple4<>(variable.f0, variable.f1, variable.f2, new String[][]{variableValues}));
+            } else if (variable.f1 != null && variable.f2 != null) {
+                List<String[]> variableValues = variableSolver.getAggregate(variable.f0, partition, variable.f1, variable.f2);
+                varToBeSubstituted.add(new Tuple4<>(variable.f0, variable.f1, variable.f2, (String[][])variableValues.toArray()));
+            } else throw new NullPointerException("for variable " + variable.f0 + " windowTime (" + variable.f1 + "), windowType (" + variable.f1 + ") must be both null or ot null)");
+        }
+        this.substituteVariables(varToBeSubstituted);
+    }
     /**
      * Strategy: Before substituting all labes/values, focus on part before EDGE token, then select edges
      * @return null if vertex is not selected
      * @return Vertex with selected edges
      */
-    Vertex solveVertex (VertexNew vertex, VariableSolverSlave variableSolver) {
+    Vertex solveVertex (VertexNew vertex, VariableSolver variableSolver) {
         //Select Vertex
 
         //0-Basecases
@@ -80,10 +105,10 @@ public class SelectionSolver implements Cloneable{
 
         for (Tuple3<String, String, Operation.WindowType> variable: variables) {
             if (variable.f1 == null && variable.f2 == null) {
-                String[] variableValues = variableSolver.getValuesV(variable.f0, vertex.getNodeId());
+                String[] variableValues = variableSolver.getVertexVariable(variable.f0, partition, vertex.getNodeId());
                 varToBeSubstituted.add(new Tuple4<>(variable.f0, variable.f1, variable.f2, new String[][]{variableValues}));
             } else if (variable.f1 != null && variable.f2 != null) {
-                List<String[]> variableValues = variableSolver.getValuesV(variable.f0, vertex.getNodeId(), variable.f1, variable.f2);
+                List<String[]> variableValues = variableSolver.getVertexVariable(variable.f0, partition, vertex.getNodeId(), variable.f1, variable.f2);
                 varToBeSubstituted.add(new Tuple4<>(variable.f0, variable.f1, variable.f2, (String[][])variableValues.toArray()));
             } else throw new NullPointerException("for vertex " + vertex.getNodeId() + ", for variable " + variable.f0 + " windowTime (" + variable.f1 + "), windowType (" + variable.f1 + ") must be both null or ot null)");
         }
@@ -150,17 +175,17 @@ public class SelectionSolver implements Cloneable{
      * @param edgeName
      * @return true id edge is selected, otherwise false
      */
-    private boolean selectEdge (VertexNew vertex, VariableSolverSlave variableSolver, String edgeName) {
+    private boolean selectEdge (VertexNew vertex, VariableSolver variableSolver, String edgeName) {
         //Substitute Variables
         List<Tuple4<String, String, Operation.WindowType, String[][]>> varToBeSubstituted = new ArrayList<>();
         List<Tuple3<String, String, Operation.WindowType>> variables = this.getVariables(false, true);
 
         for (Tuple3<String, String, Operation.WindowType> variable: variables) {
             if (variable.f1 == null && variable.f2 == null) {
-                String[] variableValues = variableSolver.getValuesE(variable.f0, vertex.getNodeId(), edgeName);
+                String[] variableValues = variableSolver.getEdgeVariable(variable.f0,partition, vertex.getNodeId(), edgeName);
                 varToBeSubstituted.add(new Tuple4<>(variable.f0, variable.f1, variable.f2, new String[][]{variableValues}));
             } else if (variable.f1 != null && variable.f2 != null) {
-                List<String[]> variableValues = variableSolver.getValuesE(variable.f0, vertex.getNodeId(), edgeName, variable.f1, variable.f2);
+                List<String[]> variableValues = variableSolver.getEdgeVariable(variable.f0, partition, vertex.getNodeId(), edgeName, variable.f1, variable.f2);
                 varToBeSubstituted.add(new Tuple4<>(variable.f0, variable.f1, variable.f2, (String[][])variableValues.toArray()));
             } else throw new NullPointerException("for vertex " + vertex.getNodeId() + ", for variable " + variable.f0 + " windowTime (" + variable.f1 + "), windowType (" + variable.f1 + ") must be both null or ot null)");
         }
@@ -269,6 +294,7 @@ public class SelectionSolver implements Cloneable{
     @Override
     public SelectionSolver clone() {
         SelectionSolver selectionSolver = new SelectionSolver();
+        selectionSolver.partition = this.partition;
         for (Element e: this.elements) {
             selectionSolver.addElement(e.clone());
         }

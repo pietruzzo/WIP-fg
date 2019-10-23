@@ -4,7 +4,6 @@ import shared.Utils;
 import shared.VertexNew;
 import shared.computation.Vertex;
 import shared.data.SynchronizedIterator;
-import shared.variables.solver.VariableSolverSlave;
 
 import java.util.*;
 import java.util.concurrent.ExecutionException;
