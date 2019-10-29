@@ -4,16 +4,16 @@ import jdk.internal.jline.internal.Nullable;
 import shared.Utils;
 import shared.exceptions.VariableNotDefined;
 import shared.exceptions.WrongTypeRuntimeException;
-import shared.selection.SelectionSolver;
 import shared.variables.*;
 import shared.selection.SelectionSolver.Operation.WindowType;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
-public abstract class VariableSolver {
+public class VariableSolver {
 
 
+    //Todo : use tail with navigableTreeMap (navigable can't be final)
     private final HashMap<String , LinkedList<Variable>> variables;
     private long currentTimestamp;
 
@@ -167,6 +167,10 @@ public abstract class VariableSolver {
         return result;
     }
 
+    /**
+     * It assums increasing timestamp order
+     * @param variable
+     */
     public void addVariable(Variable variable) {
         this.variables.computeIfAbsent(variable.getName(), k -> new LinkedList<>());
         this.variables.get(variable.getName()).add(variable);

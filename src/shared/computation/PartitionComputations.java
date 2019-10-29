@@ -5,17 +5,17 @@ import org.apache.commons.math3.exception.DimensionMismatchException;
 
 import java.util.*;
 
-public abstract class PartitionComputation {
+public abstract class PartitionComputations {
 
     abstract public List<String> getNames();
     abstract public void addComputationRuntime(Map<String, String> partition, ComputationRuntime computation);
     abstract public ComputationRuntime get(Map<String, String> partition);
     abstract public List<ComputationRuntime> getAll();
 
-    public static class Node extends PartitionComputation {
+    public static class Node extends PartitionComputations {
 
         private final String varName;
-        private HashMap<String, PartitionComputation> nodes;
+        private HashMap<String, PartitionComputations> nodes;
 
         public Node (List<Pair<String, List<String>>> varValue){
 
@@ -47,14 +47,14 @@ public abstract class PartitionComputation {
 
         public List<ComputationRuntime> getAll(){
             ArrayList<ComputationRuntime> result = new ArrayList<>();
-            for (PartitionComputation partition: nodes.values()) {
+            for (PartitionComputations partition: nodes.values()) {
                 result.addAll(partition.getAll());
             }
             return result;
         }
 
         public ComputationRuntime get(Map<String, String> partition){
-            PartitionComputation child = nodes.get(partition.get(this.varName));
+            PartitionComputations child = nodes.get(partition.get(this.varName));
             return child.get(partition);
         }
 
@@ -103,7 +103,7 @@ public abstract class PartitionComputation {
 
     }
 
-    public static class Leaf extends PartitionComputation {
+    public static class Leaf extends PartitionComputations {
 
         private ComputationRuntime computationRuntime;
 

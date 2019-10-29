@@ -4,6 +4,8 @@ import java.util.Map;
 
 public class VariableVertex extends Variable {
 
+    private static final long serialVersionUID = 200043L;
+
     /**
      * Map<VertexId, Values>
      */

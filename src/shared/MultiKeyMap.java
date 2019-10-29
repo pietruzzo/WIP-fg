@@ -38,9 +38,9 @@ public class MultiKeyMap<T> implements Serializable {
 
     /**
      *
-     * @param keyValues Map<key,value>
+     * @param keyValues Map key,value, if passed key has more keys it will return without errors
      * @return
-     * @throws IllegalArgumentException if there isn't mapping for the specified composite key
+     * @throws IllegalArgumentException if there isn't mapping for the specified composite key, the passed key has less arguments
      *
      */
     private String composeKey(Map<String, String> keyValues) throws IllegalArgumentException{

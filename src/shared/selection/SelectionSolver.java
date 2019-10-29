@@ -6,6 +6,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import shared.VertexNew;
 import shared.computation.Vertex;
+import shared.exceptions.WrongTypeRuntimeException;
 import shared.variables.solver.VariableSolver;
 
 import java.io.Serializable;
@@ -78,13 +79,16 @@ public class SelectionSolver implements Cloneable{
         List<Tuple3<String, String, Operation.WindowType>> variables = this.getVariables(true, false);
 
         for (Tuple3<String, String, Operation.WindowType> variable: variables) {
-            if (variable.f1 == null && variable.f2 == null) {
-                String[] variableValues = variableSolver.getAggregate(variable.f0, partition);
-                varToBeSubstituted.add(new Tuple4<>(variable.f0, variable.f1, variable.f2, new String[][]{variableValues}));
-            } else if (variable.f1 != null && variable.f2 != null) {
-                List<String[]> variableValues = variableSolver.getAggregate(variable.f0, partition, variable.f1, variable.f2);
-                varToBeSubstituted.add(new Tuple4<>(variable.f0, variable.f1, variable.f2, (String[][])variableValues.toArray()));
-            } else throw new NullPointerException("for variable " + variable.f0 + " windowTime (" + variable.f1 + "), windowType (" + variable.f1 + ") must be both null or ot null)");
+            try {
+                if (variable.f1 == null && variable.f2 == null) {
+                    String[] variableValues = variableSolver.getAggregate(variable.f0, partition);
+                    varToBeSubstituted.add(new Tuple4<>(variable.f0, variable.f1, variable.f2, new String[][]{variableValues}));
+                } else if (variable.f1 != null && variable.f2 != null) {
+                    List<String[]> variableValues = variableSolver.getAggregate(variable.f0, partition, variable.f1, variable.f2);
+                    varToBeSubstituted.add(new Tuple4<>(variable.f0, variable.f1, variable.f2, (String[][]) variableValues.toArray()));
+                } else
+                    throw new NullPointerException("for variable " + variable.f0 + " windowTime (" + variable.f1 + "), windowType (" + variable.f1 + ") must be both null or ot null)");
+            } catch (WrongTypeRuntimeException e) {}
         }
         this.substituteVariables(varToBeSubstituted);
     }
@@ -93,7 +97,7 @@ public class SelectionSolver implements Cloneable{
      * @return null if vertex is not selected
      * @return Vertex with selected edges
      */
-    Vertex solveVertex (VertexNew vertex, VariableSolver variableSolver) {
+    VertexNew solveVertex (VertexNew vertex, VariableSolver variableSolver) {
         //Select Vertex
 
         //0-Basecases

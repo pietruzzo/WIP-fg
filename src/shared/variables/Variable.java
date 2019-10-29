@@ -1,6 +1,8 @@
 package shared.variables;
 
-public abstract class Variable {
+import java.io.Serializable;
+
+public abstract class Variable implements Serializable {
 
     private final String name;
     private final long persistence;

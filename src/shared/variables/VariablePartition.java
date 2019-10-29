@@ -1,18 +1,24 @@
 package shared.variables;
 
 import shared.MultiKeyMap;
+import shared.computation.Vertex;
 
+import java.util.ArrayList;
 import java.util.Map;
 
 public class VariablePartition extends Variable {
 
+    private static final long serialVersionUID = 200042L;
+
     private final Map<String, String[]> values;
     private final MultiKeyMap<Variable> insideVariable; //Edges, aggregate or vertex
+    private final MultiKeyMap<ArrayList<Vertex>> partitionNodes;
 
     public VariablePartition(String name, long persistence, long timestamp, Map<String, String[]> values) {
         super(name, persistence, timestamp);
         this.values = values;
         this.insideVariable = new MultiKeyMap<>((String[]) values.keySet().toArray());
+        this.partitionNodes = new MultiKeyMap<>((String[]) values.keySet().toArray());
     }
 
     /**
@@ -29,7 +35,7 @@ public class VariablePartition extends Variable {
             return ((VariableAggregate) variable).getValue();
         } else if (variable == null){
             return null;
-        } else throw new ClassCastException("Variable shourl be of type: " + VariableAggregate.class.toGenericString());
+        } else throw new ClassCastException("Variable should be of type: " + VariableAggregate.class.toGenericString());
     }
 
     /**

@@ -4,6 +4,8 @@ import java.util.Map;
 
 public class VariableEdge extends Variable {
 
+    private static final long serialVersionUID = 200041L;
+
     /**
      * Map<VertexName, Map<EdgeName, Values>>
      */

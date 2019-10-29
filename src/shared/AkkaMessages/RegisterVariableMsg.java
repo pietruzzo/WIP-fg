@@ -1,6 +1,6 @@
 package shared.AkkaMessages;
 
-import shared.selection.Variable;
+import shared.variables.Variable;
 
 import java.io.Serializable;
 

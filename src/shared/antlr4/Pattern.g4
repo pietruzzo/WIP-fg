@@ -6,13 +6,21 @@ temporalPattern :
 
 collectStreams : '.collect(' temporalVariable (',' temporalVariable)* ')'; //EVERY is meaningless
 
-basicPattern :  '.g()' triggerComputation?  (computation | selection)* extraction (operation)* emission ';';
+basicPattern :  '.g()' triggerComputation?  (computation | selection)* (extraction (operation)*)? emission ';';
 
 computation : '.compute(' computationFunction ')' ;
 
-selection : '.selectPartition(' selectionFunction ')' ;
+selection : '.select(' selectionFunction ')' ;
 
-extraction : '.extract(' ( 'EDGE'? (label ',')* label)? ')' ;
+partition
+    : '.partitionV(' partitionFunction ')'
+    | '.partitionE(' partitionFunction ')'
+    ;
+
+extraction
+    : '.extractV(' ( 'EDGE'? (label ',')* label)? ')'
+    | '.extractE(' ( 'EDGE'? (label ',')* label)? ')'
+    ;
 
 evaluation : '.evaluate(' Operator ',' value ',' fireEvent ')' ';' ;
 
@@ -22,7 +30,6 @@ computationFunction : functionName ',' label (', [' variable+ ']' )?;
 
 /*selectionFunction :
     boolPredicate
-    | ( label = freeVariable)+
 	| ( selectionFunction BinBoolOperator selectionFunction )
     | ( UnaryBoolOperator selectionFunction )
 	| ( '(' selectionFunction  ')' )
@@ -31,7 +38,6 @@ computationFunction : functionName ',' label (', [' variable+ ']' )?;
 
 selectionFunction
     : boolPredicate selRecursion
-    | (label '=' freeVariable (',' label '=' freeVariable)*)
     | UnaryBoolOperator selectionFunction selRecursion
     | '(' selectionFunction  ')' selRecursion
     ;
@@ -43,14 +49,16 @@ selRecursion
 
 boolPredicate : (label | temporalVariable) Operator ( value | temporalVariable | label) ;
 
+partitionFunction
+    : variable? ((variable|label) '=' freeVariable (',' (variable|label) '=' freeVariable)*)?
+    ;
 freeVariable
-    : '$FREE'
-    | variable '.' label
+    : 'FREE'
     ;
 
 operationFunction
     : ( 'map' | 'flatmap' | 'reduce' | 'filter' ) '(' functionName')'
-    | ('groupby' | 'collect') '(' label ')'
+    | ('groupby' | 'collect') '(' label+ ')'
     | 'avg' | 'max' | 'min' | 'count'
     ;
 
@@ -83,7 +91,6 @@ variable : '$' Litterals ;
 
 fireEvent : '\"' Litterals '\"' ;
 
-// todo: Definire la precedenza degli operatori
 
 //Flexer
 

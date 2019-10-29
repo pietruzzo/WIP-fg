@@ -70,6 +70,10 @@ public class ComputationRuntime {
 
     public int getStepNumber() {
         return stepNumber;
+    };
+
+    public Map<String, Vertex> getVertices() {
+        return vertices;
     }
 
     /**
