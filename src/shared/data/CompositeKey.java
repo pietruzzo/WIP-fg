@@ -4,7 +4,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-class CompositeKey {
+public class CompositeKey {
 
     private final HashMap<String, String> keysMapping;
 

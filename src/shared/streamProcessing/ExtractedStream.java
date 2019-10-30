@@ -40,7 +40,7 @@ public class ExtractedStream {
         if (!isEdgeExtraction) {
             this.stream = computationRuntime.getVertices().values().parallelStream().map(value -> {
                 Tuple t = Tuple.newInstance(this.tupleFields.size());
-                t.setField(value.getNodeId(), 0);
+                t.setField(new String[]{value.getNodeId()}, 0);
                 for (int i = 1; i < t.getArity(); i++) {
                     t.setField(value.getLabelVertex(this.tupleFields.get(i)), i);
                 }
@@ -51,8 +51,8 @@ public class ExtractedStream {
                 ArrayList<Tuple> returnTuples = new ArrayList<>();
                 for (String edgeLink: value.getEdges()) {
                     Tuple t = Tuple.newInstance(this.tupleFields.size());
-                    t.setField(value.getNodeId(), 0);
-                    t.setField(edgeLink, 1);
+                    t.setField(new String[]{value.getNodeId()}, 0);
+                    t.setField(new String[]{edgeLink}, 1);
                     for (int i = 2; i < t.getArity(); i++) {
                         t.setField(value.getLabelEdge(edgeLink, this.tupleFields.get(i)), i);
                     }
@@ -99,7 +99,7 @@ public class ExtractedStream {
         return getExtractedStream(newStream, this.tupleFields, this.streamType);
     }
 
-    public GroupedExtracted groupby(String[] groupingLabels){
+    public GroupedExtracted groupby(String[] groupingLabels){ //NB: HashMap has hashing of the reference for the position of value
         Map<Tuple, List<Tuple>> newStream = stream.collect(Collectors.groupingBy(tuple -> {
             Tuple key = Tuple.newInstance(groupingLabels.length);
             for (int i = 0; i < groupingLabels.length; i++) {

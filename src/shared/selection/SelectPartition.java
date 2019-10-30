@@ -39,7 +39,7 @@ public class SelectPartition { //On the single partition
         //Execute selection on nodes/edges
         Utils.parallelizeAndWait(executors, new SelectNode(this));
 
-        //Prune edges pointing to nodes not in partition
+        //Prune edges pointing to nodes not in partition -> todo this can be done only after asking other taskmanagers
         List<Vertex> result = new ArrayList<>(selectionResult.values());
         SynchronizedIterator<Vertex> synchronizedIterator = new SynchronizedIterator<>(result.iterator());
         Utils.parallelizeAndWait(executors, new PruneVertices(synchronizedIterator, selectionResult));

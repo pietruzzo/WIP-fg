@@ -18,7 +18,7 @@ import java.util.*;
  *  - Substitute aggregates and fixed parameters variables
  *  - For each node substitute variable and labels and solve
  */
-public class SelectionSolver implements Cloneable{
+public class SelectionSolver implements Cloneable, Selection{
 
 
 

@@ -23,7 +23,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
-//LAST USED: private static final long serialVersionUID = 200047L;
+//LAST USED: private static final long serialVersionUID = 200049L;
 
 public class TaskManagerActor extends AbstractActor implements ComputationCallback {
 	private final LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
