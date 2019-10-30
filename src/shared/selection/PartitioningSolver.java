@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 
 public class PartitioningSolver implements Selection, Cloneable{ //Inside partition
 
-    private final boolean partitionOnEdge;
+    public final boolean partitionOnEdge;
     private final List<Element> operationalElements;
 
     public PartitioningSolver(boolean partitionOnEdge) {

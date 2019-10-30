@@ -11,7 +11,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 
 
-public class SelectPartition { //On the single partition
+public class Select { //On the single partition
 
     protected final SelectionSolver selectionSolver;
     protected final VariableSolver variableSolver;
@@ -20,7 +20,7 @@ public class SelectPartition { //On the single partition
     private final HashMap<String, String> partition;
     private final Map<String, Vertex> selectionResult;
 
-    public SelectPartition(SelectionSolver selectionSolver, Iterator<VertexNew> vertexIterator, VariableSolver variableSolverSlave, ThreadPoolExecutor executors, HashMap<String, String> partition) {
+    public Select(SelectionSolver selectionSolver, Iterator<VertexNew> vertexIterator, VariableSolver variableSolverSlave, ThreadPoolExecutor executors, HashMap<String, String> partition) {
         this.selectionSolver = selectionSolver;
         this.vertexIterator = new SynchronizedIterator<>(vertexIterator);
         this.executors = executors;
@@ -55,20 +55,20 @@ public class SelectPartition { //On the single partition
 
     private static class SelectNode implements Utils.DuplicableRunnable {
 
-        private final SelectPartition selectPartition;
+        private final Select select;
 
-        public SelectNode(SelectPartition selectPartition) {
-            this.selectPartition = selectPartition;
+        public SelectNode(Select select) {
+            this.select = select;
         }
 
         @Override
         public void run() {
             try{
                 while(true) {
-                    VertexNew vertex = selectPartition.vertexIterator.next();
-                    SelectionSolver selectionSolver = selectPartition.selectionSolver.clone();
-                    Vertex result = selectionSolver.solveVertex(vertex, selectPartition.variableSolver);
-                    selectPartition.registerVertex(result);
+                    VertexNew vertex = select.vertexIterator.next();
+                    SelectionSolver selectionSolver = select.selectionSolver.clone();
+                    Vertex result = selectionSolver.solveVertex(vertex, select.variableSolver);
+                    select.registerVertex(result);
                 }
             } catch (NoSuchElementException e){
                 //End of elements
@@ -77,7 +77,7 @@ public class SelectPartition { //On the single partition
 
         @Override
         public Utils.DuplicableRunnable getCopy() {
-            return new SelectNode(this.selectPartition);
+            return new SelectNode(this.select);
         }
     }
 
