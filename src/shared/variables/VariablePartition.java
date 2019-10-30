@@ -1,6 +1,6 @@
 package shared.variables;
 
-import shared.MultiKeyMap;
+import shared.data.MultiKeyMap;
 import shared.computation.Vertex;
 
 import java.util.ArrayList;
