@@ -9,6 +9,7 @@ import shared.variables.solver.VariableSolver;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
+import java.util.stream.Collectors;
 
 
 public class Select { //On the single partition
@@ -21,7 +22,7 @@ public class Select { //On the single partition
     private final Map<String, Vertex> selectionResult;
 
     public Select(SelectionSolver selectionSolver, Iterator<VertexNew> vertexIterator, VariableSolver variableSolverSlave, ThreadPoolExecutor executors, HashMap<String, String> partition) {
-        this.selectionSolver = selectionSolver;
+        this.selectionSolver = selectionSolver.clone();
         this.vertexIterator = new SynchronizedIterator<>(vertexIterator);
         this.executors = executors;
         this.variableSolver = variableSolverSlave;
@@ -32,7 +33,7 @@ public class Select { //On the single partition
     /**
      * @return null if vertex isn't selected, otherwise vertex with valid edges
      */
-    public List<Vertex> performSelection() throws ExecutionException, InterruptedException {
+    public Map<String, Vertex> performSelection() throws ExecutionException, InterruptedException {
         //Substitute Aggregates
         selectionSolver.solveAggregates(variableSolver);
 
@@ -45,7 +46,7 @@ public class Select { //On the single partition
         Utils.parallelizeAndWait(executors, new PruneVertices(synchronizedIterator, selectionResult));
 
         //Return selected graph
-        return result;
+        return result.parallelStream().collect(Collectors.toMap(vertex -> vertex.getNodeId(), vertex -> vertex));
     }
 
     protected synchronized void registerVertex(Vertex vertex){

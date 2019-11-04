@@ -43,6 +43,13 @@ public class SelectionSolver implements Cloneable, Selection{
         this.elements.add(new Solved(bool));
     }
 
+    public boolean hasEdgeToken () {
+        for (Element e: elements) {
+            if (e instanceof EdgeToken) return true;
+        }
+        return false;
+    }
+
     public void addElementEdgeToken () {
         this.elements.add(new EdgeToken());
     }

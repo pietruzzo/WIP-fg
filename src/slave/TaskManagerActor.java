@@ -16,6 +16,7 @@ import shared.AkkaMessages.modifyGraph.AddEdgeMsg;
 import shared.AkkaMessages.modifyGraph.DeleteEdgeMsg;
 import shared.AkkaMessages.modifyGraph.DeleteVertexMsg;
 import shared.AkkaMessages.modifyGraph.UpdateVertexMsg;
+import shared.AkkaMessages.select.SelectMsg;
 import shared.Utils;
 import shared.VertexNew;
 import shared.computation.*;
@@ -23,11 +24,13 @@ import shared.data.BoxMsg;
 import shared.data.MultiKeyMap;
 import shared.data.SynchronizedIterator;
 import shared.selection.Partition;
+import shared.selection.Select;
 import shared.variables.solver.VariableSolver;
 
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 //LAST USED: private static final long serialVersionUID = 200051L;
@@ -93,6 +96,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 			match(RegisterVariableMsg.class, this::onRegisterVariableMsg). //
 			match(NewPartitionMsg.class, this::onNewPartitionMsg). //
 			match(ExtractMsg.class, this::onExtractMsg).
+			match(SelectMsg.class, this::onSelectMsg).
 								//todo On new timestamp
 		    build();
 	}
@@ -392,6 +396,31 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 
 	private final void onExtractMsg (ExtractMsg msg) {
 		//TODO: From Runtime partitions to StreamPartitions
+	}
+
+	private final void onSelectMsg (SelectMsg msg) {
+		/*
+				For each partition: do select
+				if select on vertices: validate edges
+				return ack to master
+		 */
+		this.partitionComputations.getAllElements().values().stream().forEach(computationRuntime -> {
+
+			Collection<VertexNew> verticesM = computationRuntime.getVertices().values().parallelStream().map(vertex -> (VertexNew)vertex).collect(Collectors.toList());
+			Select select = new Select(msg.operations, verticesM.iterator(), this.variables, executors, new HashMap<>(computationRuntime.getPartition()));
+			try {
+				Map<String, Vertex> selected = select.performSelection();
+				computationRuntime.setVertices(selected);
+			} catch (ExecutionException e) {
+				e.printStackTrace();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		});
+
+		if (msg.operations.hasEdgeToken()) validateEdges();
+
+		master.tell(new AckMsg(), self());
 	}
 
 	/**

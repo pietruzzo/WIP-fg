@@ -17,7 +17,7 @@ public class ComputationRuntime {
     private final ComputationCallback taskManager;
     private Computation computation;
     private final LinkedHashMap<String, String> freeVars; //FreeVars, can be null
-    private final Map<String, Vertex> vertices; //con gli edges modificati
+    private Map<String, Vertex> vertices; //con gli edges modificati
 
     private int stepNumber;
     private BoxMsg outgoingMessages;
@@ -73,6 +73,8 @@ public class ComputationRuntime {
     public void setComputation(Computation computation) {
         this.computation = computation;
     }
+
+    public void setVertices(Map<String, Vertex> vertices) { this.vertices = vertices; }
 
     public Map<String, String> getPartition() {
         return freeVars;
