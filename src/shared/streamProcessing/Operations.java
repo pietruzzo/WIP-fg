@@ -19,9 +19,11 @@ public interface Operations {
 
     class Extract implements Operations{
         public final String[] labels;
+        public final boolean edges;
 
-        public Extract(String[] labels) {
+        public Extract(String[] labels, boolean edges) {
             this.labels = labels;
+            this.edges = edges;
         }
     }
 

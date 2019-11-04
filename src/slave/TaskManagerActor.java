@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-//LAST USED: private static final long serialVersionUID = 200051L;
+//LAST USED: private static final long serialVersionUID = 200052L;
 
 public class TaskManagerActor extends AbstractActor implements ComputationCallback {
 	private final LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
@@ -97,7 +97,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 			match(NewPartitionMsg.class, this::onNewPartitionMsg). //
 			match(ExtractMsg.class, this::onExtractMsg).
 			match(SelectMsg.class, this::onSelectMsg).
-								//todo On new timestamp
+			match(NewTimestampMsg.class, this::onNewTimestampMsg).
 		    build();
 	}
 
@@ -172,6 +172,13 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 	private final void onInstallComputationMsg(InstallComputationMsg msg) {
 		log.info(msg.toString());
 		computations.put(msg.getIdentifier(), msg.getComputation());
+		master.tell(new AckMsg(), self());
+	}
+
+	private final void onNewTimestampMsg(NewTimestampMsg msg) {
+		log.info(msg.toString());
+		variables.setCurrentTimestamp(msg.timestamp);
+		variables.removeOldVersions();
 		master.tell(new AckMsg(), self());
 	}
 

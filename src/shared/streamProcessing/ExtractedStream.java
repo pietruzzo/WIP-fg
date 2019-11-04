@@ -18,14 +18,12 @@ public class ExtractedStream {
     public enum StreamType {NODE, EDGE, AGGREGATE_VALUE, AGGREGATE_TUPLE};
 
     private final Map<String, String> partition;
-    private final long timestamp;
     private ArrayList<String> tupleFields;
     private final StreamType streamType;
     private final Stream<Tuple> stream;
 
-    public ExtractedStream(Map<String, String> partition, long timestamp, List<String> tupleFields, boolean isEdgeExtraction, ComputationRuntime computationRuntime) {
+    public ExtractedStream(Map<String, String> partition, List<String> tupleFields, boolean isEdgeExtraction, ComputationRuntime computationRuntime) {
         this.partition = partition;
-        this.timestamp = timestamp;
 
         //Tuple field handling
         this.tupleFields = new ArrayList<>();
@@ -63,9 +61,8 @@ public class ExtractedStream {
         }
     }
 
-    public ExtractedStream(Map<String, String> partition, long timestamp, ArrayList<String> tupleFields, StreamType streamType, Stream<Tuple> stream) {
+    public ExtractedStream(Map<String, String> partition, ArrayList<String> tupleFields, StreamType streamType, Stream<Tuple> stream) {
         this.partition = partition;
-        this.timestamp = timestamp;
         this.tupleFields = tupleFields;
         this.streamType = streamType;
         this.stream = stream;
@@ -110,7 +107,7 @@ public class ExtractedStream {
             return key;
         }, Collectors.toList()));
 
-        return new GroupedExtracted(this.partition, this.timestamp, (ArrayList<String>)this.tupleFields.clone(), this.streamType, newStream);
+        return new GroupedExtracted(this.partition, (ArrayList<String>)this.tupleFields.clone(), this.streamType, newStream);
     }
 
     public ExtractedStream merge (String[] groupingLabels) {
@@ -153,7 +150,7 @@ public class ExtractedStream {
     //Support methods
 
     private ExtractedStream getExtractedStream(Stream<Tuple> stream, ArrayList<String> tupleFields, StreamType streamType){
-        return new ExtractedStream(this.partition, this.timestamp, (ArrayList<String>)tupleFields.clone(), streamType, stream);
+        return new ExtractedStream(this.partition, (ArrayList<String>)tupleFields.clone(), streamType, stream);
     }
 
     private ArrayList<Tuple> flattern (Tuple tuple, String key) {

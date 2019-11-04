@@ -13,14 +13,12 @@ import java.util.stream.Stream;
 public class GroupedExtracted {
 
     private final Map<String, String> partition;
-    private final long timestamp;
     private ArrayList<String> tupleFields;
     private final ExtractedStream.StreamType streamType;
     private final Map<Tuple, Stream<Tuple>> groupedStreams;
 
-    public GroupedExtracted(Map<String, String> partition, long timestamp, ArrayList<String> tupleFields, ExtractedStream.StreamType streamType, Map<Tuple, List<Tuple>> groupedStreams) {
+    public GroupedExtracted(Map<String, String> partition, ArrayList<String> tupleFields, ExtractedStream.StreamType streamType, Map<Tuple, List<Tuple>> groupedStreams) {
         this.partition = partition;
-        this.timestamp = timestamp;
         this.tupleFields = tupleFields;
         this.streamType = streamType;
         this.groupedStreams = new HashMap<>();
@@ -30,9 +28,8 @@ public class GroupedExtracted {
         }
     }
 
-    public GroupedExtracted(Map<String, String> partition, ArrayList<String> tupleFields, ExtractedStream.StreamType streamType, Map<Tuple, Stream<Tuple>> groupedStreams, long timestamp) {
+    public GroupedExtracted(Map<String, String> partition, ArrayList<String> tupleFields,Map<Tuple, Stream<Tuple>> groupedStreams, ExtractedStream.StreamType streamType) {
         this.partition = partition;
-        this.timestamp = timestamp;
         this.tupleFields = tupleFields;
         this.streamType = streamType;
         this.groupedStreams = groupedStreams;
@@ -40,7 +37,7 @@ public class GroupedExtracted {
 
     public ExtractedStream collect(){
         Stream<Tuple> newStream =  this.groupedStreams.values().stream().flatMap(list -> list);
-        return new ExtractedStream(partition, timestamp, (ArrayList<String>)this.tupleFields.clone(), streamType, newStream);
+        return new ExtractedStream(partition, (ArrayList<String>)this.tupleFields.clone(), streamType, newStream);
     }
 
     public GroupedExtracted map(Function<Tuple, Tuple> function){
@@ -82,7 +79,7 @@ public class GroupedExtracted {
 
 
     private GroupedExtracted getExtractedStream(Map<Tuple, Stream<Tuple>> groupedStreams, ArrayList<String> tupleFields, ExtractedStream.StreamType streamType){
-        return new GroupedExtracted(this.partition, (ArrayList<String>)tupleFields.clone(), streamType, groupedStreams, timestamp);
+        return new GroupedExtracted(this.partition, (ArrayList<String>)tupleFields.clone(), groupedStreams, streamType);
     }
 
 }

@@ -45,9 +45,14 @@ public class MultiKeyMap<T> implements Serializable {
         return this.map;
     }
 
-    public void putValue(HashMap<String, String> compositeKey, T value) throws IllegalArgumentException{
+    public synchronized void putValue(HashMap<String, String> compositeKey, T value) throws IllegalArgumentException{
         if( !validateKey(compositeKey) ) throw new IllegalArgumentException("Compusite key have different simple keys set");
         map.put(new CompositeKey(compositeKey), value);
+    }
+
+    public synchronized void putValue(CompositeKey compositeKey, T value) throws IllegalArgumentException{
+        if( !validateKey(compositeKey.getKeysMapping()) ) throw new IllegalArgumentException("Compusite key have different simple keys set");
+        map.put(compositeKey, value);
     }
 
     private boolean validateKey(HashMap<String, String> compositeKey){

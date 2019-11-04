@@ -13,12 +13,14 @@ import java.util.stream.Collectors;
 public class VariableSolver {
 
 
-    //Todo : use tail with navigableTreeMap (navigable can't be final)
-    private final HashMap<String , LinkedList<Variable>> variables;
+    //Done : use tail with navigableTreeMap (navigable can't be final)
+  //  private final HashMap<String , LinkedList<Variable>> variables;
+    private final HashMap<String, NavigableMap<Long, Variable>> varablesNew;
     private long currentTimestamp;
 
     public VariableSolver() {
-        this.variables = new HashMap<>();
+        //this.variables = new HashMap<>();
+        this.varablesNew = new HashMap<>();
     }
 
     public String[] getAggregate(String variableName, @Nullable Map<String, String> partition){
@@ -115,7 +117,7 @@ public class VariableSolver {
     private List<Variable> getSelectedVariable (String variableName, @Nullable Map<String, String> partition, String timeWindow, WindowType windowType) throws VariableNotDefined {
         Long timeWindowL = null;
         if (timeWindow != null) timeWindowL = Utils.solveTime(timeWindow);
-        LinkedList<Variable> entireVarList = this.variables.get(variableName);
+        NavigableMap<Long, Variable> entireVarList = this.varablesNew.get(variableName);
         if (entireVarList == null) throw new VariableNotDefined(variableName);
         List<Variable> windowed = extractWindow(entireVarList, timeWindowL, windowType);
 
@@ -125,6 +127,7 @@ public class VariableSolver {
         }
 
         return windowed;
+
     }
     /**
      * @param selectedVars not null
@@ -153,6 +156,26 @@ public class VariableSolver {
         return result;
     }
 
+    private ArrayList<Variable>extractWindow(NavigableMap<Long, Variable> selectedVars, Long timeWindow, WindowType windowType){
+
+        ArrayList<Variable> result = new ArrayList<>();
+        if (timeWindow == null) timeWindow = 0L;
+        if (windowType == null) windowType = WindowType.AGO;
+
+        long timeSolved = this.currentTimestamp - timeWindow;
+
+        if (windowType == WindowType.WITHIN || windowType == WindowType.EVERYWITHIN) {
+            selectedVars.tailMap(selectedVars.floorKey(timeSolved), true).values().stream().forEach(variable -> {
+                result.add(variable);
+            });
+        } else {
+            result.add(selectedVars.floorEntry(timeSolved).getValue());
+        }
+        while(result.removeAll(null)){}
+
+        return result;
+    }
+
     /**
      * Extract variable list from partition list
      * @param partitions
@@ -172,13 +195,17 @@ public class VariableSolver {
      * @param variable
      */
     public void addVariable(Variable variable) {
-        this.variables.computeIfAbsent(variable.getName(), k -> new LinkedList<>());
-        this.variables.get(variable.getName()).add(variable);
+        //this.variables.computeIfAbsent(variable.getName(), k -> new LinkedList<>());
+        //this.variables.get(variable.getName()).add(variable);
+
+        this.varablesNew.computeIfAbsent(variable.getName(), k -> new TreeMap<>());
+        this.varablesNew.get(variable.getName()).put(variable.getTimestamp(), variable);
     }
 
     public void removeOldVersions() {
-        long keepTimestamp;
-        int versionsToDelete;
+        //long keepTimestamp;
+        //int versionsToDelete;
+        /*
         for (LinkedList<Variable> list: this.variables.values()) {
             versionsToDelete = 0;
             keepTimestamp = this.currentTimestamp - list.peekLast().getPersistence();
@@ -196,6 +223,14 @@ public class VariableSolver {
                 list.removeFirst();
             }
         }
+         */
+        this.varablesNew.entrySet().parallelStream().forEach(entry -> {
+            NavigableMap<Long, Variable> versions = entry.getValue();
+            long keepTimestamp = this.currentTimestamp - versions.get(versions.lastKey()).getPersistence();
+            long lastToKeep = versions.floorKey(keepTimestamp);
+            versions = versions.tailMap(lastToKeep, true);
+            entry.setValue(versions);
+        });
     }
 
     /**
