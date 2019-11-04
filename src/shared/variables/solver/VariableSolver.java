@@ -205,4 +205,6 @@ public class VariableSolver {
     public void setCurrentTimestamp (long timestamp) {
         this.currentTimestamp = timestamp;
     }
+
+    public long getCurrentTimestamp() { return this.currentTimestamp;}
 }

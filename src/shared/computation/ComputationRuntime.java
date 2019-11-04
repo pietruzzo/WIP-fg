@@ -15,8 +15,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 public class ComputationRuntime {
 
     private final ComputationCallback taskManager;
-    private final long timestamp;
-    private final Computation computation;
+    private Computation computation;
     private final LinkedHashMap<String, String> freeVars; //FreeVars, can be null
     private final Map<String, Vertex> vertices; //con gli edges modificati
 
@@ -25,14 +24,22 @@ public class ComputationRuntime {
     private BoxMsg inboxMessages;
 
 
-    public ComputationRuntime(ComputationCallback taskManager, long timestamp, Computation computation, LinkedHashMap<String, String> freeVars, Map<String, Vertex> vertices) {
+    public ComputationRuntime(ComputationCallback taskManager, @Nullable Computation computation, LinkedHashMap<String, String> freeVars, Map<String, Vertex> vertices) {
         this.taskManager = taskManager;
-        this.timestamp = timestamp;
         this.computation = computation;
         this.freeVars = freeVars;
         this.vertices = vertices;
-        this.inboxMessages = new BoxMsg(timestamp);
+        this.inboxMessages = new BoxMsg(0);
     }
+
+    public ComputationRuntime(ComputationCallback taskManager, @Nullable Computation computation, LinkedHashMap<String, String> freeVars) {
+        this.taskManager = taskManager;
+        this.computation = computation;
+        this.freeVars = freeVars;
+        this.vertices = new HashMap<>();
+        this.inboxMessages = new BoxMsg(0);
+    }
+
 
     public BoxMsg<StepMsg> compute (int stepNumber, ThreadPoolExecutor executors) throws ExecutionException, InterruptedException {
         this.stepNumber = stepNumber;
@@ -59,10 +66,13 @@ public class ComputationRuntime {
         }
     }
 
-    public long getComputationId() {
-        return timestamp;
+    public Computation getComputation() {
+        return computation;
     }
 
+    public void setComputation(Computation computation) {
+        this.computation = computation;
+    }
 
     public Map<String, String> getPartition() {
         return freeVars;

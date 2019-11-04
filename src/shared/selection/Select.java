@@ -82,6 +82,10 @@ public class Select { //On the single partition
     }
 
 
+    /**
+     * Substitute with validate edges in TaskManager
+     */
+    @Deprecated
     private static class PruneVertices implements Utils.DuplicableRunnable {
 
         private final SynchronizedIterator<Vertex> vertexIterator;

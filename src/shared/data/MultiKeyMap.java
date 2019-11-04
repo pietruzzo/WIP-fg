@@ -30,6 +30,17 @@ public class MultiKeyMap<T> implements Serializable {
 
     }
 
+    public T getValue (Map<String, String> compositeKey) throws IllegalArgumentException{
+        HashMap<String, String> key = new HashMap<>(compositeKey);
+        return map.get(new CompositeKey(key));
+
+    }
+
+    public T getValue (CompositeKey compositeKey) throws IllegalArgumentException{
+        return map.get(compositeKey);
+
+    }
+
     public Map<CompositeKey, T> getAllElements(){
         return this.map;
     }

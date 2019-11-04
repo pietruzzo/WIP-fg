@@ -100,7 +100,7 @@ public class ExtractedStream {
     }
 
     public GroupedExtracted groupby(String[] groupingLabels){ //NB: HashMap has hashing of the reference for the position of value
-        Map<Tuple, List<Tuple>> newStream = stream.collect(Collectors.groupingBy(tuple -> {
+        Map<Tuple, List<Tuple>> newStream = stream.collect(Collectors.groupingByConcurrent(tuple -> {
             Tuple key = Tuple.newInstance(groupingLabels.length);
             for (int i = 0; i < groupingLabels.length; i++) {
                 String label = groupingLabels[i];
@@ -111,6 +111,39 @@ public class ExtractedStream {
         }, Collectors.toList()));
 
         return new GroupedExtracted(this.partition, this.timestamp, (ArrayList<String>)this.tupleFields.clone(), this.streamType, newStream);
+    }
+
+    public ExtractedStream merge (String[] groupingLabels) {
+
+        Map<Tuple, List<Tuple>> groups = this.stream.collect(Collectors.groupingByConcurrent(tuple -> {
+            Tuple key = Tuple.newInstance(groupingLabels.length);
+            for (int i = 0; i < groupingLabels.length; i++) {
+                String label = groupingLabels[i];
+                int position = this.tupleFields.indexOf(label);
+                key.setField(tuple.getField(position), i);
+            }
+            return key;
+        }, Collectors.toList()));
+        //Unify in one tuple each group
+
+        List<Tuple> result = groups.values().parallelStream().map(list -> {
+            Tuple identity = Tuple.newInstance(list.get(0).getArity());
+            for (int i = 0; i < identity.getArity(); i++) {
+                identity.setField(new String[0], i);
+            }
+            return list.parallelStream().reduce(identity, (tuple, tuple2) -> {
+                Tuple reduced = Tuple.newInstance(tuple.getArity());
+                for (int i = 0; i < tuple.getArity(); i++) {
+                    HashSet<String> values = new HashSet<>();
+                    values.addAll(Arrays.asList(tuple.getField(i)));
+                    values.addAll(Arrays.asList(tuple2.getField(i)));
+                    tuple.setField(values, i);
+                }
+                return reduced;
+            });
+        }).collect(Collectors.toList());
+
+        return this.getExtractedStream(result.stream(), this.tupleFields, this.streamType);
     }
 
     public List<Tuple> emit(){
@@ -140,4 +173,5 @@ public class ExtractedStream {
         }
         return results;
     }
+
 }

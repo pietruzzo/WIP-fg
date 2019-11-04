@@ -1,7 +1,7 @@
 package shared.selection;
 
 import akka.japi.Pair;
-import akka.japi.tuple.Tuple3;
+import org.apache.flink.api.java.tuple.Tuple3;
 import shared.Utils;
 import shared.VertexNew;
 import shared.computation.ComputationRuntime;

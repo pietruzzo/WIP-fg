@@ -17,6 +17,14 @@ public interface Operations {
         }
     }
 
+    class Extract implements Operations{
+        public final String[] labels;
+
+        public Extract(String[] labels) {
+            this.labels = labels;
+        }
+    }
+
     class Reduce implements Operations{
         public final Tuple identity;
         public final CustomBinaryOperator accumulator;
@@ -47,6 +55,14 @@ public interface Operations {
         public final String[] groupingLabels;
 
         public GroupBy(String[] groupingLabels) {
+            this.groupingLabels = groupingLabels;
+        }
+    }
+
+    class Merge implements Operations{
+        public final String[] groupingLabels;
+
+        public Merge(String[] groupingLabels) {
             this.groupingLabels = groupingLabels;
         }
     }

@@ -7,6 +7,10 @@ import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import akka.japi.Pair;
+import jdk.internal.jline.internal.Nullable;
+import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.tuple.Tuple2;
+
 import shared.AkkaMessages.*;
 import shared.AkkaMessages.modifyGraph.AddEdgeMsg;
 import shared.AkkaMessages.modifyGraph.DeleteEdgeMsg;
@@ -16,14 +20,17 @@ import shared.Utils;
 import shared.VertexNew;
 import shared.computation.*;
 import shared.data.BoxMsg;
+import shared.data.MultiKeyMap;
 import shared.data.SynchronizedIterator;
+import shared.selection.Partition;
 import shared.variables.solver.VariableSolver;
 
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 
-//LAST USED: private static final long serialVersionUID = 200049L;
+//LAST USED: private static final long serialVersionUID = 200051L;
 
 public class TaskManagerActor extends AbstractActor implements ComputationCallback {
 	private final LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
@@ -37,7 +44,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 
 	private HashMap<String, VertexNew> vertices;
 	private HashMap<String, Computation> computations;
-	private PartitionComputations partitionComputations;
+	private MultiKeyMap<ComputationRuntime> partitionComputations;
 	private VariableSolver variables;
 
 	private ThreadPoolExecutor executors;
@@ -84,9 +91,9 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 		    match(StartComputationStepMsg.class, this::onStartComputationStepMsg). //
 			match(ComputeResultsMsg.class, this::onComputeResultMsg). //
 			match(RegisterVariableMsg.class, this::onRegisterVariableMsg). //
-				match(NewPartitionMsg.class, this::onNewPartitionMsg). //
-				match(ExtractMsg.class, this::onExtractMsg).
-								//On new timestamp
+			match(NewPartitionMsg.class, this::onNewPartitionMsg). //
+			match(ExtractMsg.class, this::onExtractMsg).
+								//todo On new timestamp
 		    build();
 	}
 
@@ -94,6 +101,13 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 		return receiveBuilder().
 				match(BoxMsg.class, this::onInboxMsg). //
 				match(AckMsg.class, this::onAckMsg). //
+				build();
+	}
+
+	private final Receive edgeValidation() {
+		return receiveBuilder(). //
+				match(ValidateNodesMsg.class, this::onValidateNodesMsg).
+				match(InvalidNodesMsg.class, this::onInvalidNodesMsg).
 				build();
 	}
 
@@ -157,24 +171,72 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 		master.tell(new AckMsg(), self());
 	}
 
+	private final void onValidateNodesMsg(ValidateNodesMsg msg) {
+
+		MultiKeyMap<Set<String>> invalidNodesPartitions = new MultiKeyMap<>(msg.nodesToValidate.getKeys());
+		msg.nodesToValidate.getAllElements().entrySet().parallelStream().forEach(entry -> {
+
+			Set<String> invalidNodes = Collections.synchronizedSet(new HashSet<>());
+			Map<String, Vertex> vertices = this.partitionComputations.getValue(entry.getKey()).getVertices();
+
+			entry.getValue().parallelStream().forEach(vertexId -> {
+				if (!vertices.containsKey(vertexId)){
+					invalidNodes.add(vertexId);
+				}
+			});
+			invalidNodesPartitions.putValue(entry.getKey().getKeysMapping(), invalidNodes);
+		});
+
+		if(this.waitingResponses.decrementAndGet() == 0){
+			getContext().become(initializedState());
+		}
+	}
+
+	private final void onInvalidNodesMsg(InvalidNodesMsg msg) {
+		msg.invalidNodes.getAllElements().entrySet().parallelStream().forEach(entry -> {
+			HashSet<String> deleteEdges = new HashSet<>(entry.getValue());
+			 Stream<Vertex> partitionVertices = this.partitionComputations.getValue(entry.getKey()).getVertices().values().parallelStream();
+			partitionVertices.forEach(vertex -> {
+				VertexNew vertexM = (VertexNew) vertex;
+				ArrayList<String> toRemove = new ArrayList<>();
+				for (String edge: vertexM.getEdges()) {
+					if (deleteEdges.contains(edge)) toRemove.add(edge);
+				}
+				vertexM.deleteEdges(deleteEdges);
+			});
+		});
+		if(this.waitingResponses.decrementAndGet() == 0){
+			getContext().become(initializedState());
+		}
+	}
+
 	private final void onStartComputationStepMsg(StartComputationStepMsg msg) throws ExecutionException, InterruptedException {
 		log.info(msg.toString());
 
 		//If no partitions are available, no select or free variables have been allocated
 		if (partitionComputations == null){
-			this.partitionComputations = new PartitionComputations.Leaf(new ComputationRuntime(this, msg.getTimestamp(), this.computations.get(msg.getComputationId()), null, getAllReadOnlyVertices()));
+			ComputationRuntime computationRuntime = new ComputationRuntime(this, this.computations.get(msg.getComputationId()), null, getAllReadOnlyVertices());
+			this.partitionComputations = new MultiKeyMap<>(new String[]{"all"});
+			HashMap<String, String> key = new HashMap<>();
+			key.put("all", "all");
+			this.partitionComputations.putValue(key, computationRuntime);
+
 			//Run first iteration on selected free variables, if NULL on all free variables
+		}
+		//set computation for each runtime
+		for (ComputationRuntime computation: this.partitionComputations.getAllElements().values()) {
+			computation.setComputation(this.computations.get(msg.getComputationId()));
 		}
 		//Run RuntimeComputation (in series)
 		if (msg.getFreeVars() == null) {
 			//Get all Runtimes and send messages
-			for (ComputationRuntime computationRuntime: partitionComputations.getAll()) {
+			for (ComputationRuntime computationRuntime: partitionComputations.getAllElements().values()) {
 				computationRuntime.compute(msg.getStepNumber(), this.executors);
 				sendOutBox(computationRuntime.getOutgoingMessages());
 			}
 		} else {
 			//get and run the specific runtime and send messages
-			ComputationRuntime computationRuntime = partitionComputations.get(msg.getFreeVars());
+			ComputationRuntime computationRuntime = partitionComputations.getValue(msg.getFreeVars());
 			computationRuntime.compute(msg.getStepNumber(), this.executors);
 			sendOutBox(computationRuntime.getOutgoingMessages());
 		}
@@ -185,12 +247,12 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 	private final void onComputeResultMsg(ComputeResultsMsg msg) throws ExecutionException, InterruptedException {
 		if (msg.getFreeVars() == null) {
 			//Get all Runtimes and send messages
-			for (ComputationRuntime computationRuntime: partitionComputations.getAll()) {
+			for (ComputationRuntime computationRuntime: partitionComputations.getAllElements().values()) {
 				computationRuntime.computeResults(this.executors);
 			}
 		} else {
 			//get and run the specific runtime and send messages
-			ComputationRuntime computationRuntime = partitionComputations.get(msg.getFreeVars());
+			ComputationRuntime computationRuntime = partitionComputations.getValue(msg.getFreeVars());
 			computationRuntime.computeResults(this.executors);
 			sendOutBox(computationRuntime.getOutgoingMessages());
 		}
@@ -204,7 +266,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 	 * @implNote Get runtimes and add messages, than decrease waiting, send back ack and if waiting is zero change state
 	 */
 	private final void onInboxMsg(BoxMsg incoming){
-		ComputationRuntime computationRuntime = this.partitionComputations.get(incoming.getPartition());
+		ComputationRuntime computationRuntime = this.partitionComputations.getValue(incoming.getPartition());
 		computationRuntime.updateIncomingMsgs(incoming);
 		getSender().tell(new AckMsg(), self());
 	}
@@ -223,8 +285,102 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 		master.tell(new AckMsg(), self());
 	}
 
-	private final void onNewPartitionMsg(NewPartitionMsg p) {
-		//TODO to be defined and implemented
+	private final void onNewPartitionMsg(NewPartitionMsg p) throws ExecutionException, InterruptedException {
+
+		List<String> newPartitioningLabels = new ArrayList<>();
+		newPartitioningLabels.addAll(Arrays.asList(this.partitionComputations.getKeys()));
+		newPartitioningLabels.addAll(p.getPartitioningSolver().getNames());
+
+		MultiKeyMap<ComputationRuntime> newRuntimes = new MultiKeyMap<>((String[])newPartitioningLabels.toArray());
+
+		for (ComputationRuntime computationRuntime: this.partitionComputations.getAllElements().values()) { //For each previus computation runtime
+			Partition partition = new Partition(computationRuntime, p.getPartitioningSolver(), this.variables, this.executors);
+			partition.computeSubpartitions();
+			if (p.getPartitioningSolver().partitionOnEdge){
+				//EdgePartitioning
+				List<Tuple3<String, String, HashMap<String, String[]>>> collected = partition.getCollectedResultsEdges();
+
+				//Flat collected partitioning
+				collected.parallelStream().map(tuple3 -> new Tuple3<>(tuple3.f0, tuple3.f1, elencatePartitions(tuple3.f2, null)))
+						.map(tuple -> {
+					ArrayList<Tuple3<String, String, HashMap<String, String>>> returnTuple = new ArrayList<>();
+					for (HashMap<String, String> singlePartition: tuple.f2) {
+						returnTuple.add(new Tuple3<>(tuple.f0, tuple.f1, singlePartition));
+					}
+					return returnTuple;
+				}).flatMap(list -> list.parallelStream())
+				/* From HashMap to a list of tuples
+					1-	Get ComputationRuntime inside newRuntimes
+							-Create new empty Runtime if not present
+							-Create node without edges if node is not present
+					2-	Get source node
+					3-	Add edge to node
+				 */
+				.forEach(tuple3 -> {
+					ComputationRuntime computation;
+					try {
+						 computation = newRuntimes.getValue(tuple3.f2);
+						 if (computation == null) throw new IllegalArgumentException();
+					} catch (IllegalArgumentException e ){
+						computation = new ComputationRuntime(this, null, new LinkedHashMap<>(tuple3.f2));
+						newRuntimes.putValue(tuple3.f2, computation);
+					}
+
+					VertexNew globalVertex = this.vertices.get(tuple3.f0);
+
+					VertexNew vertex = (VertexNew) computation.getVertices().get(tuple3.f0);
+					if (vertex == null) {
+						vertex = new VertexNew(globalVertex.getNodeId(), globalVertex.getState());
+						computation.getVertices().put(vertex.getNodeId(), vertex);
+					}
+					vertex.addEdge(tuple3.f1, globalVertex.getEdgeState(tuple3.f1));
+				});
+
+
+			} else {
+				//Vertex partitioning
+				List<Pair<String, HashMap<String, String[]>>> collected = partition.getCollectedResultsVertices();
+
+				//Flat collected partitioning
+				collected.parallelStream().map(tuple2 -> new Tuple2<>(tuple2.first(), elencatePartitions(tuple2.second(), null)))
+						.map(tuple -> {
+							ArrayList<Tuple2<String, HashMap<String, String>>> returnTuple = new ArrayList<>();
+							for (HashMap<String, String> singlePartition: tuple.f1) {
+								returnTuple.add(new Tuple2<>(tuple.f0, singlePartition));
+							}
+							return returnTuple;
+						}).flatMap(list -> list.parallelStream())
+						/* From HashMap to a list of tuples
+                            1-	Get ComputationRuntime inside newRuntimes
+                                    -Create new empty Runtime if not present
+                                    -Create node without edges if node is not present
+                            2-	Get source node
+                            3-	Add edge to node
+                         */
+						.forEach(tuple2 -> {
+							ComputationRuntime computation;
+							try {
+								computation = newRuntimes.getValue(tuple2.f1);
+								if (computation == null) throw new IllegalArgumentException();
+							} catch (IllegalArgumentException e ){
+								computation = new ComputationRuntime(this, null, new LinkedHashMap<>(tuple2.f1));
+								newRuntimes.putValue(tuple2.f1, computation);
+							}
+
+							VertexNew globalVertex = this.vertices.get(tuple2.f0);
+
+							VertexNew vertex = (VertexNew) computation.getVertices().get(tuple2.f0);
+							if (vertex == null) {
+								vertex = new VertexNew(globalVertex.getNodeId(), globalVertex.getState());
+								computation.getVertices().put(vertex.getNodeId(), vertex);
+							}
+						});
+				//todo delete edges not inside the partition
+			}
+
+			this.partitionComputations = newRuntimes;
+		}
+
 		//Get actual partitioning
 		//get variablePartition -> if defined check if not partitioned yet, otherwise gives error
 		//Handle variablePartition
@@ -280,6 +436,59 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 	private ActorRef getActor(String vertex) {
 		return this.slaves.get(Utils.getPartition(vertex, this.slaves.size()));
 	}
+
+	private ArrayList<HashMap<String, String>> elencatePartitions(HashMap<String, String[]> compressed, @Nullable HashMap<String, String> solved){
+		ArrayList<HashMap<String, String>> results = new ArrayList<>();
+		//Basecase
+		if (compressed.isEmpty()) {
+			results.add(solved);
+			return results;
+		}
+		//Recursion
+		Map.Entry<String, String[]> element = compressed.entrySet().iterator().next();
+		HashMap<String, String[]> subMap = (HashMap<String, String[]>) compressed.clone();
+		subMap.remove(element.getKey());
+		for (int i = 0; i < element.getValue().length; i++) {
+			if (solved == null) solved = new HashMap<>();
+			solved.put(element.getKey(), element.getValue()[i]);
+				results.addAll(elencatePartitions(subMap, solved));
+		}
+		return results;
+	}
+
+	public void validateEdges () {
+
+		ArrayList<MultiKeyMap<Set<String>>> destinations = new ArrayList<>();
+
+		for (int i = 0; i < this.slaves.keySet().size(); i++) {
+			destinations.add(new MultiKeyMap<>(this.partitionComputations.getKeys()));
+		}
+
+		this.partitionComputations.getAllElements().entrySet().parallelStream()
+				.forEach(entry -> {
+
+					for (MultiKeyMap<Set<String>> taskManager : destinations) {
+						taskManager.putValue(entry.getKey().getKeysMapping(), Collections.synchronizedSet(new HashSet<>()));
+					}
+
+					entry.getValue().getVertices().values().parallelStream().map(vertex -> {
+						VertexNew vertexM = (VertexNew) vertex;
+						return (Arrays.asList(vertexM.getEdges()));
+					}).flatMap(list -> list.stream()).forEach(edge -> {
+						int destination = Utils.getPartition(edge, this.slaves.size());
+						destinations.get(destination).getValue(entry.getKey().getKeysMapping()).add(edge);
+					});
+
+				});
+
+		for (int i = 0; i < destinations.size(); i++) {
+			MultiKeyMap<Set<String>> destination = destinations.get(i);
+			this.slaves.get(i).tell(new ValidateNodesMsg(destination), self());
+		}
+		this.waitingResponses.set(this.slaves.size()*2); //2 times slaves
+		getContext().become(edgeValidation());
+	}
+
 
 	private static class PopulateOutbox implements Utils.DuplicableRunnable {
 

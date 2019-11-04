@@ -3,10 +3,7 @@ package shared;
 import shared.computation.Vertex;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 
 public class VertexNew implements Serializable, Vertex {
@@ -27,44 +24,50 @@ public class VertexNew implements Serializable, Vertex {
         return this.nodeId;
     }
 
-    public State getState() {
+    public synchronized State getState() {
         return state;
     }
 
-    public State getEdgeState(String edgeName){
+    public synchronized State getEdgeState(String edgeName){
         return edges.get(edgeName);
     }
 
-    public void setLabelVartex(String labelName, String[] values) {
+    public synchronized void setLabelVartex(String labelName, String[] values) {
         this.state.remove(labelName);
         this.state.put(labelName, values);
     }
-    public String[] getLabelVertex(String labelName){
+    public synchronized String[] getLabelVertex(String labelName){
         return state.get(labelName);
     }
 
-    public String[] getEdges(){
+    public synchronized String[] getEdges(){
         return (String[]) this.edges.keySet().toArray();
     }
 
-    public void addEdge(String edgeName){
+    public synchronized void addEdge(String edgeName){
         this.edges.put(edgeName, new State());
     }
 
-    public void addEdge(String edgeName, State edgeState){
+    public synchronized void addEdge(String edgeName, State edgeState){
         if (edgeName == null) addEdge(edgeName);
         else this.edges.put(edgeName, edgeState);
     }
 
-    public void deleteEdge(String edge){
+    public synchronized void deleteEdge(String edge){
         this.edges.remove(edge);
     }
 
-    public String[] getLabelEdge (String edge, String labelName){
+    public synchronized void deleteEdges(Collection<String> edges){
+        for (String edge: edges) {
+            this.edges.remove(edge);
+        }
+    }
+
+    public synchronized String[] getLabelEdge (String edge, String labelName){
         return this.edges.get(edge).get(labelName);
     }
 
-    public void setLabelEdge (String edge, String labelName, String[] values){
+    public synchronized void setLabelEdge (String edge, String labelName, String[] values){
         this.edges.get(edge).remove(labelName);
         this.edges.get(edge).put(labelName, values);
     }

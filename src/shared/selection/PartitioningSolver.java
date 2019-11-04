@@ -54,6 +54,14 @@ public class PartitioningSolver implements Selection, Cloneable{ //Inside partit
         return returnValues;
     }
 
+    public ArrayList<String> getNames(){
+        ArrayList<String> result = new ArrayList<>();
+        for (Element element: this.operationalElements) {
+            result.add(element.name);
+        }
+        return result;
+    }
+
     @Override
     public PartitioningSolver clone() {
         PartitioningSolver ps = new PartitioningSolver(this.partitionOnEdge);

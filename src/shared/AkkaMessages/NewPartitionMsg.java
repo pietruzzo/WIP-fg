@@ -1,29 +1,19 @@
 package shared.AkkaMessages;
 
+import shared.selection.PartitioningSolver;
+
 import java.io.Serializable;
 
 public class NewPartitionMsg implements Serializable {
     private static final long serialVersionUID = 200045L;
 
-    private final String partitionVariable;
-    private final String[] freeLabels;
-    private final String[] variableNames;
+    private final PartitioningSolver partitioningSolver;
 
-    public NewPartitionMsg(String partitionVariable, String[] freeLabels, String[] variableNames) {
-        this.partitionVariable = partitionVariable;
-        this.freeLabels = freeLabels;
-        this.variableNames = variableNames;
+    public NewPartitionMsg(PartitioningSolver partitioningSolver) {
+        this.partitioningSolver = partitioningSolver;
     }
 
-    public String getPartitionVariable() {
-        return partitionVariable;
-    }
-
-    public String[] getFreeLabels() {
-        return freeLabels;
-    }
-
-    public String[] getFreeVariableNames() {
-        return variableNames;
+    public PartitioningSolver getPartitioningSolver() {
+        return partitioningSolver;
     }
 }
