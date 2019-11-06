@@ -15,7 +15,7 @@ public class ExtractedStream {
 
     public static final String NODELABEL = "Node";
     public static final String EDGELABEL = "Dest";
-    public enum StreamType {NODE, EDGE, AGGREGATE_VALUE, AGGREGATE_TUPLE};
+    public enum StreamType {NODE, EDGE, AGGREGATE};
 
     private final Map<String, String> partition;
     private ArrayList<String> tupleFields;

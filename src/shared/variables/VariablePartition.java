@@ -32,7 +32,7 @@ public class VariablePartition extends Variable {
     public String[] getAggregate(Map<String, String> compositeKey) throws ClassCastException, IllegalArgumentException{
         Variable variable = insideVariable.getValue(compositeKey);
         if (variable instanceof VariableAggregate) {
-            return ((VariableAggregate) variable).getValue();
+            return ((VariableAggregate) variable).getSingleValue();
         } else if (variable == null){
             return null;
         } else throw new ClassCastException("Variable should be of type: " + VariableAggregate.class.toGenericString());
@@ -45,6 +45,10 @@ public class VariablePartition extends Variable {
      */
     public Variable getInsideVariable(Map<String, String> compositeKey) throws IllegalArgumentException{
         return insideVariable.getValue(compositeKey);
+    }
+
+    public MultiKeyMap<Variable> getAllInsideVariables () {
+        return this.insideVariable;
     }
 
     public Map<String, String[]> getPartitions () {

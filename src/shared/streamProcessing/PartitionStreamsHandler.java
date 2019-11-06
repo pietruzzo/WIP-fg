@@ -5,6 +5,7 @@ import shared.computation.ComputationRuntime;
 import shared.computation.Vertex;
 import shared.data.MultiKeyMap;
 import shared.exceptions.InvalidOperationChain;
+import shared.selection.SelectionSolver;
 import shared.variables.Variable;
 import shared.variables.solver.VariableSolver;
 
@@ -33,9 +34,13 @@ public class PartitionStreamsHandler {
 
     }
 
-    public PartitionStreamsHandler (String variableName,  VariableSolver variableSolver){
+    public PartitionStreamsHandler (String variableName, SelectionSolver.Operation.WindowType windowType, String timestamp, VariableSolver variableSolver){
         //TODO: extract stream from variable
 
+    }
+
+    public MultiKeyMap<List<Vertex>> extractStream(String variableName, SelectionSolver.Operation.WindowType windowType, String timestamp, VariableSolver variableSolver) {
+        variableSolver.getVertexVariable()
     }
 
 
