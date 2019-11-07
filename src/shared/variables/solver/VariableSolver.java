@@ -479,7 +479,7 @@ public class VariableSolver {
     public long getCurrentTimestamp() { return this.currentTimestamp;}
 
     public Tuple2<String, String> solveFields(String variableName) {
-        String[] elements = variableName.split(".");
+        String[] elements = variableName.split(".", 2);
         if (elements.length == 1) return new Tuple2<>(elements[0], null);
         else return new Tuple2<>(elements[0], elements[1]);
     }
