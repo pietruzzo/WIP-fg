@@ -3,6 +3,7 @@ package shared.variables.solver;
 import jdk.internal.jline.internal.Nullable;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import shared.Utils;
@@ -33,30 +34,22 @@ public class VariableSolver {
         this.varablesNew = new HashMap<>();
     }
 
+
     public String[] getAggregate(String variableName, @Nullable Map<String, String> partition){
-        return this.getAggregate(variableName, partition, null);
+
+        List<String[]> result = this.getAggregate(variableName, partition, null, null);
+        if (result.size() == 1) return result.get(0);
+        else if (result.isEmpty()) return new String[0];
+        else throw new RuntimeException("result size is expected to be 0 or 1");
     }
     public String[] getVertexVariable(String variableName, @Nullable Map<String, String> partition, String vertexName){
-        return this.getVertexVariable(variableName, partition, vertexName, null);
+        List<String[]> result = this.getVertexVariable(variableName, partition, vertexName,  null, null);
+        if (result.size() == 1) return result.get(0);
+        else if (result.isEmpty()) return new String[0];
+        else throw new RuntimeException("result size is expected to be 0 or 1");
     }
     public String[] getEdgeVariable(String variableName, @Nullable Map<String, String> partition, String vertexName, String edgeName){
-        return this.getEdgeVariable(variableName, partition, vertexName, edgeName, null);
-    }
-
-    public String[] getAggregate(String variableName, @Nullable Map<String, String> partition, @Nullable String field){
-        List<String[]> result = this.getAggregate(variableName, field, partition, null, null);
-        if (result.size() == 1) return result.get(0);
-        else if (result.isEmpty()) return new String[0];
-        else throw new RuntimeException("result size is expected to be 0 or 1");
-    }
-    public String[] getVertexVariable(String variableName, @Nullable Map<String, String> partition, String vertexName, @Nullable String field){
-        List<String[]> result = this.getVertexVariable(variableName, partition, vertexName, field,  null, null);
-        if (result.size() == 1) return result.get(0);
-        else if (result.isEmpty()) return new String[0];
-        else throw new RuntimeException("result size is expected to be 0 or 1");
-    }
-    public String[] getEdgeVariable(String variableName, @Nullable Map<String, String> partition, String vertexName, String edgeName, @Nullable String field){
-        List<String[]> result = this.getEdgeVariable(variableName, partition, vertexName, edgeName, field,  null, null);
+        List<String[]> result = this.getEdgeVariable(variableName, partition, vertexName, edgeName,  null, null);
         if (result.size() == 1) return result.get(0);
         else if (result.isEmpty()) return new String[0];
         else throw new RuntimeException("result size is expected to be 0 or 1");
@@ -72,9 +65,14 @@ public class VariableSolver {
      * @throws VariableNotDefined if variable name is not registered
      * @return
      */
-    public List<String[]> getAggregate(String variableName, @Nullable String field, @Nullable Map<String, String> partition, @Nullable String timeWindow, @Nullable WindowType windowType){
+    public List<String[]> getAggregate(String variableName, @Nullable Map<String, String> partition, @Nullable String timeWindow, @Nullable WindowType windowType){
 
-        List<Variable> selectedVars = getSelectedVariable(variableName, partition, timeWindow, windowType);
+        Tuple2<String, String> variableField = this.solveFields(variableName);
+        String field = variableField.f1;
+        String variableNameSolved = variableField.f0;
+
+
+        List<Variable> selectedVars = getSelectedVariable(variableNameSolved, partition, timeWindow, windowType);
         List<String[]> result = new ArrayList<>();
 
         for (Variable variable: selectedVars) {
@@ -93,9 +91,13 @@ public class VariableSolver {
      * @param windowType if null use AGO
      * @return
      */
-    public List<String[]> getVertexVariable(String variableName, @Nullable Map<String, String> partition, String vertexName, @Nullable String field, @Nullable String timeWindow, @Nullable WindowType windowType){
+    public List<String[]> getVertexVariable(String variableName, @Nullable Map<String, String> partition, String vertexName, @Nullable String timeWindow, @Nullable WindowType windowType){
 
-        List<Variable> selectedVars = getSelectedVariable(variableName, partition, timeWindow, windowType);
+        Tuple2<String, String> variableField = this.solveFields(variableName);
+        String field = variableField.f1;
+        String variableNameSolved = variableField.f0;
+
+        List<Variable> selectedVars = getSelectedVariable(variableNameSolved, partition, timeWindow, windowType);
         List<String[]> result = new ArrayList<>();
 
         for (Variable variable: selectedVars) {
@@ -115,9 +117,13 @@ public class VariableSolver {
      * @param windowType if null use AGO
      * @return
      */
-    public List<String[]> getEdgeVariable(String variableName, @Nullable Map<String, String> partition, String vertexName, String edgeName , @Nullable String field, @Nullable String timeWindow, @Nullable WindowType windowType){
+    public List<String[]> getEdgeVariable(String variableName, @Nullable Map<String, String> partition, String vertexName, String edgeName, @Nullable String timeWindow, @Nullable WindowType windowType){
 
-        List<Variable> selectedVars = getSelectedVariable(variableName, partition, timeWindow, windowType);
+        Tuple2<String, String> variableField = this.solveFields(variableName);
+        String field = variableField.f1;
+        String variableNameSolved = variableField.f0;
+
+        List<Variable> selectedVars = getSelectedVariable(variableNameSolved, partition, timeWindow, windowType);
         List<String[]> result = new ArrayList<>();
 
         for (Variable variable: selectedVars) {
@@ -141,7 +147,11 @@ public class VariableSolver {
 
         MultiKeyMap<Stream<Tuple>> result;
 
-        ArrayList<Variable> variableVersions = this.extractWindow(this.varablesNew.get(variableName), Utils.solveTime(timestamp), windowType);
+        Tuple2<String, String> variableField = this.solveFields(variableName);
+        String selectedField = variableField.f1;
+        String variableNameSolved = variableField.f0;
+
+        ArrayList<Variable> variableVersions = this.extractWindow(this.varablesNew.get(variableNameSolved), Utils.solveTime(timestamp), windowType);
         if (variableVersions.isEmpty()) return null;
 
         if (variableVersions.get(0) instanceof VariablePartition) {
@@ -150,7 +160,7 @@ public class VariableSolver {
             List<Tuple2<Map<String, String>, Tuple>> collect = variableVersions.stream().map(variable -> { //FOR EACH VERSION
                 VariablePartition variablePartition = (VariablePartition) variable;
                 return variablePartition.getAllInsideVariables().getAllElements().entrySet().stream().map(entry -> {  //FOR EACH PARTITION
-                    Stream<Tuple2<Map<String, String>, Tuple>> t = getStreamFromVariable(entry.getValue(), entry.getKey().getKeysMapping());
+                    Stream<Tuple2<Map<String, String>, Tuple>> t = getStreamFromVariable(entry.getValue(), entry.getKey().getKeysMapping(), selectedField);
                     return t;
                 }); //RETURN THE LIST OF TUPLE2: partition, stream<Tuples>
             }).flatMap(stream->stream).flatMap(stream -> stream).collect(Collectors.toList());
@@ -170,7 +180,7 @@ public class VariableSolver {
             }).forEach(tuple -> {
                 result.putValue(new HashMap<>(tuple.f0), tuple.f1);
             });
-        } else {
+        } else { //If not variable partition
             result = new MultiKeyMap<>(new String[]{"all"});
             HashMap<String, String> compositeKey = new HashMap<>();
             compositeKey.put("all", "all");
@@ -178,7 +188,7 @@ public class VariableSolver {
             Stream<Tuple> singlePartitionStream = variableVersions.stream().map(variable -> {
                 HashMap<String, String> partition = new HashMap<>();
                 partition.put("all", "all");
-                Stream<Tuple2<Map<String, String>, Tuple>> streamFromVariable = getStreamFromVariable(variable, partition);
+                Stream<Tuple2<Map<String, String>, Tuple>> streamFromVariable = getStreamFromVariable(variable, partition, selectedField);
 
                 return streamFromVariable.map(partitionTuple -> partitionTuple.f1);
             }).flatMap(tuple -> tuple);
@@ -268,17 +278,24 @@ public class VariableSolver {
         });
     }
 
-    private Stream<Tuple2<Map<String, String>, Tuple>> getStreamFromVariable(Variable insideVariable, HashMap<String, String> partition){
+    private Stream<Tuple2<Map<String, String>, Tuple>> getStreamFromVariable(Variable insideVariable, HashMap<String, String> partition, @Nullable String field){
         if (insideVariable instanceof VariableVertex) {
-            List<Tuple2<String, Tuple>> groupedByEdge = ((VariableVertex) insideVariable).getVerticesValues().entrySet().parallelStream()
+            List<Tuple2<String, Tuple>> groupedByVertex = ((VariableVertex) insideVariable).getVerticesValues().entrySet().parallelStream()
                     .map(vertex -> new Tuple2<>(vertex.getKey(), vertex.getValue()))
                     .collect(Collectors.toList());
 
-            return groupedByEdge.parallelStream().map(t2 -> {
-                Tuple result = Tuple.newInstance(t2.f1.getArity() + 2);
-                result.setField(new String[]{t2.f0}, 0);
-                for (int i = 1; i < result.getArity(); i++) {
-                    result.setField(t2.f1.getField(i - 2), i);
+            return groupedByVertex.parallelStream().map(t2 -> {
+                Tuple result;
+                if (field == null) { //Get all fields
+                    result = Tuple.newInstance(t2.f1.getArity() + 1);
+                    result.setField(new String[]{t2.f0}, 0);
+                    for (int i = 1; i < result.getArity(); i++) {
+                        result.setField(t2.f1.getField(i - 1), i);
+                    }
+                } else { //Get only one field
+                    result = Tuple.newInstance(2);
+                    result.setField(new String[]{t2.f0}, 0);
+                    result.setField(((VariableVertex) insideVariable).getTupleField(t2.f0, field), 1);
                 }
                 return result;
             }).map(tuple -> new Tuple2<>(partition, tuple));
@@ -291,17 +308,29 @@ public class VariableSolver {
             }).flatMap(list -> list.parallelStream()).collect(Collectors.toList());
 
             return groupedByEdge.parallelStream().map(t3 -> {
-                Tuple result = Tuple.newInstance(t3.f2.getArity() + 2);
-                result.setField(new String[]{t3.f0}, 0);
-                result.setField(new String[]{t3.f1}, 1);
-                for (int i = 2; i < result.getArity(); i++) {
-                    result.setField(t3.f2.getField(i - 2), i);
+                Tuple result;
+                if(field == null) {
+                    result = Tuple.newInstance(t3.f2.getArity() + 2);
+                    result.setField(new String[]{t3.f0}, 0);
+                    result.setField(new String[]{t3.f1}, 1);
+                    for (int i = 2; i < result.getArity(); i++) {
+                        result.setField(t3.f2.getField(i - 2), i);
+                    }
+                } else {//Get only one field
+                    result = Tuple.newInstance(3);
+                    result.setField(new String[]{t3.f0}, 0);
+                    result.setField(new String[]{t3.f1}, 1);
+                    result.setField(((VariableVertex) insideVariable).getTupleField(t3.f0, field), 2);
                 }
                 return result;
             }).map(tuple -> new Tuple2<>(partition, tuple));
         }
         else if (insideVariable instanceof VariableAggregate) {
-            return Arrays.stream(((VariableAggregate) insideVariable).getValue()).map(t -> new Tuple2<>(partition, t));
+            if (field == null) {
+                return Arrays.stream(((VariableAggregate) insideVariable).getValue()).map(t -> new Tuple2<>(partition, t));
+            } else {
+                return Arrays.stream(((VariableAggregate) insideVariable).getValue()).map(t -> new Tuple2<>(partition, new Tuple1<>(((VariableAggregate) insideVariable).getFieldValue(field))));
+            }
         }
         else {
             System.out.println("Variable can be AGGREGATE, NODE or EDGE");
@@ -451,6 +480,7 @@ public class VariableSolver {
 
     public Tuple2<String, String> solveFields(String variableName) {
         String[] elements = variableName.split(".");
-        if (elements.length) // todo Complete field solving
+        if (elements.length == 1) return new Tuple2<>(elements[0], null);
+        else return new Tuple2<>(elements[0], elements[1]);
     }
 }
