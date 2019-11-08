@@ -18,6 +18,7 @@ public class ExtractedStream {
 
     public static final String NODELABEL = "Node";
     public static final String EDGELABEL = "Dest";
+    public static final String JOIN_PARTITION = "p.";
     public static final String JOIN_FIRST = "f.";
     public static final String JOIN_SECOND = "s.";
     public enum StreamType {NODE, EDGE, AGGREGATE};
@@ -71,6 +72,10 @@ public class ExtractedStream {
         this.tupleFields = tupleFields;
         this.streamType = streamType;
         this.stream = stream;
+    }
+
+    public StreamType getStreamType() {
+        return streamType;
     }
 
     public Stream<Tuple> getStream(){
