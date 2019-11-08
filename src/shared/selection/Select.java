@@ -1,7 +1,7 @@
 package shared.selection;
 
 import shared.Utils;
-import shared.VertexNew;
+import shared.VertexM;
 import shared.computation.Vertex;
 import shared.data.SynchronizedIterator;
 import shared.variables.solver.VariableSolver;
@@ -17,11 +17,11 @@ public class Select { //On the single partition
     protected final SelectionSolver selectionSolver;
     protected final VariableSolver variableSolver;
     private final ThreadPoolExecutor executors;
-    protected final SynchronizedIterator<VertexNew> vertexIterator;
+    protected final SynchronizedIterator<VertexM> vertexIterator;
     private final HashMap<String, String> partition;
     private final Map<String, Vertex> selectionResult;
 
-    public Select(SelectionSolver selectionSolver, Iterator<VertexNew> vertexIterator, VariableSolver variableSolverSlave, ThreadPoolExecutor executors, HashMap<String, String> partition) {
+    public Select(SelectionSolver selectionSolver, Iterator<VertexM> vertexIterator, VariableSolver variableSolverSlave, ThreadPoolExecutor executors, HashMap<String, String> partition) {
         this.selectionSolver = selectionSolver.clone();
         this.vertexIterator = new SynchronizedIterator<>(vertexIterator);
         this.executors = executors;
@@ -66,7 +66,7 @@ public class Select { //On the single partition
         public void run() {
             try{
                 while(true) {
-                    VertexNew vertex = select.vertexIterator.next();
+                    VertexM vertex = select.vertexIterator.next();
                     SelectionSolver selectionSolver = select.selectionSolver.clone();
                     Vertex result = selectionSolver.solveVertex(vertex, select.variableSolver);
                     select.registerVertex(result);
@@ -109,7 +109,7 @@ public class Select { //On the single partition
                     Vertex vertex = vertexIterator.next();
                     for (String edge : vertex.getEdges()) {
                         if (!vertices.containsKey(edge)) {
-                            ((VertexNew)vertex).deleteEdge(edge);
+                            ((VertexM)vertex).deleteEdge(edge);
                         }
                     }
                 }

@@ -1,16 +1,13 @@
 package shared.selection;
 
 
-import shared.VertexNew;
+import shared.VertexM;
 import shared.exceptions.WrongTypeRuntimeException;
 import shared.variables.solver.VariableSolver;
 import shared.selection.SelectionSolver.Operation;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class PartitioningSolver implements Selection, Cloneable{ //Inside partition
@@ -34,7 +31,7 @@ public class PartitioningSolver implements Selection, Cloneable{ //Inside partit
      * @param variableSolver
      * @return HashMap label-values
      */
-    public HashMap<String, String[]> getPartitionsVertex(VertexNew vertex, VariableSolver variableSolver){
+    public HashMap<String, String[]> getPartitionsVertex(VertexM vertex, VariableSolver variableSolver){
         HashMap<String, String[]> returnValues = new HashMap<>();
        //Get values
         for (Element e: operationalElements) {
@@ -44,11 +41,11 @@ public class PartitioningSolver implements Selection, Cloneable{ //Inside partit
         return returnValues;
     }
 
-    public HashMap<String, String[]> getPartitionsEdge(VertexNew vertex, String edge, VariableSolver variableSolver){
+    public HashMap<String, String[]> getPartitionsEdge(VertexM vertex, String edge, VariableSolver variableSolver){
         HashMap<String, String[]> returnValues = new HashMap<>();
         //Get values
         for (Element e: operationalElements) {
-            String[] values = e.solveVariablesAndLabels(variableSolver, vertex);
+            String[] values = e.solveVariablesAndLabels(variableSolver, vertex, edge);
             returnValues.put(e.name, values);
         }
         return returnValues;
@@ -72,60 +69,71 @@ public class PartitioningSolver implements Selection, Cloneable{ //Inside partit
     }
 
     public static class Element implements Serializable, Cloneable {
-        private String[] values;
+        //private String[] values;
         private String name;
         private Operation.Type type;
         private Operation.WindowType wType;
         private String withinTimeUnits;
 
         public Element(String name, Operation.Type type, String withinTimeUnits, Operation.WindowType windowType) {
-            this.values = null;
+            //this.values = null;
             this.name = name;
             this.type = type;
             this.withinTimeUnits = withinTimeUnits;
             this.wType = windowType;
         }
 
-        public String[] solveVariablesAndLabels(VariableSolver variableSolver, VertexNew vertex){
+        public String[] solveVariablesAndLabels(VariableSolver variableSolver, VertexM vertex){
+            String[] values;
             //Solve Variables
             if (type.equals(Operation.Type.VARIABLE)) {
                 List<String[]> variableValues = variableSolver.getVertexVariable(name, null, vertex.getNodeId(), withinTimeUnits, wType);
                 List<String> newValues = variableValues.stream().flatMap(list -> Arrays.stream(list)).collect(Collectors.toList());
-                this.values = (String[])newValues.toArray();
-                this.type = Operation.Type.VALUE;
+                values = (String[])newValues.toArray();
             }
             //Solve Labels
-            if (type.equals(Operation.Type.LABEL)) {
+            else if (type.equals(Operation.Type.LABEL)) {
                 values = vertex.getLabelVertex(name);
-                type = Operation.Type.VALUE;
             }
-            return values;
+            else {
+                throw new RuntimeException("Operation type must be VARIABLE or LABEL, not value");
+            }
+            return deduplicateValues(values);
         }
-        public String[] solveVariablesAndLabels(VariableSolver variableSolver, VertexNew vertex, String edgeName){
+
+        public String[] solveVariablesAndLabels(VariableSolver variableSolver, VertexM vertex, String edgeName){
+            String[] values;
             //Solve Variables
             if (type.equals(Operation.Type.VARIABLE)) {
                 List<String[]> variableValues = variableSolver.getEdgeVariable(name, null, vertex.getNodeId(), edgeName, withinTimeUnits, wType);
                 List<String> newValues = variableValues.stream().flatMap(list -> Arrays.stream(list)).collect(Collectors.toList());
-                this.values = (String[])newValues.toArray();
-                this.type = Operation.Type.VALUE;
+                values = (String[])newValues.toArray();
             }
             //Solve Labels
             if (type.equals(Operation.Type.LABEL)) {
                 values = vertex.getLabelEdge(name, edgeName);
-                type = Operation.Type.VALUE;
+            } else {
+                throw new RuntimeException("Operation type must be VARIABLE or LABEL, not value");
             }
-            return values;
+            return deduplicateValues(values);
         }
 
-        public void solveAggregates(VariableSolver variableSolver){
+        public String[] solveAggregates(VariableSolver variableSolver){
+            String[] values;
             if (type.equals(Operation.Type.VARIABLE)) {
-                try {
                     List<String[]> variableValues = variableSolver.getAggregate(name, null, withinTimeUnits, wType);
                     List<String> newValues = variableValues.stream().flatMap(list -> Arrays.stream(list)).collect(Collectors.toList());
-                    this.values = (String[])newValues.toArray();
-                    this.type = Operation.Type.VALUE;
-                } catch (WrongTypeRuntimeException e){}
+                    values = (String[])newValues.toArray();
+            } else {
+                throw new RuntimeException("Operation type must be VARIABLE");
             }
+            return deduplicateValues(values);
+        }
+
+
+        public String[] deduplicateValues (String[] values) {
+            LinkedHashSet<String> hashSet = new LinkedHashSet<>(Arrays.asList(values));
+            return (String[]) hashSet.toArray();
         }
 
         @Override

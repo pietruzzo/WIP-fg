@@ -6,7 +6,7 @@ import java.io.Serializable;
 import java.util.*;
 
 
-public class VertexNew implements Serializable, Vertex {
+public class VertexM implements Serializable, Vertex {
 
     private static final long serialVersionUID = 200000L;
 
@@ -14,7 +14,7 @@ public class VertexNew implements Serializable, Vertex {
     private final State state;
     private final Map<String, State> edges;
 
-    public VertexNew(String nodeId, State state) {
+    public VertexM(String nodeId, State state) {
         this.nodeId = nodeId;
         this.state = state;
         this.edges = new HashMap<>();

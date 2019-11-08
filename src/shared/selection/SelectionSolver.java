@@ -4,8 +4,7 @@ import akka.japi.Pair;
 import jdk.internal.jline.internal.Nullable;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
-import shared.VertexNew;
-import shared.computation.Vertex;
+import shared.VertexM;
 import shared.exceptions.WrongTypeRuntimeException;
 import shared.variables.solver.VariableSolver;
 
@@ -104,7 +103,7 @@ public class SelectionSolver implements Cloneable, Selection{
      * @return null if vertex is not selected
      * @return Vertex with selected edges
      */
-    VertexNew solveVertex (VertexNew vertex, VariableSolver variableSolver) {
+    VertexM solveVertex (VertexM vertex, VariableSolver variableSolver) {
         //Select Vertex
 
         //0-Basecases
@@ -169,7 +168,7 @@ public class SelectionSolver implements Cloneable, Selection{
         //4-clone this for each edge
         //5-call method solveEdge on ech edge
         //6-collect selected edges
-        VertexNew vertexResult = new VertexNew(vertex.getNodeId(), vertex.getState());
+        VertexM vertexResult = new VertexM(vertex.getNodeId(), vertex.getState());
         for (String edge: vertex.getEdges()) {
             boolean selected = this.clone().selectEdge(vertex, variableSolver, edge);
             if (selected)
@@ -186,7 +185,7 @@ public class SelectionSolver implements Cloneable, Selection{
      * @param edgeName
      * @return true id edge is selected, otherwise false
      */
-    private boolean selectEdge (VertexNew vertex, VariableSolver variableSolver, String edgeName) {
+    private boolean selectEdge (VertexM vertex, VariableSolver variableSolver, String edgeName) {
         //Substitute Variables
         List<Tuple4<String, String, Operation.WindowType, String[][]>> varToBeSubstituted = new ArrayList<>();
         List<Tuple3<String, String, Operation.WindowType>> variables = this.getVariables(false, true);

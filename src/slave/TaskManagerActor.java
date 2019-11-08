@@ -18,7 +18,7 @@ import shared.AkkaMessages.modifyGraph.DeleteVertexMsg;
 import shared.AkkaMessages.modifyGraph.UpdateVertexMsg;
 import shared.AkkaMessages.select.SelectMsg;
 import shared.Utils;
-import shared.VertexNew;
+import shared.VertexM;
 import shared.computation.*;
 import shared.data.BoxMsg;
 import shared.data.MultiKeyMap;
@@ -45,7 +45,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 	private ActorSelection master;
 	private Map<Integer, ActorRef> slaves;
 
-	private HashMap<String, VertexNew> vertices;
+	private HashMap<String, VertexM> vertices;
 	private HashMap<String, Computation> computations;
 	private MultiKeyMap<ComputationRuntime> partitionComputations;
 	private VariableSolver variables;
@@ -133,7 +133,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 
 	private final void onAddEdgeMsg(AddEdgeMsg msg) {
 		log.info(msg.toString());
-		VertexNew vertex = vertices.get(msg.getSourceName());
+		VertexM vertex = vertices.get(msg.getSourceName());
 		vertex.addEdge(msg.getDestinationName());
 		for (Pair<String, String[]> attribute : msg.getAttributes()) {
 			vertex.setLabelEdge(msg.getDestinationName(), attribute.first(), attribute.second());
@@ -144,7 +144,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 
 	private final void onDeleteEdgeMsg(DeleteEdgeMsg msg) {
 		log.info(msg.toString());
-		VertexNew vertex = vertices.get(msg.getSourceName());
+		VertexM vertex = vertices.get(msg.getSourceName());
 		vertex.deleteEdge(msg.getDestinationName());
 
 		master.tell(new AckMsg(), self());
@@ -159,9 +159,9 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 
 	private final void onUpdateVertexMsg(UpdateVertexMsg msg) {
 		log.info(msg.toString());
-		VertexNew vertex = vertices.get(msg.getVertexName());
+		VertexM vertex = vertices.get(msg.getVertexName());
 		if (vertex == null){ //Create a new vertex
-			vertex = new VertexNew(msg.vertexName, new VertexNew.State());
+			vertex = new VertexM(msg.vertexName, new VertexM.State());
 		}
 		for (Pair<String, String[]> attribute : msg.getAttributes()) {
 			vertex.setLabelVartex(attribute.first(), attribute.second());
@@ -208,7 +208,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 			HashSet<String> deleteEdges = new HashSet<>(entry.getValue());
 			 Stream<Vertex> partitionVertices = this.partitionComputations.getValue(entry.getKey()).getVertices().values().parallelStream();
 			partitionVertices.forEach(vertex -> {
-				VertexNew vertexM = (VertexNew) vertex;
+				VertexM vertexM = (VertexM) vertex;
 				ArrayList<String> toRemove = new ArrayList<>();
 				for (String edge: vertexM.getEdges()) {
 					if (deleteEdges.contains(edge)) toRemove.add(edge);
@@ -337,11 +337,11 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 						newRuntimes.putValue(tuple3.f2, computation);
 					}
 
-					VertexNew globalVertex = this.vertices.get(tuple3.f0);
+					VertexM globalVertex = this.vertices.get(tuple3.f0);
 
-					VertexNew vertex = (VertexNew) computation.getVertices().get(tuple3.f0);
+					VertexM vertex = (VertexM) computation.getVertices().get(tuple3.f0);
 					if (vertex == null) {
-						vertex = new VertexNew(globalVertex.getNodeId(), globalVertex.getState());
+						vertex = new VertexM(globalVertex.getNodeId(), globalVertex.getState());
 						computation.getVertices().put(vertex.getNodeId(), vertex);
 					}
 					vertex.addEdge(tuple3.f1, globalVertex.getEdgeState(tuple3.f1));
@@ -378,11 +378,11 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 								newRuntimes.putValue(tuple2.f1, computation);
 							}
 
-							VertexNew globalVertex = this.vertices.get(tuple2.f0);
+							VertexM globalVertex = this.vertices.get(tuple2.f0);
 
-							VertexNew vertex = (VertexNew) computation.getVertices().get(tuple2.f0);
+							VertexM vertex = (VertexM) computation.getVertices().get(tuple2.f0);
 							if (vertex == null) {
-								vertex = new VertexNew(globalVertex.getNodeId(), globalVertex.getState());
+								vertex = new VertexM(globalVertex.getNodeId(), globalVertex.getState());
 								computation.getVertices().put(vertex.getNodeId(), vertex);
 							}
 						});
@@ -413,7 +413,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 		 */
 		this.partitionComputations.getAllElements().values().stream().forEach(computationRuntime -> {
 
-			Collection<VertexNew> verticesM = computationRuntime.getVertices().values().parallelStream().map(vertex -> (VertexNew)vertex).collect(Collectors.toList());
+			Collection<VertexM> verticesM = computationRuntime.getVertices().values().parallelStream().map(vertex -> (VertexM)vertex).collect(Collectors.toList());
 			Select select = new Select(msg.operations, verticesM.iterator(), this.variables, executors, new HashMap<>(computationRuntime.getPartition()));
 			try {
 				Map<String, Vertex> selected = select.performSelection();
@@ -508,7 +508,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 					}
 
 					entry.getValue().getVertices().values().parallelStream().map(vertex -> {
-						VertexNew vertexM = (VertexNew) vertex;
+						VertexM vertexM = (VertexM) vertex;
 						return (Arrays.asList(vertexM.getEdges()));
 					}).flatMap(list -> list.stream()).forEach(edge -> {
 						int destination = Utils.getPartition(edge, this.slaves.size());

@@ -3,10 +3,9 @@ package shared.selection;
 import akka.japi.Pair;
 import org.apache.flink.api.java.tuple.Tuple3;
 import shared.Utils;
-import shared.VertexNew;
+import shared.VertexM;
 import shared.computation.ComputationRuntime;
 import shared.computation.Vertex;
-import shared.data.MultiKeyMap;
 import shared.data.SynchronizedIterator;
 import shared.variables.solver.VariableSolver;
 
@@ -72,7 +71,7 @@ public class Partition {
         public void run() {
             try{
                 while(true) {
-                    VertexNew vertex = (VertexNew) partition.vertexIterator.next();
+                    VertexM vertex = (VertexM) partition.vertexIterator.next();
                     PartitioningSolver partitioningSolver = partition.partitioningSolver.clone();
 
                     if (!partitioningSolver.partitionOnEdge){

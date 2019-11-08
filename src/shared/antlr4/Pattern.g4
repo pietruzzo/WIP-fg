@@ -13,8 +13,8 @@ computation : '.compute(' computationFunction ')' ;
 selection : '.select(' selectionFunction ')' ;
 
 partition
-    : '.partitionV(' partitionFunction ')'
-    | '.partitionE(' partitionFunction ')'
+    : '.GroupV(' partitionFunction ')'
+    | '.GroupE(' partitionFunction ')'
     ;
 
 extraction
