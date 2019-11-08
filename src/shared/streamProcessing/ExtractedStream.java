@@ -4,10 +4,17 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import shared.computation.ComputationRuntime;
+import shared.data.MultiKeyMap;
 import shared.exceptions.InvalidOperationChain;
 import shared.exceptions.WrongTypeRuntimeException;
+import shared.variables.Variable;
+import shared.variables.VariableAggregate;
+import shared.variables.VariableEdge;
+import shared.variables.VariableVertex;
+import shared.variables.solver.VariableSolver;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -76,6 +83,10 @@ public class ExtractedStream {
 
     public StreamType getStreamType() {
         return streamType;
+    }
+
+    public Map<String, String> getPartition() {
+        return partition;
     }
 
     public Stream<Tuple> getStream(){
@@ -236,8 +247,76 @@ public class ExtractedStream {
         return this.getExtractedStream(result.stream(), this.tupleFields, newStreamType);
     }
 
-    public List<Tuple> emit(){
-       return this.stream.collect(Collectors.toList());
+    public Variable emit(VariableSolver variableSolver, String varName, long persistence){
+
+        if (streamType == StreamType.NODE) {
+
+            Map<String, Tuple> map = this.stream.collect(Collectors.toMap(tuple -> {
+                if(tuple.getField(0) instanceof String[]){
+                    return ((String[])tuple.getField(0))[0];
+                } else { //String
+                    return tuple.getField(0);
+                }
+                    }, tuple -> {
+                Tuple newTuple = Tuple.newInstance(tuple.getArity() - 1);
+                for (int i = 0; i < newTuple.getArity(); i++) {
+                    newTuple.setField(tuple.getField(i+1), i);
+                }
+                return newTuple;
+            }));
+
+            ArrayList<String> fieldNames = new ArrayList<>();
+            for (int i = 1; i < this.tupleFields.size(); i++) {
+                fieldNames.add(this.tupleFields.get(i));
+            }
+
+            return new VariableVertex(varName, persistence, variableSolver.getCurrentTimestamp(), map, (String[])fieldNames.toArray());
+
+        } else if (streamType == StreamType.EDGE) {
+
+            //Map<String, List<Tuple>> groupedVertex = this.stream.collect(Collectors.groupingByConcurrent(tuple -> tuple.getField(0), Collectors.toList()));
+            final ConcurrentHashMap<String, Map<String, Tuple>> vertexMap = new ConcurrentHashMap<>();
+            this.stream.forEach(tuple-> {
+
+                Map<String, Tuple> edges;
+                String src, dest;
+                if(tuple.getField(0) instanceof String[]){
+                    src =  ((String[])tuple.getField(0))[0];
+                } else { //String
+                    src =  tuple.getField(0);
+                }
+
+                edges = vertexMap.computeIfAbsent(src, v -> new ConcurrentHashMap<>());
+
+                //Compute key (edgeName)
+                if(tuple.getField(1) instanceof String[]){
+                    dest =  ((String[])tuple.getField(1))[0];
+                } else { //String
+                    dest =  tuple.getField(1);
+                }
+
+                //Compute value tuple
+                Tuple newTuple = Tuple.newInstance(tuple.getArity() - 2);
+                for (int i = 0; i < newTuple.getArity(); i++) {
+                    newTuple.setField(tuple.getField(i+2), i);
+                }
+
+                edges.put(dest, newTuple);
+            });
+
+            ArrayList<String> fieldNames = new ArrayList<>();
+            for (int i = 2; i < this.tupleFields.size(); i++) {
+                fieldNames.add(this.tupleFields.get(i));
+            }
+
+            return new VariableEdge(varName, persistence, variableSolver.getCurrentTimestamp(), vertexMap, (String[])fieldNames.toArray());
+
+        } else { //Aggregate
+            Tuple[] tuples = (Tuple[])this.stream.collect(Collectors.toList()).toArray();
+            return new VariableAggregate(varName, persistence, variableSolver.getCurrentTimestamp(), tuples, tupleFields);
+        }
+
+
     }
 
     //Support methods

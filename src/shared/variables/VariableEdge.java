@@ -7,6 +7,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import shared.exceptions.WrongTypeRuntimeException;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -29,6 +30,12 @@ public class VariableEdge extends Variable {
         }).collect(Collectors.toMap(tuple2 -> tuple2.f0, tuple2 -> tuple2.f1));
         this.tupleNames = new ArrayList<>();
         this.tupleNames.add(tupleName);
+    }
+
+    public VariableEdge(String name, long persistence, long timestamp, Map<String, Map<String, Tuple>> edgesValues, @Nullable String[] tupleName) {
+        super(name, persistence, timestamp);
+        this.tupleNames = new ArrayList<>(Arrays.asList(tupleName));
+        this.edgesValues = edgesValues;
     }
 
     public Map<String, Map<String, Tuple>> getEdgesValues() {

@@ -6,6 +6,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import shared.exceptions.WrongTypeRuntimeException;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -28,6 +29,12 @@ public class VariableVertex extends Variable {
 
         this.tupleNames = new ArrayList<>();
         this.tupleNames.add(fieldName);
+    }
+
+    public VariableVertex(String name, long persistence, long timestamp, Map<String, Tuple> verticesValues, String[] fieldName) {
+        super(name, persistence, timestamp);
+        this.verticesValues = verticesValues;
+        this.tupleNames = new ArrayList<>(Arrays.asList(fieldName));
     }
 
     public Map<String, Tuple> getVerticesValues() {

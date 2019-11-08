@@ -10,15 +10,11 @@ public class VariablePartition extends Variable {
 
     private static final long serialVersionUID = 200042L;
 
-    private final Map<String, String[]> values;
     private final MultiKeyMap<Variable> insideVariable; //Edges, aggregate or vertex
-    private final MultiKeyMap<ArrayList<Vertex>> partitionNodes;
 
-    public VariablePartition(String name, long persistence, long timestamp, Map<String, String[]> values) {
+    public VariablePartition(String name, long persistence, long timestamp, MultiKeyMap<Variable> insideVariables) {
         super(name, persistence, timestamp);
-        this.values = values;
-        this.insideVariable = new MultiKeyMap<>((String[]) values.keySet().toArray());
-        this.partitionNodes = new MultiKeyMap<>((String[]) values.keySet().toArray());
+        this.insideVariable = insideVariables;
     }
 
     /**
@@ -51,7 +47,4 @@ public class VariablePartition extends Variable {
         return this.insideVariable;
     }
 
-    public Map<String, String[]> getPartitions () {
-        return values;
-    }
 }

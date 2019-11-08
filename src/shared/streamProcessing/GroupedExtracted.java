@@ -10,7 +10,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-public class GroupedExtracted {
+public class GroupedExtracted { //TODO: è possibile evitarlo?
 
     private final Map<String, String> partition;
     private ArrayList<String> tupleFields;

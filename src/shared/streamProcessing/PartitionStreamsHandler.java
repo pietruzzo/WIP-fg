@@ -4,17 +4,16 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import shared.computation.ComputationRuntime;
 import shared.computation.Vertex;
+import shared.data.CompositeKey;
 import shared.data.MultiKeyMap;
 import shared.exceptions.InvalidOperationChain;
 import shared.selection.SelectionSolver;
 import shared.variables.Variable;
+import shared.variables.VariablePartition;
 import shared.variables.solver.VariableSolver;
 
 import java.lang.reflect.Array;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -22,8 +21,9 @@ public class PartitionStreamsHandler {
 
     private MultiKeyMap<ExtractedStream> partitions;
     private List<Operations> operationsList;
+    private VariableSolver variableSolver;
 
-    public PartitionStreamsHandler(MultiKeyMap<ComputationRuntime> runtimes, List<Operations> operationsList){
+    public PartitionStreamsHandler(MultiKeyMap<ComputationRuntime> runtimes, List<Operations> operationsList, VariableSolver variableSolver){
         //Distinguish between extraction from runtimes and collect. In this constructor -> extract from runtime
 
         if( ! (operationsList.get(0) instanceof Operations.Extract) ) throw new InvalidOperationChain("Chain must begin with extract operation (" + operationsList.get(0).getClass().toGenericString() + ").");
@@ -36,11 +36,13 @@ public class PartitionStreamsHandler {
                     partitions.putValue(entry.getKey(), new ExtractedStream(entry.getValue().getPartition(), Arrays.asList(extractOperator.labels), extractOperator.edges, entry.getValue()));
                 });
 
+        this.variableSolver = variableSolver;
     }
 
     public PartitionStreamsHandler (String variableName, SelectionSolver.Operation.WindowType windowType, String timestamp, VariableSolver variableSolver, List<Operations> operationsList){
         this.partitions = variableSolver.getStream(variableName, windowType, timestamp);
         this.operationsList = operationsList;
+        this.variableSolver = variableSolver;
     }
 
 
@@ -91,10 +93,34 @@ public class PartitionStreamsHandler {
     }
 
     private ExtractedStream reducePartitions(PartitionsReducer reducer){
-        //todo: implement or not?
+        //todo: implement or not? Probably yesssa per il max, min...
         return null;
     }
 
-    private Variable emitVariable(){}
+    private Variable emitVariable(String variableName, long persistence){
+        /*
+
+            get first extracted stream -> if it is null emit
+                Create a multimap that contains Variables: node, edge or aggregate
+            otherwise Create a multimap that contains Variable for variablePartition
+                for each ExtractedStream in the multimap -> get variable and collect it in multimap
+
+            return Variable
+         */
+        ExtractedStream partition = partitions.getAllElements().entrySet().iterator().next().getValue();
+
+        if (partitions.getAllElements().entrySet().size() == 1
+                && ( partition.getPartition() == null || partition.getPartition().isEmpty()) ) {
+            return partition.emit(this.variableSolver, variableName, persistence);
+        }
+
+        MultiKeyMap<Variable> partitions = new MultiKeyMap<>(this.partitions.getKeys());
+
+        this.partitions.getAllElements().values().parallelStream().forEach(extractedStream -> {
+            partitions.putValue(new HashMap(extractedStream.getPartition()), extractedStream.emit(variableSolver, variableName, persistence));
+        });
+
+        return new VariablePartition(variableName, persistence, variableSolver.getCurrentTimestamp(), partitions);
+    }
 
 }
