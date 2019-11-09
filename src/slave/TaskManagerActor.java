@@ -25,6 +25,7 @@ import shared.data.MultiKeyMap;
 import shared.data.SynchronizedIterator;
 import shared.selection.Partition;
 import shared.selection.Select;
+import shared.variables.VariableGraph;
 import shared.variables.solver.VariableSolver;
 
 import java.util.*;
@@ -33,7 +34,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-//LAST USED: private static final long serialVersionUID = 200052L;
+//LAST USED: private static final long serialVersionUID = 200054L;
 
 public class TaskManagerActor extends AbstractActor implements ComputationCallback {
 	private final LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
@@ -98,6 +99,8 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 			match(ExtractMsg.class, this::onExtractMsg).
 			match(SelectMsg.class, this::onSelectMsg).
 			match(NewTimestampMsg.class, this::onNewTimestampMsg).
+			match(SaveVariableGraphMsg.class, this::onSaveVariableGraphMsg). //
+			match(RestoreVariableGraphMsg.class, this::onRestoreVariableGraphMsg). //
 		    build();
 	}
 
@@ -218,22 +221,58 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 		});
 		if(this.waitingResponses.decrementAndGet() == 0){
 			getContext().become(initializedState());
+			master.tell(new AckMsg(), self());
 		}
+	}
+
+	private final void onSaveVariableGraphMsg(SaveVariableGraphMsg msg) {
+
+		instantiatePartitionsIfAbsent();
+
+		MultiKeyMap<Map<String, Vertex>> savedPartitions = new MultiKeyMap<>(this.partitionComputations.getKeys());
+
+		this.partitionComputations.getAllElements().entrySet().parallelStream().forEach(entryPartition -> {
+			savedPartitions.putValue(entryPartition.getKey(), entryPartition.getValue().getVertices());
+		});
+
+		this.variables.addVariable(new VariableGraph(msg.getVarableName(), msg.getTimewindow(), this.variables.getCurrentTimestamp(), savedPartitions));
+
+		master.tell(new AckMsg(), self());
+	}
+
+	private  final void onRestoreVariableGraphMsg(RestoreVariableGraphMsg msg) {
+
+		/*
+		For each partition, for each node, keep only vertices and nodes not deleted
+		 */
+
+		MultiKeyMap<Map<String, Vertex>> newPartitions = this.variables.getGraphs(msg.getVariableName(), msg.getTimeAgo());
+
+		newPartitions.getAllElements().entrySet().stream().forEach(entryP ->{
+
+			entryP.getValue().values().parallelStream()
+					.filter(vertex -> this.vertices.get(vertex.getNodeId()) != null)
+					.forEach(vertex -> {
+						Arrays.asList(vertex.getEdges()).stream().forEach(edge -> {
+							VertexM vertexM = ((VertexM) vertex);
+							String[] edges = vertexM.getEdges();
+							if ( !(Arrays.asList(edges).contains(edge)) ){
+								vertexM.deleteEdge(edge);
+							}
+						});
+					});
+		});
+
+		master.tell(new AckMsg(), self());
+
 	}
 
 	private final void onStartComputationStepMsg(StartComputationStepMsg msg) throws ExecutionException, InterruptedException {
 		log.info(msg.toString());
 
 		//If no partitions are available, no select or free variables have been allocated
-		if (partitionComputations == null){
-			ComputationRuntime computationRuntime = new ComputationRuntime(this, this.computations.get(msg.getComputationId()), null, getAllReadOnlyVertices());
-			this.partitionComputations = new MultiKeyMap<>(new String[]{"all"});
-			HashMap<String, String> key = new HashMap<>();
-			key.put("all", "all");
-			this.partitionComputations.putValue(key, computationRuntime);
+		this.instantiatePartitionsIfAbsent();
 
-			//Run first iteration on selected free variables, if NULL on all free variables
-		}
 		//set computation for each runtime
 		for (ComputationRuntime computation: this.partitionComputations.getAllElements().values()) {
 			computation.setComputation(this.computations.get(msg.getComputationId()));
@@ -296,18 +335,21 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 		master.tell(new AckMsg(), self());
 	}
 
-	private final void onNewPartitionMsg(NewPartitionMsg p) throws ExecutionException, InterruptedException {
+	private final void onNewPartitionMsg(NewPartitionMsg msg) throws ExecutionException, InterruptedException {
 
 		List<String> newPartitioningLabels = new ArrayList<>();
 		newPartitioningLabels.addAll(Arrays.asList(this.partitionComputations.getKeys()));
-		newPartitioningLabels.addAll(p.getPartitioningSolver().getNames());
+		newPartitioningLabels.addAll(msg.getPartitioningSolver().getNames());
 
 		MultiKeyMap<ComputationRuntime> newRuntimes = new MultiKeyMap<>((String[])newPartitioningLabels.toArray());
 
 		for (ComputationRuntime computationRuntime: this.partitionComputations.getAllElements().values()) { //For each previus computation runtime
-			Partition partition = new Partition(computationRuntime, p.getPartitioningSolver(), this.variables, this.executors);
+
+			Partition partition = new Partition(computationRuntime, msg.getPartitioningSolver(), this.variables, this.executors);
 			partition.computeSubpartitions();
-			if (p.getPartitioningSolver().partitionOnEdge){
+
+
+			if (msg.getPartitioningSolver().partitionOnEdge){
 				//EdgePartitioning
 				List<Tuple3<String, String, HashMap<String, String[]>>> collected = partition.getCollectedResultsEdges();
 
@@ -386,18 +428,15 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 								computation.getVertices().put(vertex.getNodeId(), vertex);
 							}
 						});
-				//todo delete edges not inside the partition
 			}
 
-			this.partitionComputations = newRuntimes;
 		}
 
-		//Get actual partitioning
-		//get variablePartition -> if defined check if not partitioned yet, otherwise gives error
-		//Handle variablePartition
-		//For each partition select on edges and vertices
+		this.partitionComputations = newRuntimes;
 
-
+		if (!(msg.getPartitioningSolver().partitionOnEdge)){
+			this.validateEdges();
+		}
 
 	}
 
@@ -490,6 +529,18 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 				results.addAll(elencatePartitions(subMap, solved));
 		}
 		return results;
+	}
+
+	private void instantiatePartitionsIfAbsent() {
+		if (partitionComputations == null){
+			ComputationRuntime computationRuntime = new ComputationRuntime(this, null, null, getAllReadOnlyVertices());
+			this.partitionComputations = new MultiKeyMap<>(new String[]{"all"});
+			HashMap<String, String> key = new HashMap<>();
+			key.put("all", "all");
+			this.partitionComputations.putValue(key, computationRuntime);
+
+			//Run first iteration on selected free variables, if NULL on all free variables
+		}
 	}
 
 	public void validateEdges () {

@@ -7,6 +7,7 @@ import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import shared.Utils;
+import shared.computation.Vertex;
 import shared.data.CompositeKey;
 import shared.data.MultiKeyMap;
 import shared.exceptions.VariableNotDefined;
@@ -134,6 +135,15 @@ public class VariableSolver {
 
         }
         return result;
+    }
+
+    public MultiKeyMap<Map<String, Vertex>> getGraphs (String variableName, @Nullable String timeAgo){
+
+        List<Variable> graph = this.getSelectedVariable(variableName, null, null, WindowType.AGO);
+
+        if (!(graph.get(0) instanceof VariableGraph)) throw new WrongTypeRuntimeException(VariableGraph.class, graph.getClass());
+
+        return ((VariableGraph)graph.get(0)).getSavedPartitions();
     }
 
     /**
@@ -349,9 +359,13 @@ public class VariableSolver {
      * @throws VariableNotDefined if variable isn't defined
      * @return Can return empty set
      */
-    private List<Variable> getSelectedVariable (String variableName, @Nullable Map<String, String> partition, String timeWindow, WindowType windowType) throws VariableNotDefined {
+    private List<Variable> getSelectedVariable (String variableName, @Nullable Map<String, String> partition, @Nullable String timeWindow, WindowType windowType) throws VariableNotDefined {
         Long timeWindowL = null;
-        if (timeWindow != null) timeWindowL = Utils.solveTime(timeWindow);
+        if (timeWindow != null) {
+            timeWindowL = Utils.solveTime(timeWindow);
+        } else {
+            timeWindowL = 0L;
+        }
         NavigableMap<Long, Variable> entireVarList = this.varablesNew.get(variableName);
         if (entireVarList == null) throw new VariableNotDefined(variableName);
         List<Variable> windowed = extractWindow(entireVarList, timeWindowL, windowType);
