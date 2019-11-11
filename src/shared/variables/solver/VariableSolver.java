@@ -12,6 +12,7 @@ import shared.data.CompositeKey;
 import shared.data.MultiKeyMap;
 import shared.exceptions.VariableNotDefined;
 import shared.exceptions.WrongTypeRuntimeException;
+import shared.streamProcessing.ExtractedIf;
 import shared.streamProcessing.ExtractedStream;
 import shared.variables.*;
 import shared.selection.SelectionSolver.Operation.WindowType;
@@ -153,7 +154,7 @@ public class VariableSolver {
      * @param timestamp
      * @return NULL if Empty
      */
-    public MultiKeyMap<ExtractedStream>getStream(String variableName, WindowType windowType, String timestamp) {
+    public MultiKeyMap<ExtractedIf>getStream(String variableName, WindowType windowType, String timestamp) {
 
         MultiKeyMap<Stream<Tuple>> result;
 
@@ -246,7 +247,7 @@ public class VariableSolver {
 
         //endregion
 
-        MultiKeyMap<ExtractedStream> extractedStream = new MultiKeyMap<>(result.getKeys());
+        MultiKeyMap<ExtractedIf> extractedStream = new MultiKeyMap<>(result.getKeys());
 
         result.getAllElements().entrySet().parallelStream().forEach(element -> {
             if (variableVersions.get(0) instanceof VariablePartition) {

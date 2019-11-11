@@ -2,9 +2,8 @@ package shared.streamProcessing;
 
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.jetbrains.annotations.NotNull;
 import shared.computation.ComputationRuntime;
-import shared.computation.Vertex;
-import shared.data.CompositeKey;
 import shared.data.MultiKeyMap;
 import shared.exceptions.InvalidOperationChain;
 import shared.selection.SelectionSolver;
@@ -12,42 +11,129 @@ import shared.variables.Variable;
 import shared.variables.VariablePartition;
 import shared.variables.solver.VariableSolver;
 
-import java.lang.reflect.Array;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class PartitionStreamsHandler {
 
-    private MultiKeyMap<ExtractedStream> partitions;
     private List<Operations> operationsList;
     private VariableSolver variableSolver;
+    private MultiKeyMap<ComputationRuntime> runtimes;
 
     public PartitionStreamsHandler(MultiKeyMap<ComputationRuntime> runtimes, List<Operations> operationsList, VariableSolver variableSolver){
-        //Distinguish between extraction from runtimes and collect. In this constructor -> extract from runtime
 
-        if( ! (operationsList.get(0) instanceof Operations.Extract) ) throw new InvalidOperationChain("Chain must begin with extract operation (" + operationsList.get(0).getClass().toGenericString() + ").");
-        Operations.Extract extractOperator = (Operations.Extract) operationsList.get(0);
-        operationsList.remove(0);
+        //Check the begin of stream
 
-        partitions = new MultiKeyMap<>(runtimes.getKeys());
-        runtimes.getAllElements().entrySet().parallelStream()
-                .forEach(entry -> {
-                    partitions.putValue(entry.getKey(), new ExtractedStream(entry.getValue().getPartition(), Arrays.asList(extractOperator.labels), extractOperator.edges, entry.getValue()));
-                });
+        if( ! (operationsList.get(0) instanceof Operations.Extract) || ! (operationsList.get(0) instanceof Operations.StreamVariable)) {
+            throw new InvalidOperationChain("Chain must begin with extract operation (" + operationsList.get(0).getClass().toGenericString() + ").");
+        }
 
         this.variableSolver = variableSolver;
     }
 
-    public PartitionStreamsHandler (String variableName, SelectionSolver.Operation.WindowType windowType, String timestamp, VariableSolver variableSolver, List<Operations> operationsList){
-        this.partitions = variableSolver.getStream(variableName, windowType, timestamp);
-        this.operationsList = operationsList;
-        this.variableSolver = variableSolver;
+    public void solveOperationChain (){
+
+        MultiKeyMap<ExtractedIf> partitions = null;
+
+        for (Operations operation:this.operationsList) {
+
+            if (operation instanceof Operations.Map) {
+
+                Operations.Map opMap = (Operations.Map) operation;
+                partitions.getAllElements().values().forEach(partition -> partition.set(partition.map(opMap.function)));
+
+            }
+            else if (operation instanceof Operations.Extract) {
+
+                //Get streams from ComputationRuntimes
+
+                final MultiKeyMap<ExtractedIf> fPartitions = new MultiKeyMap<>(runtimes.getKeys());
+
+                Operations.Extract extractOperator = (Operations.Extract) operationsList.get(0);
+                operationsList.remove(0);
+
+                runtimes.getAllElements().entrySet().parallelStream()
+                        .forEach(entry -> {
+                            fPartitions.putValue(entry.getKey(), new ExtractedStream(entry.getValue().getPartition(), Arrays.asList(extractOperator.labels), extractOperator.edges, entry.getValue()));
+                        });
+
+                partitions = fPartitions;
+
+            }
+            else if (operation instanceof Operations.Collect) {
+
+                final MultiKeyMap<ExtractedIf> newPartitions = new MultiKeyMap<>(partitions.getKeys());
+
+                partitions.getAllElements().entrySet().stream()
+                        .forEach(partitionEntry -> newPartitions.putValue(partitionEntry.getKey(), ((ExtractedGroupedStream)partitionEntry.getValue()).collect()));
+
+                partitions = newPartitions;
+            }
+            else if (operation instanceof Operations.Emit) {
+
+                Operations.Emit opEmit = (Operations.Emit) operation;
+                //Todo: if variable node, edge -> put in variable solver, otherwise send to master and use ASK to get complete aggregate
+
+            }
+            else if (operation instanceof Operations.Filter) {
+
+                Operations.Filter opFilter = (Operations.Filter) operation;
+                partitions.getAllElements().values().stream().forEach(partition -> partition.set(partition.filter(opFilter.filterFunction)));
+
+            }
+            else if (operation instanceof Operations.FlatMap) {
+
+                Operations.FlatMap opFlatMap = (Operations.FlatMap) operation;
+                partitions.getAllElements().values().stream().forEach(partition -> partition.set(partition.flatmap(opFlatMap.mapper)));
+
+            }
+            else if (operation instanceof Operations.Flattern) {
+
+            }
+            else if (operation instanceof Operations.GroupBy) {
+
+            }
+            else if (operation instanceof Operations.Merge) {
+
+                Operations.Merge opMerge = (Operations.Merge) operation;
+                partitions.getAllElements().values().forEach(partition -> partition.set(((ExtractedStream)partition).merge(opMerge.groupingLabels)));
+
+            }
+            else if (operation instanceof Operations.Reduce) {
+
+                Operations.Reduce opReduce = (Operations.Reduce) operation;
+                partitions.getAllElements().values().stream().forEach(partition -> partition.reduce(opReduce.identity, opReduce.accumulator));
+                //todo send to master reduced results -> USE ASK to get response
+
+            }
+            else if (operation instanceof Operations.StreamVariable) {
+
+                Operations.StreamVariable opStream = (Operations.StreamVariable) operation;
+
+                //If partition isn't already defined -> Stream
+                if (partitions == null) {
+                    partitions = variableSolver.getStream(opStream.VariableName, opStream.wType, opStream.timeAgo);
+                }
+                //If partition is already defined -> stream and  JOIN
+                else {
+                    MultiKeyMap<ExtractedIf> secondStreams = variableSolver.getStream(opStream.VariableName, opStream.wType, opStream.timeAgo);
+                    partitions.getAllElements().values().stream().forEach(partition -> {
+                        partition.set(((ExtractedStream)partition).joinStream((ExtractedStream)secondStreams.getValue(((ExtractedStream) partition).getPartition())));
+                    });
+                }
+            }
+            else {
+                throw new InvalidOperationChain("operation not recognized: " + operation.getClass());
+            }
+
+        }
     }
 
 
 
-    private ExtractedStream collectPartitions(){
+    private ExtractedStream collectPartitions(MultiKeyMap<ExtractedStream> partitions){
         /*
             Get partitions fieldName list
             Compute new fields name ( appended to ExtractedStream.JOIN_PARTITION)
@@ -57,15 +143,15 @@ public class PartitionStreamsHandler {
                 Stream tuples from each partiton
                     Append partition fields
          */
-        String[] actualPartitionFields = this.partitions.getKeys();
+        String[] actualPartitionFields = partitions.getKeys();
 
         List<String> newPartitionFieldsName = Arrays.stream(actualPartitionFields)
                 .map(field -> ExtractedStream.JOIN_PARTITION + field)
                 .collect(Collectors.toList());
 
-        ExtractedStream.StreamType type = this.partitions.getAllElements().values().iterator().next().getStreamType();
+        ExtractedStream.StreamType type = partitions.getAllElements().values().iterator().next().getStreamType();
 
-        Stream<Tuple> collectedStream = this.partitions.getAllElements()
+        Stream<Tuple> collectedStream = partitions.getAllElements()
                 .entrySet()
                 .parallelStream()
                 .map(entryPartition -> {
@@ -97,7 +183,7 @@ public class PartitionStreamsHandler {
         return null;
     }
 
-    private Variable emitVariable(String variableName, long persistence){
+    private Variable emitVariable(String variableName, long persistence, MultiKeyMap<ExtractedStream> partitions){
         /*
 
             get first extracted stream -> if it is null emit
@@ -114,13 +200,13 @@ public class PartitionStreamsHandler {
             return partition.emit(this.variableSolver, variableName, persistence);
         }
 
-        MultiKeyMap<Variable> partitions = new MultiKeyMap<>(this.partitions.getKeys());
+        MultiKeyMap<Variable> newPartitions = new MultiKeyMap<>(partitions.getKeys());
 
-        this.partitions.getAllElements().values().parallelStream().forEach(extractedStream -> {
-            partitions.putValue(new HashMap(extractedStream.getPartition()), extractedStream.emit(variableSolver, variableName, persistence));
+        partitions.getAllElements().values().parallelStream().forEach(extractedStream -> {
+            newPartitions.putValue(new HashMap(extractedStream.getPartition()), extractedStream.emit(variableSolver, variableName, persistence));
         });
 
-        return new VariablePartition(variableName, persistence, variableSolver.getCurrentTimestamp(), partitions);
+        return new VariablePartition(variableName, persistence, variableSolver.getCurrentTimestamp(), newPartitions);
     }
 
 }

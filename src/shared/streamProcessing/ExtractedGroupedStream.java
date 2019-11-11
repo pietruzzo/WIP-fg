@@ -10,14 +10,14 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-public class GroupedExtracted { //TODO: è possibile evitarlo?
+public class ExtractedGroupedStream implements ExtractedIf { //TODO: è possibile evitarlo?
 
-    private final Map<String, String> partition;
+    private Map<String, String> partition;
     private ArrayList<String> tupleFields;
-    private final ExtractedStream.StreamType streamType;
-    private final Map<Tuple, Stream<Tuple>> groupedStreams;
+    private ExtractedStream.StreamType streamType;
+    private Map<Tuple, Stream<Tuple>> groupedStreams;
 
-    public GroupedExtracted(Map<String, String> partition, ArrayList<String> tupleFields, ExtractedStream.StreamType streamType, Map<Tuple, List<Tuple>> groupedStreams) {
+    public ExtractedGroupedStream(Map<String, String> partition, ArrayList<String> tupleFields, ExtractedStream.StreamType streamType, Map<Tuple, List<Tuple>> groupedStreams) {
         this.partition = partition;
         this.tupleFields = tupleFields;
         this.streamType = streamType;
@@ -28,11 +28,21 @@ public class GroupedExtracted { //TODO: è possibile evitarlo?
         }
     }
 
-    public GroupedExtracted(Map<String, String> partition, ArrayList<String> tupleFields,Map<Tuple, Stream<Tuple>> groupedStreams, ExtractedStream.StreamType streamType) {
+    public ExtractedGroupedStream(Map<String, String> partition, ArrayList<String> tupleFields, Map<Tuple, Stream<Tuple>> groupedStreams, ExtractedStream.StreamType streamType) {
         this.partition = partition;
         this.tupleFields = tupleFields;
         this.streamType = streamType;
         this.groupedStreams = groupedStreams;
+    }
+
+    @Override
+    public void set(ExtractedIf extractedIf) {
+        ExtractedGroupedStream extractedStream = (ExtractedGroupedStream)extractedIf;
+        this.partition = extractedStream.partition;
+        this.tupleFields = extractedStream.tupleFields;
+        this.streamType = extractedStream.streamType;
+        this.groupedStreams = extractedStream.groupedStreams;
+
     }
 
     public ExtractedStream collect(){
@@ -40,7 +50,8 @@ public class GroupedExtracted { //TODO: è possibile evitarlo?
         return new ExtractedStream(partition, (ArrayList<String>)this.tupleFields.clone(), streamType, newStream);
     }
 
-    public GroupedExtracted map(Function<Tuple, Tuple> function){
+    @Override
+    public ExtractedIf map(Function<Tuple, Tuple> function){
         Map<Tuple, Stream<Tuple>> newGroupedStreams  = new HashMap<>();
         for (Map.Entry<Tuple, Stream<Tuple>> stream: groupedStreams.entrySet()) {
             Stream<Tuple> newStream = stream.getValue().map(function);
@@ -49,6 +60,7 @@ public class GroupedExtracted { //TODO: è possibile evitarlo?
         return this.getExtractedStream(newGroupedStreams, this.tupleFields, this.streamType);
     }
 
+    @Override
     public Map<Tuple, Tuple> reduce(Tuple identity, CustomBinaryOperator accumulator){
         Map<Tuple, Tuple> newGroupedAccumulated  = new HashMap<>();
 
@@ -59,7 +71,8 @@ public class GroupedExtracted { //TODO: è possibile evitarlo?
         return newGroupedAccumulated;
     }
 
-    public GroupedExtracted flatmap(Function<Tuple, Stream<Tuple>> mapper){
+    @Override
+    public ExtractedIf flatmap(Function<Tuple, Stream<Tuple>> mapper){
         Map<Tuple, Stream<Tuple>> newGroupedStreams  = new HashMap<>();
         for (Map.Entry<Tuple, Stream<Tuple>> stream: groupedStreams.entrySet()) {
             Stream<Tuple> newStream = stream.getValue().flatMap(mapper);
@@ -68,7 +81,8 @@ public class GroupedExtracted { //TODO: è possibile evitarlo?
         return this.getExtractedStream(newGroupedStreams, this.tupleFields, this.streamType);
     }
 
-    public GroupedExtracted filter(Predicate<Tuple> filterFunction){
+    @Override
+    public ExtractedIf filter(Predicate<Tuple> filterFunction){
         Map<Tuple, Stream<Tuple>> newGroupedStreams  = new HashMap<>();
         for (Map.Entry<Tuple, Stream<Tuple>> stream: groupedStreams.entrySet()) {
             Stream<Tuple> newStream = stream.getValue().filter(filterFunction);
@@ -78,8 +92,8 @@ public class GroupedExtracted { //TODO: è possibile evitarlo?
     }
 
 
-    private GroupedExtracted getExtractedStream(Map<Tuple, Stream<Tuple>> groupedStreams, ArrayList<String> tupleFields, ExtractedStream.StreamType streamType){
-        return new GroupedExtracted(this.partition, (ArrayList<String>)tupleFields.clone(), groupedStreams, streamType);
+    private ExtractedIf getExtractedStream(Map<Tuple, Stream<Tuple>> groupedStreams, ArrayList<String> tupleFields, ExtractedStream.StreamType streamType){
+        return new ExtractedGroupedStream(this.partition, (ArrayList<String>)tupleFields.clone(), groupedStreams, streamType);
     }
 
 }

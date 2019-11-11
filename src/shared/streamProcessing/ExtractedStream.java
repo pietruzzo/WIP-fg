@@ -1,12 +1,10 @@
 package shared.streamProcessing;
 
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.api.java.tuple.Tuple2;
 import shared.computation.ComputationRuntime;
-import shared.data.MultiKeyMap;
 import shared.exceptions.InvalidOperationChain;
-import shared.exceptions.WrongTypeRuntimeException;
 import shared.variables.Variable;
 import shared.variables.VariableAggregate;
 import shared.variables.VariableEdge;
@@ -15,13 +13,12 @@ import shared.variables.solver.VariableSolver;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class ExtractedStream {
+public class ExtractedStream implements ExtractedIf{
 
     public static final String NODELABEL = "Node";
     public static final String EDGELABEL = "Dest";
@@ -30,10 +27,10 @@ public class ExtractedStream {
     public static final String JOIN_SECOND = "s.";
     public enum StreamType {NODE, EDGE, AGGREGATE};
 
-    private final Map<String, String> partition;
+    private Map<String, String> partition;
     private ArrayList<String> tupleFields;
-    private final StreamType streamType;
-    private final Stream<Tuple> stream;
+    private StreamType streamType;
+    private Stream<Tuple> stream;
 
     public ExtractedStream(Map<String, String> partition, List<String> tupleFields, boolean isEdgeExtraction, ComputationRuntime computationRuntime) {
         this.partition = partition;
@@ -85,6 +82,16 @@ public class ExtractedStream {
         return streamType;
     }
 
+    @Override
+    public void set(ExtractedIf extractedIf) {
+        ExtractedStream extractedStream = (ExtractedStream) extractedIf;
+        this.stream = extractedStream.stream;
+        this.tupleFields = extractedStream.tupleFields;
+        this.streamType = extractedStream.streamType;
+        this.partition = extractedStream.partition;
+
+    }
+
     public Map<String, String> getPartition() {
         return partition;
     }
@@ -98,8 +105,10 @@ public class ExtractedStream {
         return this.getExtractedStream(newStream, this.tupleFields, this.streamType);
     }
 
-    public Tuple reduce(Tuple identity, CustomBinaryOperator accumulator){
-        return this.stream.reduce(identity, accumulator);
+    public Map<Tuple,Tuple> reduce(Tuple identity, CustomBinaryOperator accumulator){
+        Map<Tuple, Tuple> map = new HashMap<>();
+        map.put(new Tuple0(), new Tuple1<Tuple>(stream.reduce(identity, accumulator)));
+        return map;
     }
 
     public ExtractedStream flatternMultivalue(String key){
@@ -175,7 +184,7 @@ public class ExtractedStream {
         }
     }
 
-    public GroupedExtracted groupby(String[] groupingLabels){ //NB: HashMap has hashing of the reference for the position of value
+    public ExtractedIf groupby(String[] groupingLabels){ //NB: HashMap has hashing of the reference for the position of value
         Map<Tuple, List<Tuple>> newStream = stream.collect(Collectors.groupingByConcurrent(tuple -> {
             Tuple key = Tuple.newInstance(groupingLabels.length);
             for (int i = 0; i < groupingLabels.length; i++) {
@@ -186,7 +195,7 @@ public class ExtractedStream {
             return key;
         }, Collectors.toList()));
 
-        return new GroupedExtracted(this.partition, (ArrayList<String>)this.tupleFields.clone(), this.streamType, newStream);
+        return new ExtractedGroupedStream(this.partition, (ArrayList<String>)this.tupleFields.clone(), this.streamType, newStream);
     }
 
     public ExtractedStream merge (String[] groupingLabels) {
