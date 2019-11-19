@@ -34,6 +34,8 @@ public class JobManagerActor extends AbstractActorWithStash {
 
 	private final AtomicInteger waitingResponses = new AtomicInteger(0);
 
+	private final HashMap<String, OngoingAggregate> aggregates = new HashMap<>();
+
 	private State nextState = this::waitSlaves;
 
 
@@ -53,10 +55,11 @@ public class JobManagerActor extends AbstractActorWithStash {
 		    match(SlaveAnnounceMsg.class, this::onSlaveAnnounceMsg).
 		    match(LaunchMsg.class, this::onLaunchMsg).
 			match(AckMsg.class, this::onLaunchAckMsg).
+			match(AggregateMsg.class, this::onAggregateMsg).
 		    build();
 	}
 
-	private final Receive waitAck() { //Startup phase
+	private final Receive waitAck() {
 		return receiveBuilder().
 				match(AckMsg.class, this::onLaunchAckMsg).
 				build();
@@ -146,6 +149,11 @@ public class JobManagerActor extends AbstractActorWithStash {
 
 	}
 
+	private final void onAggregateMsg(AggregateMsg msg){
+		OngoingAggregate ongoing = this.aggregates.get(msg.aggregate.getTransactionId());
+		ongoing.aggregates.add(msg.aggregate);
+		ongoing.collectedActors.add(sender());
+	}
 
 
 

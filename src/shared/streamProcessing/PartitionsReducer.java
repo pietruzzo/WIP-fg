@@ -1,29 +1,29 @@
 package shared.streamProcessing;
 
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
 
-public interface PartitionsReducer extends BinaryOperator<Tuple>, Cloneable {
+/**
+ * Tuple2<HashMap<String, String>, String> tuple
+ * HashMap refers to partition
+ * String refers to singleValue Aggregate
+ */
+public interface PartitionsReducer extends BinaryOperator<Tuple2<HashMap<String, String>, String>>, Cloneable {
 
     @Override
-    Tuple apply(Tuple tuple, Tuple tuple2);
+    Tuple2<HashMap<String, String>, String> apply(Tuple2<HashMap<String, String>, String> tuple, Tuple2<HashMap<String, String>, String> tuple2);
 
     @NotNull
     @Override
-    <V> BiFunction<Tuple, Tuple, V> andThen(@NotNull Function<? super Tuple, ? extends V> after);
+    <V> BiFunction<Tuple2<HashMap<String, String>, String>, Tuple2<HashMap<String, String>, String>, V> andThen(@NotNull Function<? super Tuple2<HashMap<String, String>, String>, ? extends V> after);
 
-    /**
-     *
-     * @param tuples one from each worker
-     * @param <T>
-     * @return
-     */
-    <T> T finalMasterStep(List<Tuple> tuples);
 
     //Need it to parallelize
     CustomBinaryOperator clone();

@@ -3,12 +3,13 @@ package shared.streamProcessing;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.Serializable;
 import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
 
-public interface CustomBinaryOperator extends BinaryOperator<Tuple>, Cloneable{
+public interface CustomBinaryOperator extends BinaryOperator<Tuple>, Serializable {
 
     //todo: is it a good way to implement it???
 
@@ -25,8 +26,6 @@ public interface CustomBinaryOperator extends BinaryOperator<Tuple>, Cloneable{
      * @param <T>
      * @return
      */
-    <T> T finalMasterStep(List<Tuple> tuples);
+    //<T> T finalMasterStep(List<Tuple> tuples);
 
-    //Need it to parallelize
-    CustomBinaryOperator clone();
 }

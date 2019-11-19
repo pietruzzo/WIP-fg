@@ -1,9 +1,12 @@
 package shared.streamProcessing;
 
 
+import jdk.internal.jline.internal.Nullable;
 import org.apache.flink.api.java.tuple.Tuple;
 import shared.selection.SelectionSolver;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -34,10 +37,14 @@ public interface Operations {
 
         public final Tuple identity;
         public final CustomBinaryOperator accumulator;
+        public final Long transaction_Id;
+        public final ArrayList<String> fieldNames;
 
-        public Reduce(Tuple identity, CustomBinaryOperator accumulator) {
+        public Reduce(Tuple identity, CustomBinaryOperator accumulator, @Nullable Long transaction_id, List<String> fieldsNames) {
             this.identity = identity;
             this.accumulator = accumulator;
+            this.transaction_Id = transaction_id;
+            this.fieldNames = new ArrayList<>(fieldsNames);
         }
     }
 
@@ -50,14 +57,6 @@ public interface Operations {
         }
     }
 
-    class Flattern implements Operations{
-
-        public final String key;
-
-        public Flattern(String key) {
-            this.key = key;
-        }
-    }
 
     class GroupBy implements Operations{
 
@@ -105,10 +104,12 @@ public interface Operations {
 
         public final String variableName;
         public final long persistence;
+        public final Long transaction_id;
 
-        public Emit(String variableName, long persistence) {
+        public Emit(String variableName, long persistence, @Nullable Long transaction_id) {
             this.variableName = variableName;
             this.persistence = persistence;
+            this.transaction_id = transaction_id;
         }
     }
 }

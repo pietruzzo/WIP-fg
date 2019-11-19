@@ -7,10 +7,15 @@ import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import akka.japi.Pair;
+import akka.japi.Procedure;
+import akka.pattern.Patterns;
+import akka.util.Timeout;
 import jdk.internal.jline.internal.Nullable;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple2;
 
+import scala.concurrent.Await;
+import scala.concurrent.duration.Duration;
 import shared.AkkaMessages.*;
 import shared.AkkaMessages.modifyGraph.AddEdgeMsg;
 import shared.AkkaMessages.modifyGraph.DeleteEdgeMsg;
@@ -25,6 +30,7 @@ import shared.data.MultiKeyMap;
 import shared.data.SynchronizedIterator;
 import shared.selection.Partition;
 import shared.selection.Select;
+import shared.streamProcessing.StreamProcessingCallback;
 import shared.variables.VariableGraph;
 import shared.variables.solver.VariableSolver;
 
@@ -34,9 +40,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-//LAST USED: private static final long serialVersionUID = 200054L;
+//LAST USED: private static final long serialVersionUID = 2000546L;
 
-public class TaskManagerActor extends AbstractActor implements ComputationCallback {
+public class TaskManagerActor extends AbstractActor implements ComputationCallback, StreamProcessingCallback {
 	private final LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
 
 	private final String name;
@@ -574,6 +580,15 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 		}
 		this.waitingResponses.set(this.slaves.size()*2); //2 times slaves
 		getContext().become(edgeValidation());
+	}
+
+	@Override
+	public Aggregate getAggregatedResult(Aggregate aggregate) throws Exception {
+		final Aggregate response;
+		Timeout timeout = new Timeout(Duration.create(5, "seconds"));
+		scala.concurrent.Future<Object> future = Patterns.ask(master, new AggregateMsg(aggregate), timeout);
+		response = (Aggregate) Await.result(future, timeout.duration());
+		return response;
 	}
 
 

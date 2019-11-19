@@ -45,6 +45,10 @@ public class ExtractedGroupedStream implements ExtractedIf { //TODO: è possibil
 
     }
 
+    public Map<String, String> getPartition() {
+        return partition;
+    }
+
     public ExtractedStream collect(){
         Stream<Tuple> newStream =  this.groupedStreams.values().stream().flatMap(list -> list);
         return new ExtractedStream(partition, (ArrayList<String>)this.tupleFields.clone(), streamType, newStream);

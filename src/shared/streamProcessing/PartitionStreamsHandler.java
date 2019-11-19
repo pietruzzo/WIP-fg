@@ -1,14 +1,14 @@
 package shared.streamProcessing;
 
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.jetbrains.annotations.NotNull;
 import shared.computation.ComputationRuntime;
 import shared.data.MultiKeyMap;
 import shared.exceptions.InvalidOperationChain;
 import shared.selection.SelectionSolver;
-import shared.variables.Variable;
-import shared.variables.VariablePartition;
+import shared.variables.*;
 import shared.variables.solver.VariableSolver;
 
 import java.util.*;
@@ -21,8 +21,9 @@ public class PartitionStreamsHandler {
     private List<Operations> operationsList;
     private VariableSolver variableSolver;
     private MultiKeyMap<ComputationRuntime> runtimes;
+    private StreamProcessingCallback callback;
 
-    public PartitionStreamsHandler(MultiKeyMap<ComputationRuntime> runtimes, List<Operations> operationsList, VariableSolver variableSolver){
+    public PartitionStreamsHandler(MultiKeyMap<ComputationRuntime> runtimes, List<Operations> operationsList, VariableSolver variableSolver, StreamProcessingCallback callback){
 
         //Check the begin of stream
 
@@ -31,9 +32,11 @@ public class PartitionStreamsHandler {
         }
 
         this.variableSolver = variableSolver;
+
+        this.callback = callback;
     }
 
-    public void solveOperationChain (){
+    public void solveOperationChain () throws Exception {
 
         MultiKeyMap<ExtractedIf> partitions = null;
 
@@ -52,7 +55,6 @@ public class PartitionStreamsHandler {
                 final MultiKeyMap<ExtractedIf> fPartitions = new MultiKeyMap<>(runtimes.getKeys());
 
                 Operations.Extract extractOperator = (Operations.Extract) operationsList.get(0);
-                operationsList.remove(0);
 
                 runtimes.getAllElements().entrySet().parallelStream()
                         .forEach(entry -> {
@@ -74,8 +76,20 @@ public class PartitionStreamsHandler {
             else if (operation instanceof Operations.Emit) {
 
                 Operations.Emit opEmit = (Operations.Emit) operation;
-                //Todo: if variable node, edge -> put in variable solver, otherwise send to master and use ASK to get complete aggregate
 
+                //if variable node, edge -> put in variable solver,
+                // otherwise send to master variable and use ASK to get complete aggregate
+                Variable variable = this.emitVariable(opEmit.variableName, opEmit.persistence, partitions);
+
+                if (variable instanceof VariableVertex || variable instanceof VariableEdge || variable instanceof VariablePartition){
+                    variableSolver.addVariable(variable);
+                } else if (variable instanceof VariableAggregate) {
+                    VariableAggregate variableAggregate =
+                            callback.getAggregatedResult(
+                                    new StreamProcessingCallback.Aggregate(opEmit.transaction_id, (VariableAggregate)variable))
+                                    .getVariableAggregate();
+                    variableSolver.addVariable(variableAggregate);
+                }
             }
             else if (operation instanceof Operations.Filter) {
 
@@ -89,10 +103,10 @@ public class PartitionStreamsHandler {
                 partitions.getAllElements().values().stream().forEach(partition -> partition.set(partition.flatmap(opFlatMap.mapper)));
 
             }
-            else if (operation instanceof Operations.Flattern) {
-
-            }
             else if (operation instanceof Operations.GroupBy) {
+
+                Operations.GroupBy opGroupBy = (Operations.GroupBy) operation;
+                partitions.getAllElements().values().stream().forEach(partition -> partition.set(((ExtractedStream)partition).groupby(opGroupBy.groupingLabels)));
 
             }
             else if (operation instanceof Operations.Merge) {
@@ -104,8 +118,42 @@ public class PartitionStreamsHandler {
             else if (operation instanceof Operations.Reduce) {
 
                 Operations.Reduce opReduce = (Operations.Reduce) operation;
-                partitions.getAllElements().values().stream().forEach(partition -> partition.reduce(opReduce.identity, opReduce.accumulator));
-                //todo send to master reduced results -> USE ASK to get response
+                final MultiKeyMap<Map<Tuple, Tuple>> reduced = new MultiKeyMap<>(partitions.getKeys());
+                partitions.getAllElements().entrySet().stream().forEach(entry -> reduced.putValue(entry.getKey(), entry.getValue().reduce(opReduce.identity, opReduce.accumulator)));
+
+                //send to master reduced results -> USE ASK to get response
+
+                MultiKeyMap<Map<Tuple, Tuple>> returned = callback.getAggregatedResult(
+                        new StreamProcessingCallback.Aggregate(opReduce.transaction_Id, reduced))
+                        .getReducedPartitions();
+
+                //For each returned partition restore -> ExtractedStream or ExtractedGroupedStream
+                partitions.getAllElements().replaceAll((entryKey, oldValue) -> {
+
+                    if (oldValue instanceof ExtractedStream) {
+
+                        ArrayList<Tuple> tuples = new ArrayList<>();
+                        tuples.add(returned.getValue(entryKey).values().iterator().next());
+                        ExtractedStream oldExtracted = (ExtractedStream) oldValue;
+                        return new ExtractedStream(oldExtracted.getPartition(), opReduce.fieldNames, ExtractedStream.StreamType.AGGREGATE, tuples.stream());
+
+                    } else {
+
+                        Map<Tuple, Tuple> tuples = returned.getValue(entryKey);
+                        Map<Tuple, Stream<Tuple>> newStreams = tuples.entrySet().stream()
+                                .map(entry -> {
+                                    List<Tuple> tuple = new ArrayList<>();
+                                    tuple.add(entry.getValue());
+                                    return new Tuple2<>(entry.getKey(), tuple.stream());
+                                }).collect(Collectors.toMap(tuple-> tuple.f0, tuple -> tuple.f1));
+
+                        ExtractedGroupedStream oldExtracted = (ExtractedGroupedStream) oldValue;
+                        return new ExtractedGroupedStream(oldExtracted.getPartition(), opReduce.fieldNames, newStreams, ExtractedStream.StreamType.AGGREGATE);
+
+                    }
+                });
+
+
 
             }
             else if (operation instanceof Operations.StreamVariable) {
@@ -183,7 +231,7 @@ public class PartitionStreamsHandler {
         return null;
     }
 
-    private Variable emitVariable(String variableName, long persistence, MultiKeyMap<ExtractedStream> partitions){
+    private Variable emitVariable(String variableName, long persistence, MultiKeyMap<ExtractedIf> partitions){
         /*
 
             get first extracted stream -> if it is null emit
@@ -193,7 +241,7 @@ public class PartitionStreamsHandler {
 
             return Variable
          */
-        ExtractedStream partition = partitions.getAllElements().entrySet().iterator().next().getValue();
+        ExtractedStream partition = (ExtractedStream)partitions.getAllElements().entrySet().iterator().next().getValue();
 
         if (partitions.getAllElements().entrySet().size() == 1
                 && ( partition.getPartition() == null || partition.getPartition().isEmpty()) ) {
@@ -202,7 +250,8 @@ public class PartitionStreamsHandler {
 
         MultiKeyMap<Variable> newPartitions = new MultiKeyMap<>(partitions.getKeys());
 
-        partitions.getAllElements().values().parallelStream().forEach(extractedStream -> {
+        partitions.getAllElements().values().parallelStream().forEach(extractedIf -> {
+            ExtractedStream extractedStream = (ExtractedStream) extractedIf;
             newPartitions.putValue(new HashMap(extractedStream.getPartition()), extractedStream.emit(variableSolver, variableName, persistence));
         });
 
