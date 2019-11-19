@@ -5,6 +5,7 @@ import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.jetbrains.annotations.NotNull;
 import shared.computation.ComputationRuntime;
+import shared.data.CompositeKey;
 import shared.data.MultiKeyMap;
 import shared.exceptions.InvalidOperationChain;
 import shared.selection.SelectionSolver;
@@ -81,14 +82,53 @@ public class PartitionStreamsHandler {
                 // otherwise send to master variable and use ASK to get complete aggregate
                 Variable variable = this.emitVariable(opEmit.variableName, opEmit.persistence, partitions);
 
-                if (variable instanceof VariableVertex || variable instanceof VariableEdge || variable instanceof VariablePartition){
+                if (variable instanceof VariableVertex || variable instanceof VariableEdge){
                     variableSolver.addVariable(variable);
                 } else if (variable instanceof VariableAggregate) {
+
+                    /*
+                    Aggregate results if only one partition:   generate a MultikeyMap with one partition with key "all"   -
+                     */
+                    MultiKeyMap<VariableAggregate> allPartition = new MultiKeyMap<>(new String[]{"all"});
+                    HashMap<String, String> key = new HashMap<>();
+                    key.put("all", "all");
+                    allPartition.putValue(key, (VariableAggregate)variable);
                     VariableAggregate variableAggregate =
                             callback.getAggregatedResult(
-                                    new StreamProcessingCallback.Aggregate(opEmit.transaction_id, (VariableAggregate)variable))
-                                    .getVariableAggregate();
+                                    new StreamProcessingCallback.Aggregate(allPartition, opEmit.transaction_id))
+                                    .getVariableAggregate().getAllElements().values().iterator().next();
                     variableSolver.addVariable(variableAggregate);
+
+                } else if ( variable instanceof VariablePartition){
+
+                    //Can be node, edge, aggregate
+                    Variable insideElement = ((VariablePartition) variable).getAllInsideVariables().getAllElements().values().iterator().next();
+
+                    if (insideElement instanceof VariableVertex || insideElement instanceof VariableEdge){
+                        variableSolver.addVariable(variable);
+
+                    } else if (insideElement instanceof VariableAggregate) {
+
+                        MultiKeyMap<VariableAggregate> aggregates = new MultiKeyMap<>(((VariablePartition)variable).getAllInsideVariables().getKeys());
+
+                        ((VariablePartition)variable).getAllInsideVariables()
+                                .getAllElements()
+                                .entrySet()
+                                .forEach(entry -> aggregates.putValue(entry.getKey(), (VariableAggregate)entry.getValue()));
+
+
+                        final MultiKeyMap<Variable> resultAggregate = new MultiKeyMap<>(((VariablePartition) variable).getAllInsideVariables().getKeys());
+
+                        callback
+                                .getAggregatedResult(new StreamProcessingCallback.Aggregate(aggregates, opEmit.transaction_id))
+                                .getVariableAggregate()
+                                .getAllElements()
+                                .entrySet()
+                                .forEach(entry -> resultAggregate.putValue(entry.getKey(), entry.getValue()));
+
+                        variableSolver.addVariable(new VariablePartition(variable.getName(), variable.getPersistence(), variable.getTimestamp(), resultAggregate));
+
+                    }
                 }
             }
             else if (operation instanceof Operations.Filter) {

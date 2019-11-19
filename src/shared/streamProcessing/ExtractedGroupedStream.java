@@ -69,7 +69,7 @@ public class ExtractedGroupedStream implements ExtractedIf { //TODO: è possibil
         Map<Tuple, Tuple> newGroupedAccumulated  = new HashMap<>();
 
         for (Map.Entry<Tuple, Stream<Tuple>> stream: groupedStreams.entrySet()) {
-            Tuple newAccumulated = stream.getValue().reduce(identity.copy(), accumulator.clone());
+            Tuple newAccumulated = stream.getValue().reduce(identity.copy(), accumulator);
             newGroupedAccumulated.put(stream.getKey(), newAccumulated);
         }
         return newGroupedAccumulated;
