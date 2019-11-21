@@ -4,51 +4,74 @@ import org.apache.flink.api.java.tuple.Tuple;
 import shared.data.MultiKeyMap;
 import shared.variables.VariableAggregate;
 
+import java.io.Serializable;
 import java.util.Map;
 
 public interface StreamProcessingCallback {
 
     Aggregate getAggregatedResult (Aggregate aggregate) throws Exception;
+    void forwardAndForgetToMaster (Aggregate aggregate) throws Exception;
 
-    class Aggregate {
-        private AggregateType aggregateType;
-        //For each partition, the aggregate
-        private MultiKeyMap<VariableAggregate> variableAggregate = null;
-        //For each partition, for each group, tre reduced tuple
-        private MultiKeyMap<Map<Tuple, Tuple>> reducedPartitions = null;
+    abstract class Aggregate implements Serializable {
+
         private Long transactionId;
 
-        public Aggregate(MultiKeyMap<VariableAggregate> variableAggregate, Long transactionId ) {
-            this.variableAggregate = variableAggregate;
-            this.aggregateType = AggregateType.VARIABLE_AGGREGATE;
+        Aggregate(Long transactionId) {
             this.transactionId = transactionId;
         }
 
-
-        public Aggregate(Long transactionId, MultiKeyMap<Map<Tuple, Tuple>> reducedPartitions) {
-            this.reducedPartitions = reducedPartitions;
-            this.aggregateType = AggregateType.REDUCE;
-            this.transactionId = transactionId;
-        }
-
-        public AggregateType getAggregateType() {
-            return aggregateType;
-        }
-
-        public MultiKeyMap<VariableAggregate> getVariableAggregate() {
-            return variableAggregate;
-        }
-
-
-        public MultiKeyMap<Map<Tuple, Tuple>> getReducedPartitions() {
-            return reducedPartitions;
-        }
 
         public Long getTransactionId() {
             return transactionId;
         }
     }
 
-    enum AggregateType { VARIABLE_AGGREGATE, REDUCE}
+    class VariableAggregateAggregate extends Aggregate {
+
+        //For each partition, the aggregate
+        private MultiKeyMap<VariableAggregate> variableAggregate = null;
+
+        public VariableAggregateAggregate(Long transactionId, MultiKeyMap<VariableAggregate> variableAggregate) {
+            super(transactionId);
+            this.variableAggregate = variableAggregate;
+        }
+
+        public MultiKeyMap<VariableAggregate> getPartitionsVariableAggregate() {
+            return variableAggregate;
+        }
+
+    }
+
+    class ReduceAggregate extends Aggregate {
+
+        //For each partition, for each group, tre reduced tuple
+        private MultiKeyMap<Map<Tuple, Tuple>> reducedPartitions;
+
+        public ReduceAggregate(Long transactionId, MultiKeyMap<Map<Tuple, Tuple>> reducedPartitions) {
+            super(transactionId);
+            this.reducedPartitions = reducedPartitions;
+        }
+
+        public MultiKeyMap<Map<Tuple, Tuple>> getReducedPartitions() {
+            return reducedPartitions;
+        }
+
+    }
+
+    class EvaluationAggregate extends Aggregate {
+
+        private boolean resultEvaluation;
+
+        public EvaluationAggregate(Long transactionId, boolean resultEvaluation) {
+            super(transactionId);
+            this.resultEvaluation = resultEvaluation;
+        }
+
+        public boolean isResultEvaluation() {
+            return resultEvaluation;
+        }
+    }
+
+    enum AggregateType { VARIABLE_AGGREGATE, REDUCE, EVALUATION}
 }
 

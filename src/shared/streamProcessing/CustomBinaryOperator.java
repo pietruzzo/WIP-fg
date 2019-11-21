@@ -11,7 +11,6 @@ import java.util.function.Function;
 
 public interface CustomBinaryOperator extends BinaryOperator<Tuple>, Serializable {
 
-    //todo: is it a good way to implement it???
 
     @Override
     Tuple apply(Tuple tuple, Tuple tuple2);

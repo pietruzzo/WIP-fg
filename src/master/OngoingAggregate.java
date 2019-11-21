@@ -6,11 +6,13 @@ import org.apache.flink.api.java.tuple.Tuple;
 import shared.AkkaMessages.AggregateMsg;
 import shared.data.MultiKeyMap;
 import shared.streamProcessing.CustomBinaryOperator;
+import shared.streamProcessing.StreamProcessingCallback;
 import shared.streamProcessing.StreamProcessingCallback.Aggregate;
 import shared.streamProcessing.StreamProcessingCallback.AggregateType;
 import shared.variables.VariableAggregate;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class OngoingAggregate {
 
@@ -20,6 +22,7 @@ public class OngoingAggregate {
     final List<Aggregate> aggregates;
     final int expectedNumberOfSlaves;
     final ActorRef self;
+    private Boolean evaluation = null;
 
     public OngoingAggregate(int expectedNumberOfSlaves, AggregateType type, @Nullable CustomBinaryOperator operator, ActorRef self) {
         this.operator = operator;
@@ -48,18 +51,51 @@ public class OngoingAggregate {
             return true;
         }
 
+        else if (type.equals(AggregateType.EVALUATION)) {
+            performEvaluation();
+            return true;
+        }
+
         else {
             throw new RuntimeException("Are currently supported VARIABLE_AGGREGATE and REDUCE_PARTITION AggregateTypes (" + type.toString() +").");
         }
 
     }
 
+    public Boolean getEvaluation() {
+        return evaluation;
+    }
+
+    private void performEvaluation(){
+
+        List<Boolean> aggregates =
+                this.aggregates
+                        .stream()
+                        .map(aggregate -> ((StreamProcessingCallback.EvaluationAggregate) aggregate).isResultEvaluation())
+                        .collect(Collectors.toList());
+
+        if (aggregates.contains(Boolean.TRUE) && ! aggregates.contains(Boolean.FALSE))
+            this.evaluation = true;
+        else if ( ! aggregates.contains(Boolean.TRUE) && aggregates.contains(Boolean.FALSE))
+            this.evaluation = false;
+        else
+            throw new RuntimeException("Evaluations aren't compliant from partitions -> Not supported by now");
+
+    }
+
     private void performVariableAggregate (){
 
-        MultiKeyMap<ArrayList<Tuple>> collected = new MultiKeyMap<>(aggregates.get(0).getVariableAggregate().getKeys());
+        List<StreamProcessingCallback.VariableAggregateAggregate> aggregates =
+                this.aggregates
+                        .stream()
+                        .map(aggregate -> (StreamProcessingCallback.VariableAggregateAggregate) aggregate)
+                        .collect(Collectors.toList());
 
-        this.aggregates.parallelStream().forEach(aggregate -> {
-            aggregate.getVariableAggregate().getAllElements().entrySet().stream().forEach(partition -> {
+        MultiKeyMap<ArrayList<Tuple>> collected = new MultiKeyMap<>(aggregates.get(0).getPartitionsVariableAggregate().getKeys());
+
+        aggregates.parallelStream().forEach(aggregate -> {
+
+            aggregate.getPartitionsVariableAggregate().getAllElements().entrySet().stream().forEach(partition -> {
 
                 //Create partition in result if absent, made atomic
                 synchronized (collected) {
@@ -72,13 +108,15 @@ public class OngoingAggregate {
                 synchronized (collected) {
                     collected.getValue(partition.getKey()).addAll(Arrays.asList(partition.getValue().getValue()));
                 }
+
             });
 
         });
 
         //Compute result partitions
-        MultiKeyMap<VariableAggregate> result = new MultiKeyMap<>(aggregates.get(0).getVariableAggregate().getKeys());
-        VariableAggregate old = aggregates.get(0).getVariableAggregate().getAllElements().values().iterator().next();
+        MultiKeyMap<VariableAggregate> result = new MultiKeyMap<>(aggregates.get(0).getPartitionsVariableAggregate().getKeys());
+        VariableAggregate old = aggregates.get(0).getPartitionsVariableAggregate().getAllElements().values().iterator().next();
+
         collected.getAllElements()
                 .entrySet()
                 .parallelStream()
@@ -89,13 +127,19 @@ public class OngoingAggregate {
         //Build new aggregate and return it
 
         //new aggregate
-        Aggregate oldAggregate = this.aggregates.get(0);
-        Aggregate newAggregate = new Aggregate(result, oldAggregate.getTransactionId());
+        Aggregate oldAggregate = aggregates.get(0);
+        Aggregate newAggregate = new StreamProcessingCallback.VariableAggregateAggregate(oldAggregate.getTransactionId(), result);
         //response method
         answerToAll(newAggregate);
     }
 
     private void performReduce (){
+
+        List<StreamProcessingCallback.ReduceAggregate> aggregates =
+                this.aggregates
+                        .stream()
+                        .map(aggregate -> (StreamProcessingCallback.ReduceAggregate) aggregate)
+                        .collect(Collectors.toList());
 
         MultiKeyMap<Map<Tuple, Tuple>> result = new MultiKeyMap<>(aggregates.get(0).getReducedPartitions().getKeys());
         MultiKeyMap<HashMap<Tuple, ArrayList<Tuple>>> reducedPartitions = new MultiKeyMap<>(aggregates.get(0).getReducedPartitions().getKeys());
@@ -134,8 +178,8 @@ public class OngoingAggregate {
         });
 
         //new aggregate
-        Aggregate oldAggregate = this.aggregates.get(0);
-        Aggregate newAggregate = new Aggregate(oldAggregate.getTransactionId(), result);
+        Aggregate oldAggregate = aggregates.get(0);
+        Aggregate newAggregate = new StreamProcessingCallback.ReduceAggregate(oldAggregate.getTransactionId(), result);
         //response method
         answerToAll(newAggregate);
 

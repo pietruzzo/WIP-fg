@@ -112,4 +112,18 @@ public interface Operations {
             this.transaction_id = transaction_id;
         }
     }
+
+    class evaluate implements Operations{
+
+        public final SelectionSolver.Operation.Operator operator;
+        public final Long transaction_id;
+        public final String value;
+
+        public evaluate(SelectionSolver.Operation.Operator operator, Long transaction_id, String value) {
+            this.operator = operator;
+            this.transaction_id = transaction_id;
+            this.value = value;
+        }
+    }
+
 }

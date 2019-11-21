@@ -384,7 +384,85 @@ public class SelectionSolver implements Cloneable, Selection{
     }
 
     public static class Operation implements Element {
-        public enum Operator{EQUAL, GREATER, LESS, GREATEREQUAL, LESSEQUAL};
+
+        public enum Operator {
+
+            EQUAL("="),
+            GREATER(">"),
+            LESS("<"),
+            GREATEREQUAL(">="),
+            LESSEQUAL("<=");
+
+            public final String opString;
+
+            Operator(String opString) {
+                this.opString = opString;
+            }
+
+            public boolean apply(String value1, String value2) {
+
+                Double converted1 = null, converted2 = null;
+                boolean converted = false;
+
+                try {
+                    converted1 = Double.parseDouble(value1);
+                    converted2 = Double.parseDouble(value2);
+                    converted = true;
+                } catch (Exception e) {
+                    //System.out.println("Parsing as double Failed: " + value1 + " " + value2);
+                }
+
+                if (converted) { //Double
+                    switch (this) {
+                        case EQUAL:
+                            return converted1.equals(converted2);
+                        case GREATER:
+                            return converted1 > converted2;
+                        case LESS:
+                            return converted1 < converted2;
+                        case GREATEREQUAL:
+                            return converted1 >= converted2;
+                        case LESSEQUAL:
+                            return converted1 <= converted2;
+                        default:
+                            throw new RuntimeException("Operation defined but not not implemented");
+                    }
+                } else { //Strings
+
+                    int result = value1.compareTo(value2);
+
+                    switch (this) {
+                        case EQUAL:
+                            return result == 0;
+                        case GREATER:
+                            return result > 0;
+                        case LESS:
+                            return result < 0;
+                        case GREATEREQUAL:
+                            return result >= 0;
+                        case LESSEQUAL:
+                            return result <= 0;
+                        default:
+                            throw new RuntimeException("Operation defined but not not implemented");
+                    }
+
+                }
+            }
+
+            public boolean apply(String[] values1, String[] values2) {
+
+                for (String value1: values1) {
+                    for (String value2 : values2) {
+                        if (this.apply(value1, value2))
+                            return true;
+                    }
+                }
+                return false;
+
+            }
+
+        }
+
         public enum Type {VALUE, VARIABLE, LABEL};
         public enum WindowType {WITHIN, AGO, EVERYWITHIN};
 
@@ -573,46 +651,9 @@ public class SelectionSolver implements Cloneable, Selection{
          * @return
          */
         private boolean executeOperation (String[] values1, String[] values2){
-            Double converted1 = null, converted2 = null;
-            boolean converted;
-            if (operator == null) throw new IllegalArgumentException("Operator must be defined");
 
-            for (String value1: values1) {
-                for (String value2: values2) {
-                    converted = false;
-                    if (operator == Operator.EQUAL) return value1.equals(value2);
-                    else { //Try to parse as double
-                        try{
-                            converted1 = Double.parseDouble(value1);
-                            converted2 = Double.parseDouble(value2);
-                            converted = true;
-                        } catch (Exception e){
-                            System.out.println("Parsing as double Failed: " + value1 + " " + value2);
-                        }
+            return this.operator.apply(values1, values2);
 
-                        if (converted) { //Manage as Doubles
-                            switch (operator) {
-                                case GREATER:
-                                    return converted1 > converted2;
-                                case LESS:
-                                    return converted1 < converted2;
-                                case GREATEREQUAL:
-                                    return converted1 >= converted2;
-                                case LESSEQUAL:
-                                    return converted1 <= converted2;
-                            }
-                        }
-                        else { //Manage as strings
-                            int result = value1.compareTo(value2);
-                            if (result > 0 && operator == Operator.GREATER) return true;
-                            if (result >= 0 && operator == Operator.GREATEREQUAL) return true;
-                            if (result < 0 && operator == Operator.LESS) return true;
-                            if (result <= 0 && operator == Operator.LESSEQUAL) return true;
-                        }
-                    }
-                }
-            }
-            return false;
         }
 
         @Override

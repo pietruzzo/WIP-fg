@@ -591,6 +591,11 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 		return response;
 	}
 
+	@Override
+	public void forwardAndForgetToMaster(Aggregate aggregate) throws Exception {
+		this.master.tell(aggregate, self());
+	}
+
 
 	private static class PopulateOutbox implements Utils.DuplicableRunnable {
 

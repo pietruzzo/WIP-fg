@@ -2,6 +2,7 @@ package shared.streamProcessing;
 
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple0;
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.jetbrains.annotations.NotNull;
 import shared.computation.ComputationRuntime;
@@ -93,10 +94,10 @@ public class PartitionStreamsHandler {
                     HashMap<String, String> key = new HashMap<>();
                     key.put("all", "all");
                     allPartition.putValue(key, (VariableAggregate)variable);
-                    VariableAggregate variableAggregate =
+                    VariableAggregate variableAggregate = ((StreamProcessingCallback.VariableAggregateAggregate)
                             callback.getAggregatedResult(
-                                    new StreamProcessingCallback.Aggregate(allPartition, opEmit.transaction_id))
-                                    .getVariableAggregate().getAllElements().values().iterator().next();
+                                    new StreamProcessingCallback.VariableAggregateAggregate(opEmit.transaction_id, allPartition)))
+                                    .getPartitionsVariableAggregate().getAllElements().values().iterator().next();
                     variableSolver.addVariable(variableAggregate);
 
                 } else if ( variable instanceof VariablePartition){
@@ -119,9 +120,9 @@ public class PartitionStreamsHandler {
 
                         final MultiKeyMap<Variable> resultAggregate = new MultiKeyMap<>(((VariablePartition) variable).getAllInsideVariables().getKeys());
 
-                        callback
-                                .getAggregatedResult(new StreamProcessingCallback.Aggregate(aggregates, opEmit.transaction_id))
-                                .getVariableAggregate()
+                        ((StreamProcessingCallback.VariableAggregateAggregate) callback
+                                .getAggregatedResult(new StreamProcessingCallback.VariableAggregateAggregate(opEmit.transaction_id, aggregates)))
+                                .getPartitionsVariableAggregate()
                                 .getAllElements()
                                 .entrySet()
                                 .forEach(entry -> resultAggregate.putValue(entry.getKey(), entry.getValue()));
@@ -130,6 +131,55 @@ public class PartitionStreamsHandler {
 
                     }
                 }
+            }
+            else if (operation instanceof Operations.evaluate) {
+
+                Operations.evaluate opEvaluation = (Operations.evaluate) operation;
+                boolean result = false;
+
+                //More than one subgraph -> ERROR
+                if (partitions.getAllElements().values().size() != 1) {
+                    throw new InvalidOperationChain(
+                            "Evaluation can be performed only on 1 graph/subgraph -> so reduce number of partitions in before applying it." +
+                                    "\n number of subgraphs: " + partitions.getAllElements().values().size());
+                }
+
+                //More than one Group -> ERROR
+                ExtractedIf partition = partitions.getAllElements().values().iterator().next();
+                if ( !(partition instanceof ExtractedStream)) {
+                    throw new InvalidOperationChain(
+                            "Evaluation can be performed only if not grouped -> so consider to collect before launching it." +
+                                    partition.getClass().toGenericString());
+                }
+
+                //Get the tuple
+                List<Tuple> collectedResult = ((ExtractedStream) partition).getStream().collect(Collectors.toList());
+
+                //More than one tuple -> ERROR
+                if (collectedResult.size() > 1) {
+                    throw new InvalidOperationChain(
+                            "More than one tuple on Evaluation is not supported " + collectedResult.size());
+                }
+
+                //Zero values -> return false;
+                if (collectedResult.size() == 0) {
+                    result = false;
+                }
+
+                //Check that tuple is Tuple1 and has only one value
+                if (collectedResult.get(0) instanceof Tuple1 ) {
+                    Tuple1<String[]> tuple1 = (Tuple1<String[]>) collectedResult.get(0);
+                    if (tuple1.f0.length != 1) throw new RuntimeException("Tuple for evaluation must be single value");
+
+                    //Perform comparison
+                    result = opEvaluation.operator.apply(tuple1.f0, new String[]{opEvaluation.value});
+
+
+                            callback
+                                    .forwardAndForgetToMaster(new StreamProcessingCallback.EvaluationAggregate(opEvaluation.transaction_id, result));
+
+                }
+
             }
             else if (operation instanceof Operations.Filter) {
 
@@ -163,8 +213,9 @@ public class PartitionStreamsHandler {
 
                 //send to master reduced results -> USE ASK to get response
 
-                MultiKeyMap<Map<Tuple, Tuple>> returned = callback.getAggregatedResult(
-                        new StreamProcessingCallback.Aggregate(opReduce.transaction_Id, reduced))
+                MultiKeyMap<Map<Tuple, Tuple>> returned = ((StreamProcessingCallback.ReduceAggregate)
+                        callback.getAggregatedResult(
+                        new StreamProcessingCallback.ReduceAggregate(opReduce.transaction_Id, reduced)))
                         .getReducedPartitions();
 
                 //For each returned partition restore -> ExtractedStream or ExtractedGroupedStream
