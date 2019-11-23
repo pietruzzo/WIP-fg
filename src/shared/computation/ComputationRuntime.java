@@ -6,6 +6,7 @@ import shared.AkkaMessages.StepMsg;
 import shared.Utils;
 import shared.data.BoxMsg;
 import shared.data.SynchronizedIterator;
+import shared.exceptions.ComputationFinishedException;
 
 import java.util.*;
 import java.util.concurrent.ExecutionException;
@@ -37,19 +38,26 @@ public class ComputationRuntime {
         this.computation = computation;
         this.freeVars = freeVars;
         this.vertices = new HashMap<>();
-        this.inboxMessages = new BoxMsg(0);
+        this.inboxMessages = null;
     }
 
 
-    public BoxMsg<StepMsg> compute (int stepNumber, ThreadPoolExecutor executors) throws ExecutionException, InterruptedException {
+    public void compute (int stepNumber, ThreadPoolExecutor executors) throws ExecutionException, InterruptedException {
+
         this.stepNumber = stepNumber;
         outgoingMessages = new BoxMsg(stepNumber);
+
+        //If inbox is empty -> Computation finished, empty outboxes
+        if (stepNumber > 0 && (inboxMessages == null || inboxMessages.isEmpty()) ) {
+            throw new ComputationFinishedException();
+        }
 
         //Launch executors
         Utils.parallelizeAndWait(executors, new ComputationThread(this, new SynchronizedIterator<>(vertices.values().iterator()), this.inboxMessages.getSyncIterator()));
 
-        //Return BoxMsg
-        return outgoingMessages;
+        //Reset Inbox
+        this.inboxMessages = null;
+
     }
 
     public void computeResults(ThreadPoolExecutor executors) throws ExecutionException, InterruptedException {
@@ -108,11 +116,11 @@ public class ComputationRuntime {
     }
 
     /**
-     * Add incoming messages to existing ones if they have the same timestamp, otherwise flush older version
+     * Add incoming messages to existing ones if they have the same timestamp, otherwise create new inbox
      * and add new messages
      */
     public <TMes> void updateIncomingMsgs(BoxMsg ingoingMessages){
-        if (ingoingMessages.getStepNumber()> this.inboxMessages.getStepNumber()){
+        if (inboxMessages == null){
             this.inboxMessages = new BoxMsg(ingoingMessages.getStepNumber());
         }
         SynchronizedIterator<Map.Entry<String, ArrayList<TMes>>> entry = ingoingMessages.getSyncIterator();

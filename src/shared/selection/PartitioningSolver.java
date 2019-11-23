@@ -2,7 +2,6 @@ package shared.selection;
 
 
 import shared.VertexM;
-import shared.exceptions.WrongTypeRuntimeException;
 import shared.variables.solver.VariableSolver;
 import shared.selection.SelectionSolver.Operation;
 

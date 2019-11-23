@@ -36,7 +36,57 @@ public class JobManagerActor extends AbstractActorWithStash {
 
 	private final HashMap<String, OngoingAggregate> aggregates = new HashMap<>();
 
+	private long currentTimestamp;
+
 	private State nextState = this::waitSlaves;
+
+	private PatternLogic patternLogic;
+
+
+	//region: getter/setter
+
+
+	public LoggingAdapter getLog() {
+		return log;
+	}
+
+	public Map<ActorRef, Integer> getSlaves() {
+		return slaves;
+	}
+
+	public HashMap<Integer, ActorRef> getHashMapping() {
+		return hashMapping;
+	}
+
+	public HashMap<String, Computation> getComputations() {
+		return computations;
+	}
+
+	public AtomicInteger getWaitingResponses() {
+		return waitingResponses;
+	}
+
+	public HashMap<String, OngoingAggregate> getAggregates() {
+		return aggregates;
+	}
+
+	public State getNextState() {
+		return nextState;
+	}
+
+	public void setNextState(State nextState) {
+		this.nextState = nextState;
+	}
+
+	public long getCurrentTimestamp() {
+		return currentTimestamp;
+	}
+
+	public void setCurrentTimestamp(long currentTimestamp) {
+		this.currentTimestamp = currentTimestamp;
+	}
+
+	//endregion
 
 
 	@Override
@@ -62,6 +112,7 @@ public class JobManagerActor extends AbstractActorWithStash {
 	private final Receive waitAck() {
 		return receiveBuilder().
 				match(AckMsg.class, this::onLaunchAckMsg).
+				match(AckMsgComputationTerminated.class, this::onLaunchAckMsg).
 				build();
 	}
 
@@ -144,6 +195,15 @@ public class JobManagerActor extends AbstractActorWithStash {
 	}
 
 	private final void onLaunchAckMsg(AckMsg msg){
+		if(waitingResponses.decrementAndGet() == 0)
+			getContext().become(nextState.invoke());
+
+	}
+
+	private final void onLaunchAckMsg(AckMsgComputationTerminated msg) {
+
+		this.patternLogic.sendToCurrentPattern(msg);
+
 		if(waitingResponses.decrementAndGet() == 0)
 			getContext().become(nextState.invoke());
 

@@ -7,19 +7,12 @@ public class ComputeResultsMsg implements Serializable {
 
     private static final long serialVersionUID = 200020L;
 
-    private final long computationId;
     private final LinkedHashMap<String, String> freeVars;
-    private final long timestamp;
 
-    public ComputeResultsMsg(long computationId, LinkedHashMap<String, String> freeVars, int stepNumber, long timestamp) {
-        this.computationId = computationId;
+    public ComputeResultsMsg(LinkedHashMap<String, String> freeVars) {
         this.freeVars = freeVars;
-        this.timestamp = timestamp;
     }
 
-    public long getComputationId() {
-        return computationId;
-    }
 
     /**
      * @return null if runs over all Free Variables
@@ -28,7 +21,4 @@ public class ComputeResultsMsg implements Serializable {
         return freeVars;
     }
 
-    public long getTimestamp() {
-        return timestamp;
-    }
 }

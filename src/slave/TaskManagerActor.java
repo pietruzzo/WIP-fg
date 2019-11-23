@@ -28,6 +28,7 @@ import shared.computation.*;
 import shared.data.BoxMsg;
 import shared.data.MultiKeyMap;
 import shared.data.SynchronizedIterator;
+import shared.exceptions.ComputationFinishedException;
 import shared.selection.Partition;
 import shared.selection.Select;
 import shared.streamProcessing.StreamProcessingCallback;
@@ -40,7 +41,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-//LAST USED: private static final long serialVersionUID = 2000546L;
+//LAST USED: private static final long serialVersionUID = 2000547L;
 
 public class TaskManagerActor extends AbstractActor implements ComputationCallback, StreamProcessingCallback {
 	private final LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
@@ -274,7 +275,9 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 	}
 
 	private final void onStartComputationStepMsg(StartComputationStepMsg msg) throws ExecutionException, InterruptedException {
+
 		log.info(msg.toString());
+		boolean isCompleted = false; //If true computation has terminated for all runtimes
 
 		//If no partitions are available, no select or free variables have been allocated
 		this.instantiatePartitionsIfAbsent();
@@ -285,22 +288,44 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 		}
 		//Run RuntimeComputation (in series)
 		if (msg.getFreeVars() == null) {
+
 			//Get all Runtimes and send messages
+			int numCompleted = 0;
 			for (ComputationRuntime computationRuntime: partitionComputations.getAllElements().values()) {
-				computationRuntime.compute(msg.getStepNumber(), this.executors);
+				try {
+					computationRuntime.compute(msg.getStepNumber(), this.executors);
+				} catch (ComputationFinishedException e) {
+					numCompleted = numCompleted + 1;
+				}
+				if (numCompleted == partitionComputations.getAllElements().size()) {
+					isCompleted = true;
+				}
 				sendOutBox(computationRuntime.getOutgoingMessages());
+
 			}
 		} else {
+
 			//get and run the specific runtime and send messages
 			ComputationRuntime computationRuntime = partitionComputations.getValue(msg.getFreeVars());
-			computationRuntime.compute(msg.getStepNumber(), this.executors);
+			try {
+				computationRuntime.compute(msg.getStepNumber(), this.executors);
+			} catch (ComputationFinishedException e) {
+				isCompleted = true;
+			}
 			sendOutBox(computationRuntime.getOutgoingMessages());
+
 		}
-		master.tell(new AckMsg(), self());
+
+		if (isCompleted) {
+			master.tell(new AckMsgComputationTerminated(), self());
+		} else {
+			master.tell(new AckMsg(), self());
+		}
 
 	}
 
 	private final void onComputeResultMsg(ComputeResultsMsg msg) throws ExecutionException, InterruptedException {
+
 		if (msg.getFreeVars() == null) {
 			//Get all Runtimes and send messages
 			for (ComputationRuntime computationRuntime: partitionComputations.getAllElements().values()) {
@@ -312,7 +337,9 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 			computationRuntime.computeResults(this.executors);
 			sendOutBox(computationRuntime.getOutgoingMessages());
 		}
+
 		master.tell(new AckMsg(), self());
+
 	}
 
 
@@ -325,6 +352,11 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 		ComputationRuntime computationRuntime = this.partitionComputations.getValue(incoming.getPartition());
 		computationRuntime.updateIncomingMsgs(incoming);
 		getSender().tell(new AckMsg(), self());
+
+		if (this.waitingResponses.decrementAndGet() == 0){
+			getContext().become(initializedState());
+		}
+
 	}
 
 	/**
@@ -501,12 +533,12 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 		//For each vertex destination retrieve the actor and populate its box
 		SynchronizedIterator<Map.Entry<String, ArrayList>> destIterator = outgoingBox.getSyncIterator();
 		Utils.parallelizeAndWait(executors, new PopulateOutbox(this, destIterator, outboxes));
-			//Increase waiting response and send if not empty
+			//Increase waiting response and send also if empty
+		this.waitingResponses.set(outboxes.size()*2);
 			for (Map.Entry<ActorRef, BoxMsg> destOutbox: outboxes.entrySet()) {
-				if (!destOutbox.getValue().isEmpty()){
-					this.waitingResponses.incrementAndGet();
+
 					destOutbox.getKey().tell(destOutbox.getValue(), self());
-				}
+
 			}
 
 		//Switch to waiting response state
