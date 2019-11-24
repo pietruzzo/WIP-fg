@@ -23,10 +23,12 @@ public class OngoingAggregate {
     final int expectedNumberOfSlaves;
     final ActorRef self;
     private Boolean evaluation = null;
+    private final String toFire;
 
-    public OngoingAggregate(int expectedNumberOfSlaves, AggregateType type, @Nullable CustomBinaryOperator operator, ActorRef self) {
+    public OngoingAggregate(int expectedNumberOfSlaves, AggregateType type, @Nullable CustomBinaryOperator operator, ActorRef self, @Nullable String toFire) {
         this.operator = operator;
         this.self = self;
+        this.toFire = toFire;
         this.aggregates = new ArrayList();
         this.type = type;
         this.expectedNumberOfSlaves = expectedNumberOfSlaves;
@@ -62,8 +64,16 @@ public class OngoingAggregate {
 
     }
 
-    public Boolean getEvaluation() {
-        return evaluation;
+    /**
+     *
+     * @return event to fire or null if nothing to fire
+     */
+    public String getEvaluation() {
+
+        if (evaluation)
+            return toFire;
+        return null;
+
     }
 
     private void performEvaluation(){

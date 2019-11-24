@@ -1,20 +1,15 @@
 package shared.streamProcessing;
 
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.jetbrains.annotations.NotNull;
 import shared.computation.ComputationRuntime;
-import shared.data.CompositeKey;
 import shared.data.MultiKeyMap;
 import shared.exceptions.InvalidOperationChain;
-import shared.selection.SelectionSolver;
 import shared.variables.*;
 import shared.variables.solver.VariableSolver;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -132,9 +127,9 @@ public class PartitionStreamsHandler {
                     }
                 }
             }
-            else if (operation instanceof Operations.evaluate) {
+            else if (operation instanceof Operations.Evaluate) {
 
-                Operations.evaluate opEvaluation = (Operations.evaluate) operation;
+                Operations.Evaluate opEvaluation = (Operations.Evaluate) operation;
                 boolean result = false;
 
                 //More than one subgraph -> ERROR

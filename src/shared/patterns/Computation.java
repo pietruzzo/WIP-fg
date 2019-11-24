@@ -10,7 +10,7 @@ import java.util.List;
 
 public class Computation extends Pattern {
 
-    private String computationName;
+    private String computationId;
     private List<String> outputLabels;
     private List<String> parameters;
     private int stepNumber;
@@ -21,7 +21,7 @@ public class Computation extends Pattern {
     }
 
     public void setComputation (String computationName, List<String> outputLabels, List<String> parameters) {
-        this.computationName = computationName;
+        this.computationId = computationName;
         this.outputLabels = outputLabels;
         this.parameters = parameters;
     }
@@ -35,7 +35,7 @@ public class Computation extends Pattern {
         completedSlaves = 0;
 
         //Prepare computation message
-        StartComputationStepMsg message = new StartComputationStepMsg(computationName, null, stepNumber, transportLayer.getCurrentTimestamp());
+        StartComputationStepMsg message = new StartComputationStepMsg(computationId, null, stepNumber, transportLayer.getCurrentTimestamp());
 
         //send to all slaves
         transportLayer.sendToAllSlaves(message);
@@ -60,6 +60,7 @@ public class Computation extends Pattern {
             return true;
         }
 
+        completedSlaves = 0;
         return false;
     }
 

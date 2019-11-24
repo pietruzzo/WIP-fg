@@ -28,6 +28,12 @@ public interface Computation<TMsg> extends Serializable {
      */
     List<Pair<String, String[]>> compute_result (Vertex vertex);
 
+    /**
+     * Set computation parameters and resultLabelNames
+     * @param parameters
+     * @param resultLabelsNames
+     */
+    void setParametersAndReturnNames ( List<String> parameters, List<String> resultLabelsNames);
 
 
 }

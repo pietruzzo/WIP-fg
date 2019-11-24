@@ -63,6 +63,6 @@ public abstract class Pattern {
      */
     abstract boolean startPatternLogic();
 
-    abstract boolean processMessage(Serializable message);
+    abstract boolean processMessage(@Nullable Serializable message);
 
 }

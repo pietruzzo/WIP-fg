@@ -28,9 +28,6 @@ class ClientActor extends AbstractActor {
 	@Override
 	public Receive createReceive() {
 		return receiveBuilder(). //
-		    //match(StartMsg.class, this::onStartMsg). //
-		    //match(InstallComputationMsg.class, this::onInstallComputationMsg). //
-		    //match(ChangeGraphMsg.class, this::onUpdateGraphMsg). //
 		    build();
 
 	}
@@ -44,12 +41,7 @@ class ClientActor extends AbstractActor {
 		log.info("StartMsg");
 		jobManager.tell(msg, self());
 	}
-/*
-	private final void onInstallComputationMsg(InstallComputationMsg msg) {
-		log.info("InstallComputation");
-		jobManager.tell(msg, self());
-	}
-*/
+
 	private final void onUpdateGraphMsg(ModifyGraphMsg msg) {
 		log.info(msg.toString());
 		jobManager.tell(msg, self());

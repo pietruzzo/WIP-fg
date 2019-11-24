@@ -11,7 +11,7 @@ public class ExtractMsg implements Serializable {
 
     private final List<Operations> operationsList;
 
-    public ExtractMsg(boolean isEdge, String label, List<Operations> operationList) {
+    public ExtractMsg(List<Operations> operationList) {
         this.operationsList = operationList;
     }
 

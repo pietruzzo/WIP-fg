@@ -1,10 +1,11 @@
 package master;
 
+import akka.actor.ActorRef;
+
 import java.io.Serializable;
 
 public interface PatternCallback {
 
-    void fireEvent (String event);
 
     <Msg extends Serializable> void sendToAllSlaves(Msg message);
 
@@ -15,4 +16,8 @@ public interface PatternCallback {
     void becomeAwaitAckFromAll();
 
     int getNumSlaves();
+
+    void putInOngoingAggregateList (int identifier, OngoingAggregate ongoingAggregate);
+
+    ActorRef getSelf();
 }

@@ -113,16 +113,18 @@ public interface Operations {
         }
     }
 
-    class evaluate implements Operations{
+    class Evaluate implements Operations{
 
         public final SelectionSolver.Operation.Operator operator;
         public final Long transaction_id;
         public final String value;
+        public final String fireEvent;
 
-        public evaluate(SelectionSolver.Operation.Operator operator, Long transaction_id, String value) {
+        public Evaluate(SelectionSolver.Operation.Operator operator, Long transaction_id, String value, String fireEvent) {
             this.operator = operator;
             this.transaction_id = transaction_id;
             this.value = value;
+            this.fireEvent = fireEvent;
         }
     }
 

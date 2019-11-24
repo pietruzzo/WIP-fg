@@ -14,6 +14,7 @@ import shared.Utils;
 import shared.computation.Computation;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 
@@ -30,11 +31,16 @@ public class JobManagerActor extends AbstractActorWithStash {
 	 */
 	private final HashMap<Integer, ActorRef> hashMapping = new HashMap<>();
 
+	/**
+	 * Clients Refs
+	 */
+	private final Set<ActorRef> clients = new HashSet<>();
+
 	private final HashMap<String, Computation> computations = new HashMap<>();
 
 	private final AtomicInteger waitingResponses = new AtomicInteger(0);
 
-	private final HashMap<String, OngoingAggregate> aggregates = new HashMap<>();
+	private final ConcurrentHashMap<String, OngoingAggregate> aggregates = new ConcurrentHashMap<>();
 
 	private long currentTimestamp;
 
@@ -66,7 +72,7 @@ public class JobManagerActor extends AbstractActorWithStash {
 		return waitingResponses;
 	}
 
-	public HashMap<String, OngoingAggregate> getAggregates() {
+	public ConcurrentHashMap<String, OngoingAggregate> getAggregates() {
 		return aggregates;
 	}
 
@@ -102,6 +108,7 @@ public class JobManagerActor extends AbstractActorWithStash {
 
 	private final Receive waitSlaves() { //Startup phase
 		return receiveBuilder().
+			match(HelloClientMsg.class, this::onHelloClientMsg).
 		    match(SlaveAnnounceMsg.class, this::onSlaveAnnounceMsg).
 		    match(LaunchMsg.class, this::onLaunchMsg).
 			match(AckMsg.class, this::onLaunchAckMsg).
@@ -136,6 +143,10 @@ public class JobManagerActor extends AbstractActorWithStash {
 	 * Message processing
 	 */
 
+	private final void onHelloClientMsg(HelloClientMsg msg){
+		this.clients.add(sender());
+
+	}
 	private final void onAddEdgeMsg(AddEdgeMsg msg){
 		ActorRef slave = getActor(msg.getSourceName());
 		slave.tell(new AddEdgeMsg(msg.getSourceName(), msg.getDestinationName(), msg.getAttributes(), System.currentTimeMillis()), self());
@@ -210,9 +221,23 @@ public class JobManagerActor extends AbstractActorWithStash {
 	}
 
 	private final void onAggregateMsg(AggregateMsg msg){
+
 		OngoingAggregate ongoing = this.aggregates.get(msg.aggregate.getTransactionId());
 		ongoing.aggregates.add(msg.aggregate);
 		ongoing.collectedActors.add(sender());
+
+		//If finished -> remove aggregate and fire event
+		if (ongoing.performOperatorIfCollectedAll()){
+
+			String event = ongoing.getEvaluation();
+			if ( event != null ){
+				this.clients.forEach(client -> client.tell(new FireMsg(event), self()));
+			}
+
+			this.aggregates.remove(msg.aggregate.getTransactionId());
+
+		}
+
 	}
 
 
