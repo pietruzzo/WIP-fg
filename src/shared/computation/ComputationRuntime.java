@@ -185,6 +185,10 @@ public class ComputationRuntime {
         }
 
         private void registerOutgoingMsg (List<StepMsg> outbox) {
+
+            if (outbox == null || outbox.isEmpty())
+                return;
+
             for (StepMsg sm : outbox) {
                 computationRuntime.outgoingMessages.put(sm.destinationVertex, sm);
             }

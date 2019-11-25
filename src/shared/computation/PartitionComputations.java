@@ -5,6 +5,7 @@ import org.apache.commons.math3.exception.DimensionMismatchException;
 
 import java.util.*;
 
+@Deprecated
 public abstract class PartitionComputations {
 
     abstract public List<String> getNames();

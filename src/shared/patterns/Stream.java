@@ -34,13 +34,11 @@ public class Stream extends Pattern{
         //Wait ack from all
         transportLayer.becomeAwaitAckFromAll();
 
-        //Fire event
-
         return false;
     }
 
     @Override
-    boolean processMessage(Serializable message) {
+    public boolean processMessage(Serializable message) {
 
         //After acks
         return true;

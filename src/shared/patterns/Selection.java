@@ -27,7 +27,7 @@ public class Selection extends Pattern{
     }
 
     @Override
-    boolean processMessage(@Nullable Serializable message) {
+    public boolean processMessage(@Nullable Serializable message) {
         //After acks
         return true;
     }

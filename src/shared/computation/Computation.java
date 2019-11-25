@@ -1,11 +1,15 @@
 package shared.computation;
 
 import akka.japi.Pair;
+import shared.AkkaMessages.StepMsg;
 
 import java.io.Serializable;
 import java.util.List;
 
-public interface Computation<TMsg> extends Serializable {
+/**
+ * Datastructures shared between nodes must be threadsafe
+ */
+public interface Computation extends Serializable {
 
     /**
      * @param vertex copy of the vertex
@@ -13,13 +17,13 @@ public interface Computation<TMsg> extends Serializable {
      * @param iterationStep first iteration is number zero
      * @return outgoing messages
      */
-    List<TMsg> iterate (Vertex vertex, List<TMsg> incoming, int iterationStep);
+    List<StepMsg> iterate (Vertex vertex, List<StepMsg> incoming, int iterationStep);
 
     /**
      * @param vertex copy of the vertex
      * @return outgoing messages
      */
-    List<TMsg> firstIterate (Vertex vertex);
+    List<StepMsg> firstIterate (Vertex vertex);
 
     /**
      *
@@ -33,7 +37,7 @@ public interface Computation<TMsg> extends Serializable {
      * @param parameters
      * @param resultLabelsNames
      */
-    void setParametersAndReturnNames ( List<String> parameters, List<String> resultLabelsNames);
+    void preInitialize(String[] parameters, String[] resultLabelsNames);
 
 
 }

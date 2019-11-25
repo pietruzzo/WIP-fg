@@ -120,6 +120,7 @@ public class JobManagerActor extends AbstractActorWithStash {
 		return receiveBuilder().
 				match(AckMsg.class, this::onLaunchAckMsg).
 				match(AckMsgComputationTerminated.class, this::onLaunchAckMsg).
+				match(AggregateMsg.class, this::onAggregateMsg).
 				build();
 	}
 
@@ -135,7 +136,7 @@ public class JobManagerActor extends AbstractActorWithStash {
 	}
 
 	private final Receive iterativeComputationState(){
-		return null; //todo
+		return null; //todo: handle messages toward logic
 	}
 
 
@@ -209,11 +210,12 @@ public class JobManagerActor extends AbstractActorWithStash {
 		if(waitingResponses.decrementAndGet() == 0)
 			getContext().become(nextState.invoke());
 
+		//TODO get Patterns , prepare pattern logic and run
 	}
 
 	private final void onLaunchAckMsg(AckMsgComputationTerminated msg) {
 
-		this.patternLogic.sendToCurrentPattern(msg);
+		this.patternLogic.runElement(msg);
 
 		if(waitingResponses.decrementAndGet() == 0)
 			getContext().become(nextState.invoke());

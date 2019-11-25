@@ -13,6 +13,8 @@ public interface PatternCallback {
 
     void setNextStateIterativeComputationState ();
 
+    void becomeReceiveChangeState ();
+
     void becomeAwaitAckFromAll();
 
     int getNumSlaves();
