@@ -11,12 +11,13 @@ import shared.AkkaMessages.modifyGraph.*;
 import shared.Utils;
 import shared.computation.Computation;
 
+import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 
-public class JobManagerActor extends AbstractActorWithStash {
+public class JobManagerActor extends AbstractActorWithStash implements PatternCallback {
 
 	public static final Boolean DIRECTED_EDGES = true;
 	public static final Pair<String, String[]> DESTINATION_EDGE = new Pair<>("_DEST", new String[]{"true"});
@@ -87,9 +88,6 @@ public class JobManagerActor extends AbstractActorWithStash {
 		this.nextState = nextState;
 	}
 
-	public long getCurrentTimestamp() {
-		return currentTimestamp;
-	}
 
 	public void setCurrentTimestamp(long currentTimestamp) {
 		this.currentTimestamp = currentTimestamp;
@@ -269,9 +267,6 @@ public class JobManagerActor extends AbstractActorWithStash {
 
 	}
 
-
-
-
 	private final void onInstallComputationMsg(InstallComputationMsg msg) {
 		log.info(msg.toString());
 		computations.put(msg.getIdentifier(), msg.getComputation());
@@ -282,6 +277,46 @@ public class JobManagerActor extends AbstractActorWithStash {
 		waitingResponses.set(slaves.size());
 		getContext().become(waitAck());
 	}
+
+
+	//region: PatternCallback
+
+	@Override
+	public <Msg extends Serializable> void sendToAllSlaves(Msg message) {
+		this.slaves.keySet().stream().forEach(slave -> slave.tell(message, self()));
+	}
+
+	public long getCurrentTimestamp() {
+		return currentTimestamp;
+	}
+
+	@Override
+	public void setNextStateIterativeComputationState() {
+		this.nextState = this::iterativeComputationState;
+	}
+
+	@Override
+	public void becomeReceiveChangeState() {
+		getContext().become(waitAck());
+	}
+
+	@Override
+	public void becomeAwaitAckFromAll() {
+		this.waitingResponses.set(this.slaves.size());
+		getContext().become(waitAck());
+	}
+
+	@Override
+	public int getNumSlaves() {
+		return this.slaves.size();
+	}
+
+	@Override
+	public void putInOngoingAggregateList(int identifier, OngoingAggregate ongoingAggregate) {
+		this.aggregates.put(String.valueOf(identifier), ongoingAggregate);
+	}
+
+	//endregion
 
 
 
