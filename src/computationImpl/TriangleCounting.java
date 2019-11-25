@@ -114,9 +114,6 @@ public class TriangleCounting implements Computation {
     @Override
     public List<StepMsg> firstIterate(Vertex vertex) {
 
-        //Initialize results
-        results = new ConcurrentHashMap<>();
-
         //Flood first message
         List<StepMsg> outgoingMsgs = new ArrayList<>();
 
@@ -166,6 +163,11 @@ public class TriangleCounting implements Computation {
 
         returnLabel = resultLabelsNames[0];
 
+    }
+
+    @Override
+    public void preStart() {
+        this.results = new ConcurrentHashMap<>();
     }
 
 }

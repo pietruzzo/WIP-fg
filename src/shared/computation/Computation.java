@@ -39,5 +39,10 @@ public interface Computation extends Serializable {
      */
     void preInitialize(String[] parameters, String[] resultLabelsNames);
 
+    /**
+     * Run this method one time just before first iteration
+     */
+    void preStart();
+
 
 }

@@ -100,4 +100,9 @@ public class PageRank implements Computation {
         }
         this.returnLabelName = resultLabelsNames[0];
     }
+
+    @Override
+    public void preStart() {
+        this.weights = new ConcurrentHashMap<>();
+    }
 }

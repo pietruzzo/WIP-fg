@@ -52,6 +52,10 @@ public class ComputationRuntime {
             throw new ComputationFinishedException();
         }
 
+        if (stepNumber == 0) {
+            computation.preStart();
+        }
+
         //Launch executors
         Utils.parallelizeAndWait(executors, new ComputationThread(this, new SynchronizedIterator<>(vertices.values().iterator()), this.inboxMessages.getSyncIterator()));
 
