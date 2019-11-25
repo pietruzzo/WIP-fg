@@ -5,11 +5,9 @@ import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
+import akka.japi.Pair;
 import shared.AkkaMessages.*;
-import shared.AkkaMessages.modifyGraph.AddEdgeMsg;
-import shared.AkkaMessages.modifyGraph.DeleteEdgeMsg;
-import shared.AkkaMessages.modifyGraph.DeleteVertexMsg;
-import shared.AkkaMessages.modifyGraph.UpdateVertexMsg;
+import shared.AkkaMessages.modifyGraph.*;
 import shared.Utils;
 import shared.computation.Computation;
 
@@ -19,7 +17,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 
 public class JobManagerActor extends AbstractActorWithStash {
+
+	public static final Boolean DIRECTED_EDGES = true;
+	public static final Pair<String, String[]> DESTINATION_EDGE = new Pair<>("_DEST", new String[]{"true"});
+
 	private final LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
+
 
 	/**
 	 * Ref to slave and associated number of threads
@@ -152,6 +155,12 @@ public class JobManagerActor extends AbstractActorWithStash {
 		ActorRef slave = getActor(msg.getSourceName());
 		slave.tell(new AddEdgeMsg(msg.getSourceName(), msg.getDestinationName(), msg.getAttributes(), System.currentTimeMillis()), self());
 		waitingResponses.set(1);
+		if (!DIRECTED_EDGES) {
+			ArrayList<Pair<String, String[]>> destinationAttribute = msg.getAttributes();
+			destinationAttribute.add(DESTINATION_EDGE);
+			slave.tell(new AddEdgeMsg(msg.getDestinationName(), msg.getSourceName(), destinationAttribute, System.currentTimeMillis()), self());
+			waitingResponses.incrementAndGet();
+		}
 		nextState = this::iterativeComputationState;
 		getContext().become(waitAck(), true);
 	}
@@ -159,6 +168,10 @@ public class JobManagerActor extends AbstractActorWithStash {
 		ActorRef slave = getActor(msg.getSourceName());
 		slave.tell(new DeleteEdgeMsg(msg.getSourceName(), msg.getDestinationName(), System.currentTimeMillis()), self());
 		waitingResponses.set(1);
+		if (!DIRECTED_EDGES) {
+			slave.tell(new DeleteEdgeMsg(msg.getDestinationName(), msg.getSourceName(), System.currentTimeMillis()), self());
+			waitingResponses.incrementAndGet();
+		}
 		nextState = this::iterativeComputationState;
 		getContext().become(waitAck(), true);
 	}
@@ -173,6 +186,17 @@ public class JobManagerActor extends AbstractActorWithStash {
 		ActorRef slave = getActor(msg.getVertexName());
 		slave.tell(new UpdateVertexMsg(msg.getVertexName(), msg.getAttributes(), System.currentTimeMillis()), self());
 		waitingResponses.set(1);
+		nextState = this::iterativeComputationState;
+		getContext().become(waitAck(), true);
+	}
+	private final void onUpdateEdgeMsg(UpdateEdgeMsg msg){
+		ActorRef slave = getActor(msg.sourceId);
+		slave.tell(new UpdateEdgeMsg(msg.sourceId, msg.destId, msg.getAttributes(), System.currentTimeMillis()), self());
+		waitingResponses.set(1);
+		if (!DIRECTED_EDGES) {
+			slave.tell(new UpdateEdgeMsg(msg.destId, msg.sourceId, msg.getAttributes(), System.currentTimeMillis()), self());
+			waitingResponses.incrementAndGet();
+		}
 		nextState = this::iterativeComputationState;
 		getContext().become(waitAck(), true);
 	}

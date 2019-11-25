@@ -41,7 +41,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-//LAST USED: private static final long serialVersionUID = 200059L;
+//LAST USED: private static final long serialVersionUID = 200060L;
 
 public class TaskManagerActor extends AbstractActor implements ComputationCallback, StreamProcessingCallback {
 	private final LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
