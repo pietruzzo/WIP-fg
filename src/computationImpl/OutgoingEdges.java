@@ -31,38 +31,22 @@ public class OutgoingEdges implements Computation {
 
         List<StepMsg> outbox = new ArrayList<>();
 
-        if (iterationStep == 1) {
-            outgoingEdgesNum.put(vertex.getNodeId(), incoming.size());
+        int max = incoming
+                .stream()
+                .map(msg -> (int)msg.computationValues)
+                .reduce((i1, i2) -> i1 > i2 ? i1 : i2)
+                .get();
 
-            for (String destination: vertex.getEdges()) {
-                outbox.add( new StepMsg(destination, vertex.getNodeId(), incoming.size()) );
-            }
-
-            return outbox;
-        }
-
-        if (!spread)
+        //STOP if new max is not greater than older one
+        if (max <= outgoingEdgesNum.get(vertex.getNodeId()))
             return null;
 
-        else {
+        outgoingEdgesNum.put(vertex.getNodeId(), max);
 
-            int max = incoming
-                    .stream()
-                    .map(msg -> (int)msg.computationValues)
-                    .reduce((i1, i2) -> i1 > i2 ? i1 : i2)
-                    .get();
-
-            //STOP if new max is not greater than older one
-            if (max <= outgoingEdgesNum.get(vertex.getNodeId()))
-                return null;
-
-            outgoingEdgesNum.put(vertex.getNodeId(), max);
-
-            for (String destination: vertex.getEdges()) {
-                outbox.add( new StepMsg(destination, vertex.getNodeId(), max) );
-            }
-            return outbox;
+        for (String destination: vertex.getEdges()) {
+            outbox.add( new StepMsg(destination, vertex.getNodeId(), max) );
         }
+        return outbox;
     }
 
     @Override
@@ -70,11 +54,19 @@ public class OutgoingEdges implements Computation {
 
         List<StepMsg> outbox = new ArrayList<>();
 
-        for (String destination: vertex.getEdges()) {
-            outbox.add( new StepMsg(destination, vertex.getNodeId(), null) );
-        }
+        this.outgoingEdgesNum.put(vertex.getNodeId(), vertex.getEdges().length);
 
-        return outbox;
+        if (!this.spread)
+            return null;
+
+        else {
+
+            for (String destination : vertex.getEdges()) {
+                outbox.add(new StepMsg(destination, vertex.getNodeId(), vertex.getEdges().length));
+            }
+            return outbox;
+
+        }
     }
 
     @Override
