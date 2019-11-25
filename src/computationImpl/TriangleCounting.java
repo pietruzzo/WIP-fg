@@ -133,7 +133,7 @@ public class TriangleCounting implements Computation {
     }
 
     @Override
-    public List<Pair<String, String[]>> compute_result(Vertex vertex) {
+    public List<Pair<String, String[]>> computeResults(Vertex vertex) {
 
         List<Pair<String, String[]>> returnResults = new ArrayList<>();
 

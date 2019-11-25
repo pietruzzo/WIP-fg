@@ -30,7 +30,7 @@ public interface Computation extends Serializable {
      * @param vertex copy of the vertex
      * @return THe list of <Key, Values[]> pairs that will be saved in vertex state
      */
-    List<Pair<String, String[]>> compute_result (Vertex vertex);
+    List<Pair<String, String[]>> computeResults(Vertex vertex);
 
     /**
      * Set computation parameters and resultLabelNames

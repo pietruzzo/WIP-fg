@@ -212,7 +212,7 @@ public class ComputationRuntime {
             try {
                 while (true) {
                     Vertex vertex = super.vertexIterator.next();
-                    List<Pair<String, String[]>> results = super.computationRuntime.computation.compute_result(vertex);
+                    List<Pair<String, String[]>> results = super.computationRuntime.computation.computeResults(vertex);
                     for (Pair<String, String[]> e: results) {
                         super.computationRuntime.registerResult(vertex.getNodeId(), e.first(), e.second());
                     }
