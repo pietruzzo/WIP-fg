@@ -11,8 +11,6 @@ public interface PatternCallback {
 
     long getCurrentTimestamp();
 
-    void setNextStateIterativeComputationState ();
-
     void becomeReceiveChangeState ();
 
     void becomeAwaitAckFromAll();

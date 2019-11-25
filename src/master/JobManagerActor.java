@@ -10,6 +10,7 @@ import shared.AkkaMessages.*;
 import shared.AkkaMessages.modifyGraph.*;
 import shared.Utils;
 import shared.computation.Computation;
+import shared.patterns.Trigger;
 
 import java.io.Serializable;
 import java.util.*;
@@ -51,6 +52,8 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 	private State nextState = this::waitSlaves;
 
 	private PatternLogic patternLogic;
+
+	private final HashSet<String> validVariables = new HashSet<>();
 
 
 	//region: getter/setter
@@ -112,15 +115,15 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 			match(HelloClientMsg.class, this::onHelloClientMsg).
 		    match(SlaveAnnounceMsg.class, this::onSlaveAnnounceMsg).
 		    match(LaunchMsg.class, this::onLaunchMsg).
-			match(AckMsg.class, this::onLaunchAckMsg).
+			match(AckMsg.class, this::onAckMsg).
 			match(AggregateMsg.class, this::onAggregateMsg).
 		    build();
 	}
 
 	private final Receive waitAck() {
 		return receiveBuilder().
-				match(AckMsg.class, this::onLaunchAckMsg).
-				match(AckMsgComputationTerminated.class, this::onLaunchAckMsg).
+				match(AckMsg.class, this::onAckMsg).
+				match(AckMsgComputationTerminated.class, this::onAckMsg).
 				match(AggregateMsg.class, this::onAggregateMsg).
 				build();
 	}
@@ -135,10 +138,6 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 			match(UpdateEdgeMsg.class, this::onUpdateEdgeMsg).
 			match(InstallComputationMsg.class, this::onInstallComputationMsg).
 		    build();
-	}
-
-	private final Receive iterativeComputationState(){
-		return null; //todo: handle messages toward logic
 	}
 
 
@@ -160,7 +159,6 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 			slave.tell(new AddEdgeMsg(msg.getDestinationName(), msg.getSourceName(), destinationAttribute, System.currentTimeMillis()), self());
 			waitingResponses.incrementAndGet();
 		}
-		nextState = this::iterativeComputationState;
 		getContext().become(waitAck(), true);
 	}
 	private final void onDeleteEdgeMsg(DeleteEdgeMsg msg){
@@ -171,21 +169,18 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 			slave.tell(new DeleteEdgeMsg(msg.getDestinationName(), msg.getSourceName(), System.currentTimeMillis()), self());
 			waitingResponses.incrementAndGet();
 		}
-		nextState = this::iterativeComputationState;
 		getContext().become(waitAck(), true);
 	}
 	private final void onDeleteVertexMsg(DeleteVertexMsg msg){
 		ActorRef slave = getActor(msg.getVertexName());
 		slave.tell(new DeleteVertexMsg(msg.getVertexName(),  System.currentTimeMillis()), self());
 		waitingResponses.set(1);
-		nextState = this::iterativeComputationState;
 		getContext().become(waitAck(), true);
 	}
 	private final void onUpdateVertexMsg(UpdateVertexMsg msg){
 		ActorRef slave = getActor(msg.getVertexName());
 		slave.tell(new UpdateVertexMsg(msg.getVertexName(), msg.getAttributes(), System.currentTimeMillis()), self());
 		waitingResponses.set(1);
-		nextState = this::iterativeComputationState;
 		getContext().become(waitAck(), true);
 	}
 	private final void onUpdateEdgeMsg(UpdateEdgeMsg msg){
@@ -198,7 +193,6 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 			slave.tell(new UpdateEdgeMsg(msg.destId, msg.sourceId, destinationAttribute, System.currentTimeMillis()), self());
 			waitingResponses.incrementAndGet();
 		}
-		nextState = this::iterativeComputationState;
 		getContext().become(waitAck(), true);
 	}
 
@@ -231,19 +225,23 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 		getContext().become(waitAck());
 	}
 
-	private final void onLaunchAckMsg(AckMsg msg){
+	private final void onAckMsg(AckMsg msg){
 		if(waitingResponses.decrementAndGet() == 0)
-			getContext().become(nextState.invoke());
+			this.patternLogic.runElement(null);
 
-		//TODO get Patterns , prepare pattern logic and run
+
+		patternLogic = new PatternLogic(this);
+		//TODO add to patternLogic subpatterns
+		patternLogic.startNewIteration(this.currentTimestamp, Trigger.TriggerEnum.ALL, validVariables);
 	}
 
-	private final void onLaunchAckMsg(AckMsgComputationTerminated msg) {
+	private final void onAckMsg(AckMsgComputationTerminated msg) {
 
 		this.patternLogic.runElement(msg);
 
-		if(waitingResponses.decrementAndGet() == 0)
-			getContext().become(nextState.invoke());
+		if(waitingResponses.decrementAndGet() == 0) {
+			this.patternLogic.runElement(null);
+		}
 
 	}
 
@@ -291,13 +289,8 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 	}
 
 	@Override
-	public void setNextStateIterativeComputationState() {
-		this.nextState = this::iterativeComputationState;
-	}
-
-	@Override
 	public void becomeReceiveChangeState() {
-		getContext().become(waitAck());
+		getContext().become(receiveChangeState());
 	}
 
 	@Override
@@ -333,7 +326,6 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 	private ActorRef getActor(String name) {
 		return hashMapping.get(Utils.getPartition(name, hashMapping.size()));
 	}
-
 
 	@FunctionalInterface
 	public interface State{

@@ -20,7 +20,6 @@ public class Partition extends Pattern{
     @Override
     boolean startPatternLogic() {
         transportLayer.sendToAllSlaves(new NewPartitionMsg(this.partitioningSolver));
-        transportLayer.setNextStateIterativeComputationState();
         transportLayer.becomeAwaitAckFromAll();
         return false;
     }

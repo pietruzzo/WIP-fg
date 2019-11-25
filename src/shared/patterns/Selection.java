@@ -21,7 +21,6 @@ public class Selection extends Pattern{
     @Override
     boolean startPatternLogic() {
         transportLayer.sendToAllSlaves(new SelectMsg(this.selectionSolver));
-        transportLayer.setNextStateIterativeComputationState();
         transportLayer.becomeAwaitAckFromAll();
         return false;
     }

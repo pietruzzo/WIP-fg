@@ -43,7 +43,6 @@ public class Computation extends Pattern {
         transportLayer.sendToAllSlaves(message);
 
         //set next state and Wait Acks
-        transportLayer.setNextStateIterativeComputationState();
         transportLayer.becomeAwaitAckFromAll();
 
         return false;
