@@ -17,10 +17,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import scala.concurrent.Await;
 import scala.concurrent.duration.Duration;
 import shared.AkkaMessages.*;
-import shared.AkkaMessages.modifyGraph.AddEdgeMsg;
-import shared.AkkaMessages.modifyGraph.DeleteEdgeMsg;
-import shared.AkkaMessages.modifyGraph.DeleteVertexMsg;
-import shared.AkkaMessages.modifyGraph.UpdateVertexMsg;
+import shared.AkkaMessages.modifyGraph.*;
 import shared.AkkaMessages.select.SelectMsg;
 import shared.Utils;
 import shared.VertexM;
@@ -98,6 +95,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 		    match(DeleteEdgeMsg.class, this::onDeleteEdgeMsg). //
 			match(DeleteVertexMsg.class, this::onDeleteVertexMsg). //
 			match(UpdateVertexMsg.class, this::onUpdateVertexMsg). //
+			match(UpdateEdgeMsg.class, this::onUpdateEdgeMsg). //
 		    match(InstallComputationMsg.class, this::onInstallComputationMsg). //
 		    match(StartComputationStepMsg.class, this::onStartComputationStepMsg). //
 			match(ComputeResultsMsg.class, this::onComputeResultMsg). //
@@ -175,6 +173,23 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 		}
 		for (Pair<String, String[]> attribute : msg.getAttributes()) {
 			vertex.setLabelVartex(attribute.first(), attribute.second());
+		}
+		master.tell(new AckMsg(), self());
+	}
+
+	private final void onUpdateEdgeMsg(UpdateEdgeMsg msg) {
+		log.info(msg.toString());
+		VertexM vertex = vertices.get(msg.sourceId);
+		if (vertex == null){
+			vertex = new VertexM(msg.sourceId, new VertexM.State());
+		}
+
+		VertexM.State edgeState = vertex.getEdgeState(msg.destId);
+		if (edgeState == null) {
+			vertex.addEdge(msg.destId);
+		}
+		for (Pair<String, String[]> attribute : msg.getAttributes()) {
+			edgeState.put(attribute.first(), attribute.second());
 		}
 		master.tell(new AckMsg(), self());
 	}

@@ -134,6 +134,7 @@ public class JobManagerActor extends AbstractActorWithStash {
 		    match(DeleteEdgeMsg.class, this::onDeleteEdgeMsg).
 		    match(DeleteVertexMsg.class, this::onDeleteVertexMsg).
 			match(UpdateVertexMsg.class, this::onUpdateVertexMsg).
+			match(UpdateEdgeMsg.class, this::onUpdateEdgeMsg).
 			match(InstallComputationMsg.class, this::onInstallComputationMsg).
 		    build();
 	}
@@ -194,7 +195,9 @@ public class JobManagerActor extends AbstractActorWithStash {
 		slave.tell(new UpdateEdgeMsg(msg.sourceId, msg.destId, msg.getAttributes(), System.currentTimeMillis()), self());
 		waitingResponses.set(1);
 		if (!DIRECTED_EDGES) {
-			slave.tell(new UpdateEdgeMsg(msg.destId, msg.sourceId, msg.getAttributes(), System.currentTimeMillis()), self());
+            ArrayList<Pair<String, String[]>> destinationAttribute = msg.getAttributes();
+            destinationAttribute.add(DESTINATION_EDGE);
+			slave.tell(new UpdateEdgeMsg(msg.destId, msg.sourceId, destinationAttribute, System.currentTimeMillis()), self());
 			waitingResponses.incrementAndGet();
 		}
 		nextState = this::iterativeComputationState;
