@@ -9,6 +9,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Find max number of OutgoingEdges with the possibility to flood the maximum number.
+ * Maximum will be register only to reachable nodes, otherwise some nodes could stuck to local max
+ *
+ * Parameters:
+ *          0: "spread" to spread maximum
+ *
+ * Return Values :
+ *          0: (Maximum) outgoing edges label name
+ */
 public class OutgoingEdges implements Computation {
 
     private String returnLabelName;
