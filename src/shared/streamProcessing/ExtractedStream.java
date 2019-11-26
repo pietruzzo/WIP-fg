@@ -215,15 +215,23 @@ public class ExtractedStream implements ExtractedIf{
 
     public ExtractedStream merge (String[] groupingLabels) {
 
+        //Flattern
+        ExtractedStream extractedStream = this;
+        for (String key: groupingLabels) {
+            extractedStream = flatternMultivalue(key);
+        }
+
         Map<Tuple, List<Tuple>> groups = this.stream.collect(Collectors.groupingByConcurrent(tuple -> {
-            Tuple key = Tuple.newInstance(groupingLabels.length); //TODO può funzionare? (Deep Equality)
+            Tuple key = Tuple.newInstance(groupingLabels.length);
             for (int i = 0; i < groupingLabels.length; i++) {
                 String label = groupingLabels[i];
                 int position = this.tupleFields.indexOf(label);
-                key.setField(tuple.getField(position), i);
+                key.setField(((String[])tuple.getField(position))[0], i);
             }
             return key;
         }, Collectors.toList()));
+
+
         //Unify in one tuple each group
 
         List<Tuple> result = groups.values().parallelStream().map(list -> {
