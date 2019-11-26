@@ -28,6 +28,7 @@ import shared.data.SynchronizedIterator;
 import shared.exceptions.ComputationFinishedException;
 import shared.selection.Partition;
 import shared.selection.Select;
+import shared.streamProcessing.PartitionStreamsHandler;
 import shared.streamProcessing.StreamProcessingCallback;
 import shared.variables.VariableGraph;
 import shared.variables.solver.VariableSolver;
@@ -494,7 +495,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 	}
 
 	private final void onExtractMsg (ExtractMsg msg) {
-		//TODO: From Runtime partitions to StreamPartitions
+		new PartitionStreamsHandler(this.partitionComputations, msg.getOperationsList(), variables, this);
 	}
 
 	private final void onSelectMsg (SelectMsg msg) {

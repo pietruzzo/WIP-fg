@@ -10,7 +10,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-public class ExtractedGroupedStream implements ExtractedIf { //TODO: è possibile evitarlo?
+public class ExtractedGroupedStream implements ExtractedIf {
 
     private Map<String, String> partition;
     private ArrayList<String> tupleFields;

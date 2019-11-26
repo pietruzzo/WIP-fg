@@ -22,6 +22,8 @@ public class PartitionStreamsHandler {
 
     public PartitionStreamsHandler(MultiKeyMap<ComputationRuntime> runtimes, List<Operations> operationsList, VariableSolver variableSolver, StreamProcessingCallback callback){
 
+        this.runtimes = runtimes;
+
         //Check the begin of stream
 
         if( ! (operationsList.get(0) instanceof Operations.Extract) || ! (operationsList.get(0) instanceof Operations.StreamVariable)) {
