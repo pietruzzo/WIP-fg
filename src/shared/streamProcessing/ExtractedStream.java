@@ -191,15 +191,24 @@ public class ExtractedStream implements ExtractedIf{
     }
 
     public ExtractedIf groupby(String[] groupingLabels){ //NB: HashMap has hashing of the reference for the position of value
-        Map<Tuple, List<Tuple>> newStream = stream.collect(Collectors.groupingByConcurrent(tuple -> {
-            Tuple key = Tuple.newInstance(groupingLabels.length);
-            for (int i = 0; i < groupingLabels.length; i++) {
-                String label = groupingLabels[i];
-                int position = this.tupleFields.indexOf(label);
-                key.setField(tuple.getField(position), i);
-            }
-            return key;
-        }, Collectors.toList()));
+
+        //Flattern
+        ExtractedStream extractedStream = this;
+        for (String key: groupingLabels) {
+            extractedStream = flatternMultivalue(key);
+        }
+
+        //Group
+        Map<Tuple, List<Tuple>> newStream = extractedStream.stream
+                .collect(Collectors.groupingByConcurrent(tuple -> {
+                    Tuple key = Tuple.newInstance(groupingLabels.length);
+                    for (int i = 0; i < groupingLabels.length; i++) {
+                        String label = groupingLabels[i];
+                        int position = this.tupleFields.indexOf(label);
+                        key.setField(((String[])tuple.getField(position))[0], i);
+                    }
+                    return key;
+                }, Collectors.toList()));
 
         return new ExtractedGroupedStream(this.partition, (ArrayList<String>)this.tupleFields.clone(), this.streamType, newStream);
     }
@@ -340,6 +349,12 @@ public class ExtractedStream implements ExtractedIf{
         return new ExtractedStream(this.partition, (ArrayList<String>)tupleFields.clone(), streamType, stream);
     }
 
+    /**
+     * Tuple2: {[hello], [a, b, c]} on second key -> {[hello], [a]} {[hello], [b]} {[hello], [c]}
+     * @param tuple
+     * @param key
+     * @return A tuple for each value of key field
+     */
     private ArrayList<Tuple> flattern (Tuple tuple, String key) {
         ArrayList<Tuple> results = new ArrayList<>();
 
