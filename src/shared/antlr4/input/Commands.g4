@@ -5,9 +5,11 @@ grammar Commands;
 
     Some examples:
 
-    vertex update: <vertexid>, <label1=value>, <label2=value>, timestamp
+    "vertex insert: hello, lab1=4, lab2 = true , 3462",
+    "edge delete: hello1, hello2, lab1=4 , 3462",
+    "vertex update: hello, 3462",
+    "vertex insert: hello, lab1=[4, pluto] , 3462"
 
-    edge insertion: <vertexid1>, <vertexid2>, <label1=value> ... , timestamp
 */
 
 clientCommand:
@@ -15,19 +17,19 @@ clientCommand:
     ;
 
 updateCommand:
-    ( vertexUpdate | edgeUpdate ) labelValues ',' timestamp
+    ( vertexUpdate | edgeUpdate ) ',' (labelValues ',')? timestamp
     ;
 
 vertexUpdate:
-    'vertex' updateType ':' identifier ','
+    'vertex' updateType ':' identifier
     ;
 
 edgeUpdate:
-    'edge' updateType ':' edgeIdentifier ','
+    'edge' updateType ':' edgeIdentifier
     ;
 
 labelValues:
-    identifier '=' value ( ',' identifier '=' value )
+    identifier '=' value ( ',' identifier '=' value )*
     ;
 
 vertexType:
@@ -60,7 +62,7 @@ value:
     ;
 
 litterals :
-    ( Alphanumerical | Number )+  {litterals = Al}
+    ( Alphanumerical | Number )+
     ;
 
 //  Flexer

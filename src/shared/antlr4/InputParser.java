@@ -50,7 +50,7 @@ public class InputParser extends CommandsBaseVisitor {
         final Long timestamp = visitTimestamp(ctx.timestamp());
         final ArrayList<Pair<String, String[]>> state = visitLabelValues(ctx.labelValues());
 
-        if (ctx.vertexUpdate().isEmpty()) { //EDGE
+        if (ctx.vertexUpdate() == null) { //EDGE
 
             Tuple3<String, String, List<String>> edgeOptions = visitEdgeUpdate(ctx.edgeUpdate());
 
@@ -123,6 +123,10 @@ public class InputParser extends CommandsBaseVisitor {
      */
     @Override public ArrayList<Pair<String, String[]>> visitLabelValues(CommandsParser.LabelValuesContext ctx) {
 
+        if (ctx == null) {
+            return new ArrayList<>();
+        }
+
         final List<CommandsParser.IdentifierContext> identifiers = ctx.identifier();
         final List<CommandsParser.ValueContext> values = ctx.value();
 
@@ -159,7 +163,9 @@ public class InputParser extends CommandsBaseVisitor {
     /**
      * @return timestamp for labels
      */
-    @Override public Long visitTimestamp(CommandsParser.TimestampContext ctx) { return Long.parseLong(ctx.getText()); }
+    @Override public Long visitTimestamp(CommandsParser.TimestampContext ctx) {
+        return Long.parseLong(ctx.getText());
+    }
 
     /**
      * @return value of the label
@@ -167,11 +173,11 @@ public class InputParser extends CommandsBaseVisitor {
     @Override public String[] visitValue(CommandsParser.ValueContext ctx) {
         final List<CommandsParser.LitteralsContext> litterals = ctx.litterals();
 
-        return (String[]) litterals
+        return litterals
                 .stream()
-                .map(singleValue -> singleValue.getText())
-                .collect(Collectors.toList())
-                .toArray();
+                .map(RuleContext::getText)
+                .toArray(String[]::new);
+
     }
 
     /**
