@@ -1,7 +1,6 @@
 package shared.variables.solver;
 
-import jdk.internal.jline.internal.Nullable;
-import org.apache.commons.lang3.ArrayUtils;
+import org.jetbrains.annotations.Nullable;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;

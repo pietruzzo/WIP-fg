@@ -10,7 +10,7 @@ import akka.japi.Pair;
 import akka.japi.Procedure;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
-import jdk.internal.jline.internal.Nullable;
+import org.jetbrains.annotations.Nullable;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple2;
 

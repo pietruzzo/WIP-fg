@@ -1,6 +1,6 @@
 package shared.patterns;
 
-import jdk.internal.jline.internal.Nullable;
+import org.jetbrains.annotations.Nullable;
 import master.PatternCallback;
 import shared.AkkaMessages.select.SelectMsg;
 import shared.selection.SelectionSolver;

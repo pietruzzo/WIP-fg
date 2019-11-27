@@ -1,7 +1,7 @@
 package shared.AkkaMessages.modifyGraph;
 
 import akka.japi.Pair;
-import jdk.internal.jline.internal.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 

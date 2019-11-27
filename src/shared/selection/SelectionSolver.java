@@ -1,7 +1,7 @@
 package shared.selection;
 
 import akka.japi.Pair;
-import jdk.internal.jline.internal.Nullable;
+import org.jetbrains.annotations.Nullable;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import shared.VertexM;

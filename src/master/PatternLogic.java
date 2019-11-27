@@ -1,6 +1,6 @@
 package master;
 
-import jdk.internal.jline.internal.Nullable;
+import org.jetbrains.annotations.Nullable;
 import shared.patterns.Pattern;
 import shared.patterns.Trigger;
 

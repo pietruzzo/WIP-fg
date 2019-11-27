@@ -1,7 +1,7 @@
 package master;
 
 import akka.actor.ActorRef;
-import jdk.internal.jline.internal.Nullable;
+import org.jetbrains.annotations.Nullable;
 import org.apache.flink.api.java.tuple.Tuple;
 import shared.AkkaMessages.AggregateMsg;
 import shared.data.MultiKeyMap;

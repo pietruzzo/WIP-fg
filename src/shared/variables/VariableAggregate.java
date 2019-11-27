@@ -1,7 +1,7 @@
 package shared.variables;
 
 
-import jdk.internal.jline.internal.Nullable;
+import org.jetbrains.annotations.Nullable;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple1;
 import shared.exceptions.WrongTypeRuntimeException;

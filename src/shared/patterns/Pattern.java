@@ -1,6 +1,6 @@
 package shared.patterns;
 
-import jdk.internal.jline.internal.Nullable;
+import org.jetbrains.annotations.Nullable;
 import master.PatternCallback;
 
 import java.io.Serializable;
