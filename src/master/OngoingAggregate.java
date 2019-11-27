@@ -131,7 +131,7 @@ public class OngoingAggregate {
                 .entrySet()
                 .parallelStream()
                 .forEach(entry ->
-                        result.putValue(entry.getKey(), new VariableAggregate(old.getName(), old.getPersistence(), old.getTimestamp(), (Tuple[])entry.getValue().toArray() , old.getTupleNames()))
+                        result.putValue(entry.getKey(), new VariableAggregate(old.getName(), old.getPersistence(), old.getTimestamp(), (Tuple[])entry.getValue().toArray(Tuple[]::new) , old.getTupleNames()))
                 );
 
         //Build new aggregate and return it

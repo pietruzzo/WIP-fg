@@ -88,7 +88,7 @@ public class PartitioningSolver implements Selection, Cloneable{ //Inside partit
             if (type.equals(Operation.Type.VARIABLE)) {
                 List<String[]> variableValues = variableSolver.getVertexVariable(name, null, vertex.getNodeId(), withinTimeUnits, wType);
                 List<String> newValues = variableValues.stream().flatMap(list -> Arrays.stream(list)).collect(Collectors.toList());
-                values = (String[])newValues.toArray();
+                values = newValues.toArray(String[]::new);
             }
             //Solve Labels
             else if (type.equals(Operation.Type.LABEL)) {
@@ -106,7 +106,7 @@ public class PartitioningSolver implements Selection, Cloneable{ //Inside partit
             if (type.equals(Operation.Type.VARIABLE)) {
                 List<String[]> variableValues = variableSolver.getEdgeVariable(name, null, vertex.getNodeId(), edgeName, withinTimeUnits, wType);
                 List<String> newValues = variableValues.stream().flatMap(list -> Arrays.stream(list)).collect(Collectors.toList());
-                values = (String[])newValues.toArray();
+                values = newValues.toArray(String[]::new);
             }
             //Solve Labels
             if (type.equals(Operation.Type.LABEL)) {
@@ -122,7 +122,7 @@ public class PartitioningSolver implements Selection, Cloneable{ //Inside partit
             if (type.equals(Operation.Type.VARIABLE)) {
                     List<String[]> variableValues = variableSolver.getAggregate(name, null, withinTimeUnits, wType);
                     List<String> newValues = variableValues.stream().flatMap(list -> Arrays.stream(list)).collect(Collectors.toList());
-                    values = (String[])newValues.toArray();
+                    values = newValues.toArray(String[]::new);
             } else {
                 throw new RuntimeException("Operation type must be VARIABLE");
             }
@@ -132,7 +132,7 @@ public class PartitioningSolver implements Selection, Cloneable{ //Inside partit
 
         public String[] deduplicateValues (String[] values) {
             LinkedHashSet<String> hashSet = new LinkedHashSet<>(Arrays.asList(values));
-            return (String[]) hashSet.toArray();
+            return hashSet.toArray(String[]::new);
         }
 
         @Override

@@ -395,7 +395,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 		newPartitioningLabels.addAll(Arrays.asList(this.partitionComputations.getKeys()));
 		newPartitioningLabels.addAll(msg.getPartitioningSolver().getNames());
 
-		MultiKeyMap<ComputationRuntime> newRuntimes = new MultiKeyMap<>((String[])newPartitioningLabels.toArray());
+		MultiKeyMap<ComputationRuntime> newRuntimes = new MultiKeyMap<>(newPartitioningLabels.toArray(String[]::new));
 
 		for (ComputationRuntime computationRuntime: this.partitionComputations.getAllElements().values()) { //For each previus computation runtime
 

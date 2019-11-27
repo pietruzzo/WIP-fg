@@ -41,7 +41,7 @@ public class VertexM implements Serializable, Vertex {
     }
 
     public synchronized String[] getEdges(){
-        return (String[]) this.edges.keySet().toArray();
+        return this.edges.keySet().toArray(String[]::new);
     }
 
     public synchronized void addEdge(String edgeName){

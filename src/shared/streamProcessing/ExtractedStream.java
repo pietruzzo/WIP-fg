@@ -302,7 +302,7 @@ public class ExtractedStream implements ExtractedIf{
                 fieldNames.add(this.tupleFields.get(i));
             }
 
-            return new VariableVertex(varName, persistence, variableSolver.getCurrentTimestamp(), map, (String[])fieldNames.toArray());
+            return new VariableVertex(varName, persistence, variableSolver.getCurrentTimestamp(), map, fieldNames.toArray(String[]::new));
 
         } else if (streamType == StreamType.EDGE) {
 
@@ -341,10 +341,10 @@ public class ExtractedStream implements ExtractedIf{
                 fieldNames.add(this.tupleFields.get(i));
             }
 
-            return new VariableEdge(varName, persistence, variableSolver.getCurrentTimestamp(), vertexMap, (String[])fieldNames.toArray());
+            return new VariableEdge(varName, persistence, variableSolver.getCurrentTimestamp(), vertexMap, fieldNames.toArray(String[]::new));
 
         } else { //Aggregate
-            Tuple[] tuples = (Tuple[])this.stream.collect(Collectors.toList()).toArray();
+            Tuple[] tuples = this.stream.collect(Collectors.toList()).toArray(Tuple[]::new);
             return new VariableAggregate(varName, persistence, variableSolver.getCurrentTimestamp(), tuples, tupleFields);
         }
 

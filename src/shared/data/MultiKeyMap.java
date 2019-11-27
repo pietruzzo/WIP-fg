@@ -57,7 +57,7 @@ public class MultiKeyMap<T> implements Serializable {
 
     private boolean validateKey(HashMap<String, String> compositeKey){
         if (this.keys.length != compositeKey.size()) return false;
-        String[] givenKeys = (String[])(compositeKey.keySet().toArray());
+        String[] givenKeys = compositeKey.keySet().toArray(String[]::new);
         Arrays.sort(givenKeys);
         for (int i = 0; i < givenKeys.length; i++) {
             if( !(givenKeys[i].equals(this.keys[i])) ) return false;

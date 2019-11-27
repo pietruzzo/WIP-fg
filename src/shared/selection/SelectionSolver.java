@@ -91,7 +91,7 @@ public class SelectionSolver implements Cloneable, Selection{
                     varToBeSubstituted.add(new Tuple4<>(variable.f0, variable.f1, variable.f2, new String[][]{variableValues}));
                 } else if (variable.f1 != null && variable.f2 != null) {
                     List<String[]> variableValues = variableSolver.getAggregate(variable.f0, partition, variable.f1, variable.f2);
-                    varToBeSubstituted.add(new Tuple4<>(variable.f0, variable.f1, variable.f2, (String[][]) variableValues.toArray()));
+                    varToBeSubstituted.add(new Tuple4<>(variable.f0, variable.f1, variable.f2, variableValues.toArray(String[][]::new)));
                 } else
                     throw new NullPointerException("for variable " + variable.f0 + " windowTime (" + variable.f1 + "), windowType (" + variable.f1 + ") must be both null or ot null)");
             } catch (WrongTypeRuntimeException e) {}
@@ -119,7 +119,7 @@ public class SelectionSolver implements Cloneable, Selection{
                 varToBeSubstituted.add(new Tuple4<>(variable.f0, variable.f1, variable.f2, new String[][]{variableValues}));
             } else if (variable.f1 != null && variable.f2 != null) {
                 List<String[]> variableValues = variableSolver.getVertexVariable(variable.f0, partition, vertex.getNodeId(), variable.f1, variable.f2);
-                varToBeSubstituted.add(new Tuple4<>(variable.f0, variable.f1, variable.f2, (String[][])variableValues.toArray()));
+                varToBeSubstituted.add(new Tuple4<>(variable.f0, variable.f1, variable.f2, variableValues.toArray(String[][]::new)));
             } else throw new NullPointerException("for vertex " + vertex.getNodeId() + ", for variable " + variable.f0 + " windowTime (" + variable.f1 + "), windowType (" + variable.f1 + ") must be both null or ot null)");
         }
         this.substituteVariables(varToBeSubstituted);
@@ -196,7 +196,7 @@ public class SelectionSolver implements Cloneable, Selection{
                 varToBeSubstituted.add(new Tuple4<>(variable.f0, variable.f1, variable.f2, new String[][]{variableValues}));
             } else if (variable.f1 != null && variable.f2 != null) {
                 List<String[]> variableValues = variableSolver.getEdgeVariable(variable.f0, partition, vertex.getNodeId(), edgeName, variable.f1, variable.f2);
-                varToBeSubstituted.add(new Tuple4<>(variable.f0, variable.f1, variable.f2, (String[][])variableValues.toArray()));
+                varToBeSubstituted.add(new Tuple4<>(variable.f0, variable.f1, variable.f2, variableValues.toArray(String[][]::new)));
             } else throw new NullPointerException("for vertex " + vertex.getNodeId() + ", for variable " + variable.f0 + " windowTime (" + variable.f1 + "), windowType (" + variable.f1 + ") must be both null or ot null)");
         }
         this.substituteVariables(varToBeSubstituted);

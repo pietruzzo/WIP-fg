@@ -21,7 +21,7 @@ public class CompositeKey {
     public int hashCode() {
         String toBeHashed = "";
         //Order and Hash
-        String[] keys = (String[])keysMapping.keySet().toArray();
+        String[] keys = keysMapping.keySet().toArray(String[]::new);
         Arrays.sort(keys);
 
         for (String key: keys) {
