@@ -19,11 +19,11 @@ updateCommand:
     ;
 
 vertexUpdate:
-    'vertex' updateType ':' identifier1 ','
+    'vertex' updateType ':' identifier ','
     ;
 
 edgeUpdate:
-    'edge' updateType ':' identifier2 ','
+    'edge' updateType ':' edgeIdentifier ','
     ;
 
 labelValues:
@@ -41,11 +41,8 @@ updateType:
     |'update'
     ;
 
-identifier1:
-    identifier
-    ;
 
-identifier2:
+edgeIdentifier:
     identifier ',' identifier
     ;
 
@@ -58,11 +55,12 @@ timestamp:
     ;
 
 value:
-    identifier
+    litterals
+    | '[' (litterals ',')* litterals ']'
     ;
 
 litterals :
-    ( Alphanumerical | Numbers )+  {litterals = Al}
+    ( Alphanumerical | Number )+  {litterals = Al}
     ;
 
 //  Flexer
