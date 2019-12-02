@@ -1,11 +1,13 @@
 package shared.streamProcessing;
 
 
+import com.google.common.collect.Lists;
 import org.jetbrains.annotations.Nullable;
 import org.apache.flink.api.java.tuple.Tuple;
 import shared.selection.SelectionSolver;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -40,11 +42,11 @@ public interface Operations {
         public final Long transaction_Id;
         public final ArrayList<String> fieldNames;
 
-        public Reduce(Tuple identity, CustomBinaryOperator accumulator, @Nullable Long transaction_id, List<String> fieldsNames) {
+        public Reduce(Tuple identity, CustomBinaryOperator accumulator, @Nullable Long transaction_id, String[] fieldsNames) {
             this.identity = identity;
             this.accumulator = accumulator;
             this.transaction_Id = transaction_id;
-            this.fieldNames = new ArrayList<>(fieldsNames);
+            this.fieldNames = new ArrayList<>(Arrays.asList(fieldsNames));
         }
     }
 

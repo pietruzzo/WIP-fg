@@ -27,6 +27,6 @@ public class Partition extends Pattern{
     @Override
     public boolean processMessage(@Nullable Serializable message) {
         //After Acks return true
-        return false;
+        return true;
     }
 }

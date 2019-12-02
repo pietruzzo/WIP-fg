@@ -1,6 +1,8 @@
 package shared.patterns;
 
 
+import org.jetbrains.annotations.Nullable;
+
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -16,7 +18,7 @@ public class Trigger {
         EDGE_DELETION,
         EDGE_UPDATE,
         TRIGGER_TEMPORAL;
-        //TRIGGER_SENSISTIVITY; -> DependOnVariable in patter is used
+        //TRIGGER_SENSISTIVITY; -> Sensitivity variables
 
     }
 
@@ -27,12 +29,12 @@ public class Trigger {
     private long everyEach;
     private long lastTriggered;
 
-    public Trigger(TriggerEnum triggerType, List<String> sensitivityVariables) {
+    public Trigger(TriggerEnum triggerType, @Nullable List<String> sensitivityVariables) {
         this.triggerType = triggerType;
         this.sensitivityVariables = sensitivityVariables;
     }
 
-    public Trigger(long everyms, List<String> sensitivityVariables) {
+    public Trigger(long everyms, @Nullable List<String> sensitivityVariables) {
         this.triggerType = TriggerEnum.TRIGGER_TEMPORAL;
         this.sensitivityVariables = sensitivityVariables;
         this.everyEach = everyms;
@@ -118,8 +120,13 @@ public class Trigger {
 
     private boolean isTriggered_TRIGGER_TEMPORAL (long currentTimestamp) {
 
-        return (currentTimestamp - lastTriggered) <= everyEach ;
+        boolean trigger = (currentTimestamp - lastTriggered) <= everyEach ;
 
+        if (trigger) {
+            this.lastTriggered = currentTimestamp;
+        }
+
+        return trigger;
     }
 
 

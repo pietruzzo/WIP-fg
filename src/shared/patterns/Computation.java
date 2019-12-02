@@ -11,7 +11,7 @@ import java.util.List;
 public class Computation extends Pattern {
 
     private String computationId;
-    private List<String> outputLabels;
+    private List<String> outputLabels; //TODO set params and output before launching
     private List<String> parameters;
     private int stepNumber;
     private int completedSlaves;
@@ -60,6 +60,7 @@ public class Computation extends Pattern {
         //Terminate computation and notify completion
         if (completedSlaves == this.transportLayer.getNumSlaves()) {
             computeResult();
+            transportLayer.becomeAwaitAckFromAll();
             resultComputed = true;
         }
 
@@ -68,6 +69,7 @@ public class Computation extends Pattern {
     }
 
     private void computeResult () {
+
         transportLayer.sendToAllSlaves(new ComputeResultsMsg(null));
     }
 
