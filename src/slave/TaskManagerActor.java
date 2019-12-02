@@ -204,6 +204,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 	private final void onNewTimestampMsg(NewTimestampMsg msg) {
 		log.info(msg.toString());
 		variables.setCurrentTimestamp(msg.timestamp);
+		this.partitionComputations = null;
 		variables.removeOldVersions();
 		master.tell(new AckMsg(), self());
 	}
@@ -269,6 +270,11 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 		For each partition, for each node, keep only vertices and nodes not deleted
 		 */
 
+		if	(msg.getVariableName() == null) {
+			//Restore general partition
+			this.partitionComputations = null;
+			this.instantiatePartitionsIfAbsent();
+		}
 		MultiKeyMap<Map<String, Vertex>> newPartitions = this.variables.getGraphs(msg.getVariableName(), msg.getTimeAgo());
 
 		newPartitions.getAllElements().entrySet().stream().forEach(entryP ->{
@@ -391,6 +397,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 
 	private final void onNewPartitionMsg(NewPartitionMsg msg) throws ExecutionException, InterruptedException {
 
+		this.instantiatePartitionsIfAbsent();
 		List<String> newPartitioningLabels = new ArrayList<>();
 		newPartitioningLabels.addAll(Arrays.asList(this.partitionComputations.getKeys()));
 		newPartitioningLabels.addAll(msg.getPartitioningSolver().getNames());
@@ -494,8 +501,9 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 
 	}
 
-	private final void onExtractMsg (ExtractMsg msg) {
-		new PartitionStreamsHandler(this.partitionComputations, msg.getOperationsList(), variables, this);
+	private final void onExtractMsg (ExtractMsg msg) throws Exception {
+		new PartitionStreamsHandler(this.partitionComputations, msg.getOperationsList(), variables, this)
+				.solveOperationChain();
 	}
 
 	private final void onSelectMsg (SelectMsg msg) {
@@ -504,6 +512,8 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 				if select on vertices: validate edges
 				return ack to master
 		 */
+		this.instantiatePartitionsIfAbsent();
+
 		this.partitionComputations.getAllElements().values().stream().forEach(computationRuntime -> {
 
 			Collection<VertexM> verticesM = computationRuntime.getVertices().values().parallelStream().map(vertex -> (VertexM)vertex).collect(Collectors.toList());
