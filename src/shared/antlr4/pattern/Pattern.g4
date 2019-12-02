@@ -1,106 +1,174 @@
 grammar Pattern;
 
-temporalPattern :
-    ( basicPattern ( (collectStreams|temporalVariable) (operation)+ (emission | evaluation) ';')* )+ EOF
+patternEntry
+    :   (temporalPattern ';')* EOF
     ;
 
-collectStreams : '.collect(' temporalVariable (',' temporalVariable)* ')'; //EVERY is meaningless
+temporalPattern
+    :   triggerComputation? graphProcessing emission? //Can emit Graph Variable only
+    |   triggerComputation? graphProcessing streamProcessing
+    |   triggerComputation? streamProcessing
+    ;
 
-basicPattern :  '.g()' triggerComputation?  (computation | selection)* (extraction (operation)*)? emission ';';
+graphProcessing
+    :    '.g()' (computation | selection | partition)*
+    |    temporalVariable (computation | selection | partition)*
+    ;
 
-computation : '.compute(' computationFunction ')' ;
+collectStreams
+    :   '.collect(' temporalVariable (',' temporalVariable)* ')'
+    ;
 
-selection : '.select(' selectionFunction ')' ;
+streamProcessing
+    :   (collectStreams | extraction) (operation)* (emission | evaluation)
+    ;
+
+computation
+    :   '.compute(' computationFunction ')'
+    ;
+
+selection
+    :   '.select(' selectionFunction ')'
+    ;
 
 partition
-    : '.GroupV(' partitionFunction ')'
-    | '.GroupE(' partitionFunction ')'
+    :   '.GroupV(' partitionFunction ')'
+    |   '.GroupE(' partitionFunction ')'
     ;
 
 extraction
-    : '.extractV(' ( 'EDGE'? (label ',')* label)? ')'
-    | '.extractE(' ( 'EDGE'? (label ',')* label)? ')'
+    :   '.extractV(' label (',' label)* ')'
+    |   '.extractE(' label (',' label)* ')'
     ;
 
-evaluation : '.evaluate(' Operator ',' value ',' fireEvent ')' ';' ;
+evaluation
+    :   '.evaluate(' Operator ',' value ',' fireEvent ')'
+    ;
 
-operation : '.' operationFunction ;
+operation
+    :   '.' operationFunction ;
 
-computationFunction : functionName ',' label (', [' variable+ ']' )?;
+computationFunction
+    :   functionName ',' label (',' label)* (', [' (value ',')* value ']' )?
+    ;
 
-/*selectionFunction :
-    boolPredicate
-	| ( selectionFunction BinBoolOperator selectionFunction )
-    | ( UnaryBoolOperator selectionFunction )
-	| ( '(' selectionFunction  ')' )
-	| ( selectionFunction? 'EDGE [' selectionFunction ']')
-	;*/
 
 selectionFunction
-    : boolPredicate selRecursion
-    | UnaryBoolOperator selectionFunction selRecursion
-    | '(' selectionFunction  ')' selRecursion
-    ;
-selRecursion
-    : BinBoolOperator selectionFunction selRecursion
-    | 'EDGE[' selectionFunction ']' selRecursion
+    :   logicalExpression edgeSelection
     |
     ;
 
-boolPredicate : (label | temporalVariable) Operator ( value | temporalVariable | label) ;
+edgeSelection
+    :   'EDGE[' (logicalExpression | ) ']'
+    |
+    ;
+
+logicalExpression
+    :    booleanAndExpression ( OR booleanAndExpression )*
+    ;
+
+
+booleanAndExpression
+    :    unaryExpression ( AND unaryExpression )*
+    ;
+
+unaryExpression
+    :    NOT? primaryExpression
+    ;
+
+primaryExpression
+    :    '(' logicalExpression ')'
+    |    boolPredicate
+    ;
+
+boolPredicate
+    :   leftOp=operands Operator rightOp=operands
+    ;
+
+operands
+    : (label | temporalVariable | value)
+    ;
 
 partitionFunction
-    : variable? ((variable|label) '=' freeVariable (',' (variable|label) '=' freeVariable)*)?
-    ;
-freeVariable
-    : 'FREE'
+    :   ((temporalVariable|label) (',' (temporalVariable|label))*)?
     ;
 
 operationFunction
-    : ( 'map' | 'flatmap' | 'reduce' | 'filter' ) '(' functionName')'
-    | ('groupby' | 'collect') '(' label+ ')'
-    | 'avg' | 'max' | 'min' | 'count'
+    :   ( 'map' | 'flatmap' | 'reduce' | 'filter' ) '(' functionName (tupleField (',' tupleField)*)? ')'
+    |   ('groupby' | 'Merge') '(' tupleField (',' tupleField)* ')'
+    |   'collect'
+    |   oneFieldOperationAlias ('(' tupleField ')')?
     ;
 
-triggerComputation :
-    triggerInput
-    | triggerTemporal
-    | triggerSensitivity
+oneFieldOperationAlias
+    :   'avg' | 'max' | 'min' | 'count' | 'select'
     ;
 
-triggerInput : '.trigger(' ('edge' | 'vertex') ( 'addition' | 'deletion' | 'update' ) 'as' variable ('[' boolPredicate* ']')? ')' ;
+triggerComputation
+    :   triggerInput
+    |   triggerTemporal
+    |   triggerSensitivity
+    ;
 
-triggerTemporal : '.trigger(' Timeunit ')' ;
+triggerInput
+    :   '.trigger(' ('edge' | 'vertex') ( 'addition' | 'deletion' | 'update' ) 'as' variable ('[' boolPredicate* ']')? ')'
+    ;
 
-triggerSensitivity : '.trigger(' variable ')' ;
+triggerTemporal
+    :   '.trigger(' Timeunit ')'
+    ;
 
-emission : '.emit(' variable ')' ;
+triggerSensitivity
+    :   '.trigger(' variable (',' variable)* ')'
+    ;
+
+emission
+    :   '.emit(' variable ')'
+    ;
 
 temporalVariable
-    : variable
-    | variable Timeunit 'ago'
-    | variable 'every'? 'within' Timeunit ;
+    :   variable
+    |   variable Timeunit 'ago'
+    |   variable 'every'? 'within' Timeunit
+    ;
 
-functionName : Litterals ;
+functionName
+    :   Litterals
+    ;
 
-label : Litterals ;
+label
+    :   Litterals
+    ;
 
-value : '\''Litterals '\'' ;
+value
+    :   '\''Litterals '\''
+    ;
 
-variable : '$' Litterals ;
+variable
+    :   '$' Litterals
+    ;
 
-fireEvent : '\"' Litterals '\"' ;
+fireEvent
+    :   '"' Litterals '"'
+    ;
+
+tupleField
+    :   Litterals ('.' Litterals)*
+    ;
+
+//lexer
+
+Operator : ('<'| '>'| '=' | '<=' | '>=') ;
+
+//BinBoolOperator : 'and' | 'or' ;
+NOT : 'not' ;
+AND : 'and' ;
+OR : 'or' ;
 
 
-//Flexer
+//UnaryBoolOperator: 'not' ;
 
-Operator : ('<'| '>'| '=') ;
-
-BinBoolOperator : 'and' | 'or' ;
-
-UnaryBoolOperator: 'not' ;
-
-Timeunit : [0-9]+ ('s' | 'm' | 'h') ;
+Timeunit : ([0-9]+ ('s' | 'm' | 'h'))+ ;
 
 Litterals : ( [a-z] | [A-Z] | [0-9] )+ ;
 
