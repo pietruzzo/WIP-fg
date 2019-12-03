@@ -36,9 +36,24 @@ public class StreamParser extends PatternBaseListener {
         this.transactionId = new AtomicInteger(new Random().nextInt());
     }
 
-    public static Stream getStream (shared.antlr4.pattern.PatternParser.StreamProcessingContext ctx, Trigger trigger, PatternCallback callback) {
+    public static Stream getStream (shared.antlr4.pattern.PatternParser.ExtractStreamProcessingContext ctx, Trigger trigger, PatternCallback callback) {
         StreamParser streamParser = new StreamParser();
-        streamParser.enterStreamProcessing(ctx);
+        streamParser.enterExtractStreamProcessing(ctx);
+
+        Stream stream = new Stream(
+                trigger,
+                streamParser.genVar,
+                callback,
+                streamParser.operations,
+                streamParser.fireNotification
+        );
+
+        return stream;
+    }
+
+    public static Stream getStream (shared.antlr4.pattern.PatternParser.CollectStreamProcessingContext ctx, Trigger trigger, PatternCallback callback) {
+        StreamParser streamParser = new StreamParser();
+        streamParser.enterCollectStreamProcessing(ctx);
 
         Stream stream = new Stream(
                 trigger,

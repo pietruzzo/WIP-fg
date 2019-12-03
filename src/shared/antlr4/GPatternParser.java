@@ -165,7 +165,12 @@ public class GPatternParser extends PatternBaseListener {
     }
 
     @Override
-    public void enterStreamProcessing(shared.antlr4.pattern.PatternParser.StreamProcessingContext ctx) {
+    public void enterExtractStreamProcessing(shared.antlr4.pattern.PatternParser.ExtractStreamProcessingContext ctx) {
+        this.patternElements.add(StreamParser.getStream(ctx, this.trigger, this.callback));
+    }
+
+    @Override
+    public void enterCollectStreamProcessing(shared.antlr4.pattern.PatternParser.CollectStreamProcessingContext ctx) {
         this.patternElements.add(StreamParser.getStream(ctx, this.trigger, this.callback));
     }
 

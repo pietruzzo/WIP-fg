@@ -6,8 +6,8 @@ patternEntry
 
 temporalPattern
     :   triggerComputation? graphProcessing emission? //Can emit Graph Variable only
-    |   triggerComputation? graphProcessing streamProcessing
-    |   triggerComputation? streamProcessing
+    |   triggerComputation? graphProcessing extractStreamProcessing
+    |   triggerComputation? collectStreamProcessing
     ;
 
 graphProcessing
@@ -19,7 +19,11 @@ collectStreams
     :   '.collect(' temporalVariable (',' temporalVariable)* ')'
     ;
 
-streamProcessing
+extractStreamProcessing
+    :   extraction (operation)* (emission | evaluation)
+    ;
+
+collectStreamProcessing
     :   (collectStreams | extraction) (operation)* (emission | evaluation)
     ;
 

@@ -64,13 +64,25 @@ public class PatternBaseListener implements PatternListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterStreamProcessing(PatternParser.StreamProcessingContext ctx) { }
+	@Override public void enterExtractStreamProcessing(PatternParser.ExtractStreamProcessingContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitStreamProcessing(PatternParser.StreamProcessingContext ctx) { }
+	@Override public void exitExtractStreamProcessing(PatternParser.ExtractStreamProcessingContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterCollectStreamProcessing(PatternParser.CollectStreamProcessingContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitCollectStreamProcessing(PatternParser.CollectStreamProcessingContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *

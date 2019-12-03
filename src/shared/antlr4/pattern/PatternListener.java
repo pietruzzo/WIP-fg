@@ -48,15 +48,25 @@ public interface PatternListener extends ParseTreeListener {
 	 */
 	void exitCollectStreams(PatternParser.CollectStreamsContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link PatternParser#streamProcessing}.
+	 * Enter a parse tree produced by {@link PatternParser#extractStreamProcessing}.
 	 * @param ctx the parse tree
 	 */
-	void enterStreamProcessing(PatternParser.StreamProcessingContext ctx);
+	void enterExtractStreamProcessing(PatternParser.ExtractStreamProcessingContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link PatternParser#streamProcessing}.
+	 * Exit a parse tree produced by {@link PatternParser#extractStreamProcessing}.
 	 * @param ctx the parse tree
 	 */
-	void exitStreamProcessing(PatternParser.StreamProcessingContext ctx);
+	void exitExtractStreamProcessing(PatternParser.ExtractStreamProcessingContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link PatternParser#collectStreamProcessing}.
+	 * @param ctx the parse tree
+	 */
+	void enterCollectStreamProcessing(PatternParser.CollectStreamProcessingContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link PatternParser#collectStreamProcessing}.
+	 * @param ctx the parse tree
+	 */
+	void exitCollectStreamProcessing(PatternParser.CollectStreamProcessingContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link PatternParser#computation}.
 	 * @param ctx the parse tree
