@@ -13,15 +13,14 @@ import java.util.concurrent.ConcurrentHashMap;
  * Implementation of triangle counting
  *
  * Parameters:
- *      0: "cyclic" for cyclic triangles, acyclic otherwise
+ *      cyclic (optional): if "y" -> find cyclic triangles
  *
  * Return value label:
  *      0: for resultLabel
  */
-public class TriangleCounting implements Computation {
+public class TriangleCounting extends Computation {
 
     private boolean cyclic;
-    private String returnLabel;
 
     private ConcurrentHashMap<String, ArrayList<ArrayList<String>>> results;
 
@@ -146,27 +145,22 @@ public class TriangleCounting implements Computation {
             triangles.add(triangleString);
         });
 
-        Pair<String, String[]> pair = new Pair<>(this.returnLabel, returnResults.toArray(String[]::new));
+        Pair<String, String[]> pair = new Pair<>(this.returnVarNames.get(0), triangles.toArray(String[]::new));
         returnResults.add(pair);
         return returnResults;
     }
 
-    /**
-     * @param parameters none
-     * @param resultLabelsNames 1 paramenter that define name or returned value
-     */
-    @Override
-    public void preInitialize(String[] parameters, String[] resultLabelsNames) {
-
-        if (parameters[0].equals("cyclic"))
-            cyclic = true;
-
-        returnLabel = resultLabelsNames[0];
-
-    }
 
     @Override
     public void preStart() {
+
+        String paramValue = computationParameters.getParameter("acyclic");
+        if ( paramValue != null && paramValue.equals("y")) {
+            this.cyclic = true;
+        } else {
+            this.cyclic = false;
+        }
+
         this.results = new ConcurrentHashMap<>();
     }
 

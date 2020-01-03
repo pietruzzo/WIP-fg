@@ -1,16 +1,20 @@
 package shared.AkkaMessages;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 
 public class ComputeResultsMsg implements Serializable {
 
     private static final long serialVersionUID = 200020L;
 
     private final LinkedHashMap<String, String> freeVars;
+    private final List<String> returnVarNames;
 
-    public ComputeResultsMsg(LinkedHashMap<String, String> freeVars) {
+    public ComputeResultsMsg(LinkedHashMap<String, String> freeVars, List<String> returnVarNames) {
         this.freeVars = freeVars;
+        this.returnVarNames = returnVarNames;
     }
 
 
@@ -21,4 +25,7 @@ public class ComputeResultsMsg implements Serializable {
         return freeVars;
     }
 
+    public List<String> getReturnVarNames() {
+        return returnVarNames;
+    }
 }

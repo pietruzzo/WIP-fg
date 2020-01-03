@@ -50,12 +50,26 @@ evaluation
     ;
 
 operation
-    :   '.' operationFunction ;
-
-computationFunction
-    :   functionName ',' label (',' label)* (', [' (value ',')* value ']' )?
+    :   '.' operationFunction
     ;
 
+computationFunction
+    :   functionName ',' computationReturnVariables ( computationParameters )?
+    ;
+
+computationReturnVariables
+    :   variable (',' variable)*
+    ;
+
+computationParameters
+    :   ', [' ( aliasedParameter ',')* aliasedParameter ']'
+    ;
+
+aliasedParameter
+    :   Litterals '=' operands
+    ;
+
+//.......................................................
 
 selectionFunction
     :   logicalExpression edgeSelection
@@ -70,7 +84,6 @@ edgeSelection
 logicalExpression
     :    booleanAndExpression ( OR booleanAndExpression )*
     ;
-
 
 booleanAndExpression
     :    unaryExpression ( AND unaryExpression )*
@@ -92,6 +105,8 @@ boolPredicate
 operands
     : (label | temporalVariable | value)
     ;
+
+//..............................................
 
 partitionFunction
     :   ((temporalVariable|label) (',' (temporalVariable|label))*)?

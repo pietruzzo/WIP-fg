@@ -13,15 +13,14 @@ import java.util.concurrent.ConcurrentHashMap;
  * Implementation of PageRank working on DirectedGraphs
  *
  * Parameters:
- *          0: maxNumberofIterations,
- *          1: convergence threshold (null if you don't want to use it)
+ *          0: maxIterations
+ *          1: threshold : convergence threshold (null if you don't want to use it)
  *
  * Return Values :
  *          0: Rank label name
  */
-public class PageRank implements Computation {
+public class PageRank extends Computation {
 
-    private String returnLabelName;
     private int maxNumOfIterations;
     private Double threshold;
 
@@ -77,32 +76,25 @@ public class PageRank implements Computation {
         List<Pair<String, String[]>> returnLabels = new ArrayList<>();
 
         returnLabels.add(new Pair<>(
-                this.returnLabelName,
+                this.returnVarNames.get(0),
                 new String[]{String.valueOf(this.weights.get(vertex.getNodeId()))}
                 ));
 
         return returnLabels;
     }
 
-    /**
-     *
-     * @param parameters 0: maxNumberofIterations, 1: convergence threshold (null if you don't want to use it)
-     * @param resultLabelsNames 0: Rank label name
-     */
     @Override
-    public void preInitialize(String[] parameters, String[] resultLabelsNames) {
-        this.maxNumOfIterations = Integer.valueOf(parameters[0]);
-        String threshold = parameters[1];
+    public void preStart() {
+
+        this.maxNumOfIterations = Integer.valueOf(computationParameters.getParameter("maxIterations"));
+        String threshold = computationParameters.getParameter("threshold");
         if (threshold.equals("null")){
             this.threshold = null;
         } else {
             this.threshold = Double.parseDouble(threshold);
         }
-        this.returnLabelName = resultLabelsNames[0];
-    }
 
-    @Override
-    public void preStart() {
         this.weights = new ConcurrentHashMap<>();
+
     }
 }

@@ -9,7 +9,28 @@ import java.util.List;
 /**
  * Datastructures shared between nodes must be threadsafe
  */
-public interface Computation extends Serializable {
+public abstract class Computation implements Serializable {
+
+    protected ComputationParameters computationParameters;
+    protected List<String> returnVarNames;
+
+
+    public ComputationParameters getComputationParameters() {
+        return computationParameters;
+    }
+
+    public void setComputationParameters(ComputationParameters computationParameters) {
+        this.computationParameters = computationParameters;
+    }
+
+    public List<String> getReturnVarNames() {
+        return returnVarNames;
+    }
+
+    public void setReturnVarNames(List<String> returnVarNames) {
+        this.returnVarNames = returnVarNames;
+    }
+
 
     /**
      * @param vertex copy of the vertex
@@ -17,32 +38,26 @@ public interface Computation extends Serializable {
      * @param iterationStep first iteration is number zero
      * @return outgoing messages
      */
-    List<StepMsg> iterate (Vertex vertex, List<StepMsg> incoming, int iterationStep);
+    public abstract List<StepMsg> iterate (Vertex vertex, List<StepMsg> incoming, int iterationStep);
 
     /**
      * @param vertex copy of the vertex
      * @return outgoing messages
      */
-    List<StepMsg> firstIterate (Vertex vertex);
+    public abstract List<StepMsg> firstIterate (Vertex vertex);
 
     /**
      *
      * @param vertex copy of the vertex
-     * @return THe list of <Key, Values[]> pairs that will be saved in vertex state
+     * @return List of Pairs of (VariableName, values)
      */
-    List<Pair<String, String[]>> computeResults(Vertex vertex);
+    public abstract List<Pair<String, String[]>> computeResults(Vertex vertex);
 
-    /**
-     * Set computation parameters and resultLabelNames
-     * @param parameters
-     * @param resultLabelsNames
-     */
-    void preInitialize(String[] parameters, String[] resultLabelsNames);
 
     /**
      * Run this method one time just before first iteration
      */
-    void preStart();
+    public abstract void preStart();
 
 
 }

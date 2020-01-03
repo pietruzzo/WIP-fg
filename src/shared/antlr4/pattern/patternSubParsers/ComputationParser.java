@@ -1,9 +1,13 @@
 package shared.antlr4.pattern.patternSubParsers;
 
 import master.PatternCallback;
+import org.apache.flink.api.java.tuple.Tuple3;
 import shared.antlr4.pattern.PatternBaseListener;
+import shared.antlr4.pattern.PatternParser;
+import shared.computation.ComputationParameters;
 import shared.patterns.Computation;
 import shared.patterns.Trigger;
+import shared.selection.SelectionSolver;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,6 +19,8 @@ public class ComputationParser extends PatternBaseListener {
     private PatternCallback callback;
     private Computation computation;
     private String functionName;
+    private ComputationParameters computationParameters;
+    private List<String> returnVariablesNames;
 
     private ComputationParser(Trigger trigger, PatternCallback callback) {
         this.trigger = trigger;
@@ -37,20 +43,54 @@ public class ComputationParser extends PatternBaseListener {
      */
     @Override public void exitComputationFunction(shared.antlr4.pattern.PatternParser.ComputationFunctionContext ctx) {
 
-        // Name of target label
-        List<String> returnLabelNames = ctx.label()
-                .stream()
-                .map(ctxLab -> CommonsParser.getLabel(ctxLab))
-                .collect(Collectors.toList());
-
-        //List of Parameters
-        List<String> parameters = ctx.value()
-                .stream()
-                .map(ctxVal -> CommonsParser.getValue(ctxVal))
-                .collect(Collectors.toList());
-
         this.computation = new Computation(this.trigger, null, this.callback);
-        this.computation.setComputation(this.functionName, returnLabelNames, parameters);
+        this.computation.setComputation(this.functionName, this.returnVariablesNames, this.computationParameters);
+
+    }
+
+    /**
+     * Get return variableNames
+     * @param ctx
+     */
+    @Override public void enterComputationReturnVariables(PatternParser.ComputationReturnVariablesContext ctx){
+        // Name of target label
+        this.returnVariablesNames = ctx.variable()
+                .stream()
+                .map(ctxVar -> CommonsParser.getVarName(ctxVar))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get initialize parameters
+     * @param ctx
+     */
+    @Override public void enterComputationParameters(PatternParser.ComputationParametersContext ctx){
+        this.computationParameters = new ComputationParameters();
+    }
+
+    @Override public void enterAliasedParameter(PatternParser.AliasedParameterContext ctx){
+
+        if (ctx.operands().value() != null){
+            String value = CommonsParser.getValue(ctx.operands().value());
+            this.computationParameters.put(
+                    ctx.Litterals().getText(),
+                    new ComputationParameters.Parameter(value)
+            );
+        }
+        else if (ctx.operands().label() != null){
+            String label = CommonsParser.getLabel(ctx.operands().label());
+            this.computationParameters.put(
+                    ctx.Litterals().getText(),
+                    new ComputationParameters.Parameter(label, false, true, null, null)
+            );
+        }
+        else if (ctx.operands().temporalVariable() != null){
+            Tuple3<String, String, SelectionSolver.Operation.WindowType> temporalVar = CommonsParser.getTemporalVar(ctx.operands().temporalVariable());
+            this.computationParameters.put(
+                    ctx.Litterals().getText(),
+                    new ComputationParameters.Parameter(temporalVar.f0, false, false, temporalVar.f1, temporalVar.f2)
+            );
+        }
     }
 
     @Override public void enterFunctionName(shared.antlr4.pattern.PatternParser.FunctionNameContext ctx) {

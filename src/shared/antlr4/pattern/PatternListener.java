@@ -138,6 +138,36 @@ public interface PatternListener extends ParseTreeListener {
 	 */
 	void exitComputationFunction(PatternParser.ComputationFunctionContext ctx);
 	/**
+	 * Enter a parse tree produced by {@link PatternParser#computationReturnVariables}.
+	 * @param ctx the parse tree
+	 */
+	void enterComputationReturnVariables(PatternParser.ComputationReturnVariablesContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link PatternParser#computationReturnVariables}.
+	 * @param ctx the parse tree
+	 */
+	void exitComputationReturnVariables(PatternParser.ComputationReturnVariablesContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link PatternParser#computationParameters}.
+	 * @param ctx the parse tree
+	 */
+	void enterComputationParameters(PatternParser.ComputationParametersContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link PatternParser#computationParameters}.
+	 * @param ctx the parse tree
+	 */
+	void exitComputationParameters(PatternParser.ComputationParametersContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link PatternParser#aliasedParameter}.
+	 * @param ctx the parse tree
+	 */
+	void enterAliasedParameter(PatternParser.AliasedParameterContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link PatternParser#aliasedParameter}.
+	 * @param ctx the parse tree
+	 */
+	void exitAliasedParameter(PatternParser.AliasedParameterContext ctx);
+	/**
 	 * Enter a parse tree produced by {@link PatternParser#selectionFunction}.
 	 * @param ctx the parse tree
 	 */

@@ -33,6 +33,7 @@ import shared.streamProcessing.StreamProcessingCallback;
 import shared.variables.VariableGraph;
 import shared.variables.solver.VariableSolver;
 
+import javax.naming.OperationNotSupportedException;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -301,6 +302,12 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 		log.info(msg.toString());
 		boolean isCompleted = false; //If true computation has terminated for all runtimes
 
+		//Set VariableSolver in ComputationParameters and set the Parameters list if first step
+		if (msg.getStepNumber() == 0) {
+			msg.getComputationParameters().setVariableSolver(this.variables);
+			this.computations.get(msg.getComputationId()).setComputationParameters(msg.getComputationParameters());
+		}
+
 		//If no partitions are available, no select or free variables have been allocated
 		this.instantiatePartitionsIfAbsent();
 
@@ -315,6 +322,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 			int numCompleted = 0;
 			for (ComputationRuntime computationRuntime: partitionComputations.getAllElements().values()) {
 				try {
+					//If first step, solve aggregates
 					computationRuntime.compute(msg.getStepNumber(), this.executors);
 				} catch (ComputationFinishedException e) {
 					numCompleted = numCompleted + 1;
@@ -349,15 +357,20 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 	private final void onComputeResultMsg(ComputeResultsMsg msg) throws ExecutionException, InterruptedException {
 
 		if (msg.getFreeVars() == null) {
-			//Get all Runtimes and send messages
+			//Get all Runtimes, set return value variable name and send messages
 			for (ComputationRuntime computationRuntime: partitionComputations.getAllElements().values()) {
+				Computation currentComputation = computationRuntime.getComputation();
+				currentComputation.setReturnVarNames(msg.getReturnVarNames());
+				computationRuntime.setComputation(currentComputation);
 				computationRuntime.computeResults(this.executors);
 			}
 		} else {
 			//get and run the specific runtime and send messages
 			ComputationRuntime computationRuntime = partitionComputations.getValue(msg.getFreeVars());
+			Computation currentComputation = computationRuntime.getComputation();
+			currentComputation.setReturnVarNames(msg.getReturnVarNames());
+			computationRuntime.setComputation(currentComputation);
 			computationRuntime.computeResults(this.executors);
-			sendOutBox(computationRuntime.getOutgoingMessages());
 		}
 
 		master.tell(new AckMsg(), self());
@@ -687,7 +700,18 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 	}
 
 	@Override
-	public void updateState(String vertexName, String key, String[] values) {
-		vertices.get(vertexName).setLabelVartex(key, values);
+	public void registerComputationResult(String vertexName, String variableName, String[] values, @Nullable Map<String, String> partition) { //Update
+		// Add to variable and create variable if not present
+		try {
+			this.variables.addToVariable(variableName, VariableSolver.VariableType.VERTEX, partition, new Tuple2<>(vertexName, Arrays.asList(values)));
+		} catch (OperationNotSupportedException e) {
+			e.printStackTrace();
+			System.err.println("Unable to add to variable");
+		}
+	}
+
+	@Override
+	public VariableSolver getVariableSolver() {
+		return this.variables;
 	}
 }

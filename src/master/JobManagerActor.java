@@ -9,10 +9,16 @@ import akka.japi.Pair;
 import shared.AkkaMessages.*;
 import shared.AkkaMessages.modifyGraph.*;
 import shared.Utils;
+import shared.antlr4.GPatternParser;
 import shared.computation.Computation;
+import shared.patterns.Pattern;
 import shared.patterns.Trigger;
 
+import java.io.IOException;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -22,6 +28,7 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 
 	public static final Boolean DIRECTED_EDGES = true;
 	public static final Pair<String, String[]> DESTINATION_EDGE = new Pair<>("_DEST", new String[]{"true"});
+	public static final String PATTERNPATH = "pattern.txt";
 
 	private final LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
 
@@ -216,6 +223,19 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 		}
 		//endregion
 
+
+		//Get Pattern and parse it
+		patternLogic = new PatternLogic(this);
+		try {
+			ArrayList<Pattern> parsed = GPatternParser.parse(Files.readString(Paths.get(PATTERNPATH), StandardCharsets.US_ASCII), this);
+			patternLogic.installPattern(parsed);
+		} catch (IOException e) {
+			e.printStackTrace();
+			System.err.println("Unable to read file PATTERNPATH");
+		}
+		patternLogic.startNewIteration(this.currentTimestamp, Trigger.TriggerEnum.ALL, validVariables);
+
+
 		//Send mapping to slaves and wait ack
 		waitingResponses.set(slaves.size());
 		for (ActorRef slave: slaves.keySet()) {
@@ -226,13 +246,10 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 	}
 
 	private final void onAckMsg(AckMsg msg){
+
 		if(waitingResponses.decrementAndGet() == 0)
 			this.patternLogic.runElement(null);
 
-
-		patternLogic = new PatternLogic(this);
-		//TODO add to patternLogic subpatterns
-		patternLogic.startNewIteration(this.currentTimestamp, Trigger.TriggerEnum.ALL, validVariables);
 	}
 
 	private final void onAckMsg(AckMsgComputationTerminated msg) {

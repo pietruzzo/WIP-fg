@@ -14,14 +14,13 @@ import java.util.concurrent.ConcurrentHashMap;
  * Maximum will be register only to reachable nodes, otherwise some nodes could stuck to local max
  *
  * Parameters:
- *          0: "spread" to spread maximum
+ *          0: "spread" to spread maximum (value "true" for true)
  *
  * Return Values :
  *          0: (Maximum) outgoing edges label name
  */
-public class IngoingEdges implements Computation {
+public class IngoingEdges extends Computation {
 
-    private String returnLabelName;
     private boolean spread;
 
     private ConcurrentHashMap<String, Integer> ingoingEdgeNum;
@@ -82,27 +81,17 @@ public class IngoingEdges implements Computation {
 
         List<Pair<String, String[]>> returnValues = new ArrayList<>();
 
-        returnValues.add(new Pair<>(this.returnLabelName, new String[]{
+        returnValues.add(new Pair<>(this.returnVarNames.get(0), new String[]{
                 String.valueOf(this.ingoingEdgeNum.get(vertex.getNodeId()))
         }));
 
         return returnValues;
     }
 
-    /**
-     *
-     * @param parameters 0: "spread" keyword to spread maximum on reachable subgraph
-     * @param resultLabelsNames
-     */
-    @Override
-    public void preInitialize(String[] parameters, String[] resultLabelsNames) {
-
-        this.spread = parameters.length >= 1 && parameters[0].equals("spread");
-
-    }
-
     @Override
     public void preStart() {
+
+        this.spread = computationParameters.getParameter("spread").equals("true");
         ingoingEdgeNum = new ConcurrentHashMap<>();
     }
 

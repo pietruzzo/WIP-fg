@@ -4,6 +4,7 @@ import master.PatternCallback;
 import shared.AkkaMessages.AckMsgComputationTerminated;
 import shared.AkkaMessages.ComputeResultsMsg;
 import shared.AkkaMessages.StartComputationStepMsg;
+import shared.computation.ComputationParameters;
 
 import java.io.Serializable;
 import java.util.List;
@@ -11,8 +12,8 @@ import java.util.List;
 public class Computation extends Pattern {
 
     private String computationId;
-    private List<String> outputLabels; //TODO set params and output before launching
-    private List<String> parameters;
+    private List<String> outputLabels;
+    private ComputationParameters parameters;
     private int stepNumber;
     private int completedSlaves;
     private boolean resultComputed;
@@ -21,7 +22,7 @@ public class Computation extends Pattern {
         super(trigger, variablesToBeGenerated, transportLayer);
     }
 
-    public void setComputation (String computationName, List<String> outputLabels, List<String> parameters) {
+    public void setComputation (String computationName, List<String> outputLabels, ComputationParameters parameters) {
         this.computationId = computationName;
         this.outputLabels = outputLabels;
         this.parameters = parameters;
@@ -37,7 +38,7 @@ public class Computation extends Pattern {
         resultComputed = false;
 
         //Prepare computation message
-        StartComputationStepMsg message = new StartComputationStepMsg(computationId, null, stepNumber, transportLayer.getCurrentTimestamp());
+        StartComputationStepMsg message = new StartComputationStepMsg(computationId, null, stepNumber, transportLayer.getCurrentTimestamp(), parameters);
 
         //send to all slaves
         transportLayer.sendToAllSlaves(message);
@@ -70,7 +71,7 @@ public class Computation extends Pattern {
 
     private void computeResult () {
 
-        transportLayer.sendToAllSlaves(new ComputeResultsMsg(null));
+        transportLayer.sendToAllSlaves(new ComputeResultsMsg(null, outputLabels));
     }
 
 }

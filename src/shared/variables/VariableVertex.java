@@ -5,10 +5,7 @@ import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import shared.exceptions.WrongTypeRuntimeException;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class VariableVertex extends Variable {
@@ -23,8 +20,8 @@ public class VariableVertex extends Variable {
 
     public VariableVertex(String name, long persistence, long timestamp, Map<String, String[]> verticesValues, String fieldName) {
         super(name, persistence, timestamp);
-        this.verticesValues = new HashMap<>();
-        verticesValues.entrySet().stream().map(entry -> new Tuple2<>(entry.getKey(), (Tuple)new Tuple1<>(entry.getValue())))
+
+        this.verticesValues = verticesValues.entrySet().stream().map(entry -> new Tuple2<>(entry.getKey(), (Tuple)new Tuple1<>(entry.getValue())))
                 .collect(Collectors.toMap(tuple-> tuple.f0, tuple-> tuple.f1));
 
         this.tupleNames = new ArrayList<>();
@@ -58,4 +55,28 @@ public class VariableVertex extends Variable {
 
         return new Tuple2<>(this.tupleNames, verticesValues.get(node));
     }
+
+    /**
+     * This method is only valid for one field values
+     * @param vertexName
+     * @param values
+     */
+    public synchronized void addValuesToOneField (String vertexName, List<String> values) {
+
+        if (tupleNames.size() != 1)
+            throw new RuntimeException("Expecting 1 field Variable, size = " + tupleNames.size());
+
+        Tuple oldValuesT = this.verticesValues.get(vertexName);
+        if (oldValuesT == null) {
+            this.verticesValues.put(vertexName , new Tuple1<>(values.toArray(String[]::new)));
+        } else {
+            HashSet<String> valSet = new HashSet<>();
+            valSet.addAll(Arrays.asList(oldValuesT.getField(0)));
+            valSet.addAll(values);
+
+            this.verticesValues.put(vertexName, new Tuple1<>(valSet.toArray(String[]::new)));
+        }
+
+    }
+
 }

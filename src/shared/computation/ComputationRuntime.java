@@ -7,11 +7,13 @@ import shared.Utils;
 import shared.data.BoxMsg;
 import shared.data.SynchronizedIterator;
 import shared.exceptions.ComputationFinishedException;
+import shared.exceptions.VariableNotDefined;
 
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
+import java.util.stream.Collectors;
 
 public class ComputationRuntime {
 
@@ -52,7 +54,29 @@ public class ComputationRuntime {
             throw new ComputationFinishedException();
         }
 
-        if (stepNumber == 0) {
+
+        if (stepNumber == 0) { //First superstep -> substitute aggregate variables and prestartMethod
+            /*
+            computation.computationParameters.values().stream().forEach(parameter -> {
+                if (!parameter.isLabel() && !parameter.isValue()) {
+                    try {
+                        List<String[]> aggregateRaw = taskManager.getVariableSolver().getAggregate(parameter.getParameter()[0], this.getPartition(), parameter.getTimeAgo(), parameter.getwType());
+                        List<String> aggregate = aggregateRaw.stream().flatMap(agg -> Arrays.asList(agg).stream()).collect(Collectors.toList());
+                        parameter.setLabel(false);
+                        parameter.setValue(true);
+                        parameter.setParameter(aggregate.toArray(String[]::new));
+                    } catch (VariableNotDefined e) {
+                        //Skip
+                    }
+
+                }
+            });
+         */
+
+            //Set partition for NODE/EDGE variables solvers
+            computation.computationParameters.setPartition(this.getPartition());
+
+            //Run prestart
             computation.preStart();
         }
 
@@ -112,11 +136,13 @@ public class ComputationRuntime {
     /**
      * Register results of computation on node state with the timestamp of computation
      * @param vertexName
-     * @param key
+     * @param variableName
      * @param values
      */
-    private void registerResult(String vertexName, String key, String[] values) {
-        taskManager.updateState(vertexName, key, values);
+    private void registerResult(String vertexName, String variableName, String[] values) { //DONE Modify to write on Variables (node)
+
+            taskManager.registerComputationResult(vertexName, variableName, values, this.getPartition());
+
     }
 
     /**

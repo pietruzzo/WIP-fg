@@ -1,5 +1,6 @@
 package shared.variables.solver;
 
+import com.intellij.codeInsight.template.impl.VariableNode;
 import org.jetbrains.annotations.Nullable;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple1;
@@ -16,6 +17,7 @@ import shared.streamProcessing.ExtractedStream;
 import shared.variables.*;
 import shared.selection.SelectionSolver.Operation.WindowType;
 
+import javax.naming.OperationNotSupportedException;
 import java.util.*;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -144,6 +146,73 @@ public class VariableSolver {
         if (!(graph.get(0) instanceof VariableGraph)) throw new WrongTypeRuntimeException(VariableGraph.class, graph.getClass());
 
         return ((VariableGraph)graph.get(0)).getSavedPartitions();
+    }
+
+    public enum VariableType { AGGREGATE, EDGE, GRAPH, PARTITION, VERTEX };
+
+    /**
+     * Add values to variable, create variable or partition if not present
+     * @implSpec This method is only supporting VariableVertex right now
+     * @param variableName
+     * @param type
+     * @param partition if null -> no variable partition
+     * @param values vertex name, associated values
+     */
+    public void addToVariable (String variableName, VariableType type,  @Nullable Map<String, String> partition, Tuple2< String, List<String>> values) throws OperationNotSupportedException {
+
+        Variable variable;
+
+        //Get variable
+        synchronized (this) {
+
+            //Create variable/partition if not present
+            this.varablesNew.putIfAbsent(variableName, new TreeMap<>());
+
+            variable = this.varablesNew.get(variableName).get(this.currentTimestamp);
+
+            if (variable == null){
+
+                switch (type) {
+                    case VERTEX:
+                        variable = new VariableVertex(variableName, 1, this.currentTimestamp, new HashMap<>(), variableName);
+                        break;
+                    case AGGREGATE:
+                        throw new OperationNotSupportedException("addToVariable method doesn't support aggregates right now");
+                    case EDGE:
+                        throw new OperationNotSupportedException("addToVariable method doesn't support edge variable right now");
+                    case GRAPH:
+                        throw new OperationNotSupportedException("addToVariable method doesn't support graphs right now");
+                    default:
+                        throw new OperationNotSupportedException("type not supported: " + type);
+                }
+
+                if (partition == null) {
+                    this.varablesNew.get(variableName).put(this.currentTimestamp, variable);
+                } else {
+                    //Create Partition Variable and add Variable
+
+                    MultiKeyMap<Variable> partitionVar = new MultiKeyMap<>(partition.keySet().toArray(String[]::new));
+                    partitionVar.putValue(new HashMap<>(partition), variable);
+
+                    this.varablesNew.get(variableName).put(
+                            this.currentTimestamp,
+                            new VariablePartition(variableName, 1, this.currentTimestamp, partitionVar)
+                    );
+
+                }
+            }
+        }
+
+        // variable has been created -> now put values
+        if (variable instanceof VariableVertex) {
+
+            VariableVertex varVertex = (VariableVertex) variable;
+            varVertex.addValuesToOneField(values.f0, values.f1);
+
+        } else {
+            throw new OperationNotSupportedException("type not supported (VariableVertex only): " + type);
+        }
+
     }
 
     /**
