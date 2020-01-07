@@ -11,4 +11,9 @@ public class FireMsg implements Serializable {
     public FireMsg(String event) {
         this.event = event;
     }
+
+    @Override
+    public String toString() {
+        return this.event;
+    }
 }

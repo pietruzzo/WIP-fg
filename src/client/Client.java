@@ -9,8 +9,10 @@ import org.apache.flink.api.java.utils.ParameterTool;
 import shared.AkkaMessages.LaunchMsg;
 import shared.AkkaMessages.modifyGraph.ModifyGraphMsg;
 import shared.Lexer;
+import shared.antlr4.InputParser;
 
 import java.io.File;
+import java.io.Serializable;
 import java.util.*;
 
 
@@ -38,42 +40,15 @@ public class Client {
 				break;
 			}
 			// Start
-			if (line.equals("start")) {
+			else if (line.equals("start")) {
 				clientActor.tell(new LaunchMsg(), ActorRef.noSender());
 			}
 
-			// Modify Graph
-
-			if (line.trim().startsWith("vertex") || line.trim().startsWith("edge")){
-				List<ModifyGraphMsg> messages = Lexer.parse(Lexer.lex(line));
-				for (ModifyGraphMsg msg: messages) {
-					clientActor.tell(msg, ActorRef.noSender());
-				}
+			// Graph inputs
+			else {
+				Serializable parsedMessage = InputParser.parse(line);
+				clientActor.tell(parsedMessage, ActorRef.noSender());
 			}
-			/*
-			// Install computation
-			else if (line.startsWith("install max")) {
-				final InstallComputationMsg<Integer, Integer> max = new InstallComputationMsg<>("Max",
-				    () -> new MaxIncomingEdges());
-				clientActor.tell(max, ActorRef.noSender());
-			}
-
-			// Install computation
-			else if (line.startsWith("install fastestGrowing")) {
-				final InstallComputationMsg<Integer, Integer> max = new InstallComputationMsg<>("FastestGrowing",
-				    () -> new MaxDelta());
-				clientActor.tell(max, ActorRef.noSender());
-			}
-
-			// Install Traingle count
-			else if (line.startsWith("install triangleCount")) {
-				final InstallComputationMsg<NamesSet, HashSet<HashSet<String>>> tCount = new InstallComputationMsg<>("TraingleCounting",
-						() -> new TraingleCounting());
-				clientActor.tell(tCount, ActorRef.noSender());
-			}
-
-*/
-
 		}
 		scanner.close();
 		sys.terminate();

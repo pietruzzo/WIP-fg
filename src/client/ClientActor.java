@@ -5,6 +5,9 @@ import akka.actor.ActorSelection;
 import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
+import scala.Serializable;
+import shared.AkkaMessages.FireMsg;
+import shared.AkkaMessages.HelloClientMsg;
 import shared.AkkaMessages.LaunchMsg;
 import shared.AkkaMessages.modifyGraph.ModifyGraphMsg;
 
@@ -28,6 +31,9 @@ class ClientActor extends AbstractActor {
 	@Override
 	public Receive createReceive() {
 		return receiveBuilder(). //
+		match(LaunchMsg.class, this::onStartMsg).
+		match(FireMsg.class, this::onFireMsg).
+		match(Serializable.class, this::onUpdateGraphMsg).
 		    build();
 
 	}
@@ -42,7 +48,11 @@ class ClientActor extends AbstractActor {
 		jobManager.tell(msg, self());
 	}
 
-	private final void onUpdateGraphMsg(ModifyGraphMsg msg) {
+	private final void onFireMsg(FireMsg msg) {
+		log.info("FireMsg: " + msg.toString());
+	}
+
+	private final void onUpdateGraphMsg(Serializable msg) {
 		log.info(msg.toString());
 		jobManager.tell(msg, self());
 	}
