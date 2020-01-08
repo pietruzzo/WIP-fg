@@ -1,0 +1,14 @@
+vertex insert: A, lab1=1, lab2 = true , 0
+vertex insert: B, lab1=2, lab2 = true , 0
+vertex insert: C, lab1=3, lab2 = true , 0
+vertex insert: D, lab1=4, lab2 = true , 0
+vertex insert: E, lab1=5, lab2 = true , 0
+vertex insert: F, lab1=6, lab2 = true , 0
+
+edge insert: A, B, edgelab = true , 0
+edge insert: A, C, edgelab = true , 0
+edge insert: A, D, edgelab = true , 0
+edge insert: C, B, edgelab = true , 0
+edge insert: D, E, edgelab = true , 0
+edge insert: E, F, edgelab = true , 0
+edge insert: F, D, edgelab = true , 0

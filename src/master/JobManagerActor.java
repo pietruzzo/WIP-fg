@@ -28,7 +28,7 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 
 	public static final Boolean DIRECTED_EDGES = true;
 	public static final Pair<String, String[]> DESTINATION_EDGE = new Pair<>("_DEST", new String[]{"true"});
-	public static final String PATTERNPATH = "pattern.txt";
+	public static final String PATTERNPATH = "src/shared/resources/pattern.txt";
 
 	private final LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
 
@@ -123,7 +123,6 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 		    match(SlaveAnnounceMsg.class, this::onSlaveAnnounceMsg).
 		    match(LaunchMsg.class, this::onLaunchMsg).
 			match(AckMsg.class, this::onAckMsg).
-			match(AggregateMsg.class, this::onAggregateMsg).
 		    build();
 	}
 

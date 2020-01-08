@@ -11,7 +11,7 @@ public class TaskManager {
 
 	public static void main(String[] args) {
 		final ParameterTool param = ParameterTool.fromArgs(args);
-		final String name = param.get("name");
+		final String name = param.get("name", "slave");
 		final int numWorkers = param.getInt("numWorkers", 1);
 		final String jobManagerAddr = param.get("jobManagerAddr", "127.0.0.1");
 		final int jobManagerPort = param.getInt("jobManagerPort", 6123);

@@ -73,7 +73,14 @@ public class VertexM implements Serializable, Vertex {
     }
 
 
-
+    @Override
+    public String toString() {
+        return "VertexM{" +
+                "nodeId='" + nodeId + '\'' +
+                ", state=" + state +
+                ", edges=" + edges +
+                '}';
+    }
 
     public static class State extends HashMap<String, String[]> implements Serializable{
 
@@ -85,6 +92,16 @@ public class VertexM implements Serializable, Vertex {
 
         public State() {
             super();
+        }
+
+        @Override
+        public String toString() {
+            String result =  "State{";
+            for (Map.Entry<String, String[]> entry: this.entrySet()) {
+                result = result + " " + entry.getKey() + "=(" + Arrays.toString(entry.getValue()) + ") ";
+            }
+            result = result + "}";
+            return result;
         }
     }
 }

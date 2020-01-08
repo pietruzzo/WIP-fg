@@ -5,14 +5,14 @@ import akka.actor.ActorSelection;
 import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
-import scala.Serializable;
 import shared.AkkaMessages.FireMsg;
-import shared.AkkaMessages.HelloClientMsg;
 import shared.AkkaMessages.LaunchMsg;
-import shared.AkkaMessages.modifyGraph.ModifyGraphMsg;
+
+import java.io.Serializable;
 
 
 class ClientActor extends AbstractActor {
+
 	private final LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
 
 	private final String jobManagerAddr;

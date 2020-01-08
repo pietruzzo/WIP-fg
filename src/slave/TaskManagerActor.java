@@ -21,6 +21,7 @@ import shared.AkkaMessages.modifyGraph.*;
 import shared.AkkaMessages.select.SelectMsg;
 import shared.Utils;
 import shared.VertexM;
+import shared.antlr4.InputParser;
 import shared.computation.*;
 import shared.data.BoxMsg;
 import shared.data.MultiKeyMap;
@@ -34,16 +35,20 @@ import shared.variables.VariableGraph;
 import shared.variables.solver.VariableSolver;
 
 import javax.naming.OperationNotSupportedException;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-//LAST USED: private static final long serialVersionUID = 200060L;
+//LAST USED: private static final long serialVersionUID = 200062L;
 
 public class TaskManagerActor extends AbstractActor implements ComputationCallback, StreamProcessingCallback {
 	private final LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
+	public static final String GRAPHPATH = "src/shared/resources/graph.txt";
 
 	private final String name;
 	private final int numWorkers;
@@ -134,6 +139,70 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 		slaves = initMsg.getHashMapping();
 		executors = new ThreadPoolExecutor(numWorkers, numWorkers, 0, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
 
+		//region: Initialize Graph
+		vertices = new HashMap<>();
+
+		BufferedReader reader;
+		try {
+			reader = new BufferedReader(new FileReader(GRAPHPATH));
+			String line = reader.readLine();
+			while (line != null) {
+				if (!line.isBlank()) {
+					java.io.Serializable parsed = InputParser.parse(line);
+					//todo create ad hoc methods shared with below message handling
+					if ( parsed instanceof AddEdgeMsg && getActor(((AddEdgeMsg)parsed).getSourceName()).compareTo(self()) == 0 ) {
+						AddEdgeMsg msg = (AddEdgeMsg) parsed;
+						VertexM vertex = vertices.get(msg.getSourceName());
+						vertex.addEdge(msg.getDestinationName());
+						for (Pair<String, String[]> attribute : msg.getAttributes()) {
+							vertex.setLabelEdge(msg.getDestinationName(), attribute.first(), attribute.second());
+						}
+					}
+					else if (parsed instanceof UpdateEdgeMsg && getActor(((UpdateEdgeMsg)parsed).sourceId).compareTo(self()) == 0 ) {
+						UpdateEdgeMsg msg = (UpdateEdgeMsg) parsed;
+						VertexM vertex = vertices.get(msg.sourceId);
+						if (vertex == null){
+							vertex = new VertexM(msg.sourceId, new VertexM.State());
+						}
+
+						VertexM.State edgeState = vertex.getEdgeState(msg.destId);
+						if (edgeState == null) {
+							vertex.addEdge(msg.destId);
+						}
+						for (Pair<String, String[]> attribute : msg.getAttributes()) {
+							edgeState.put(attribute.first(), attribute.second());
+						}
+					}
+					else if (parsed instanceof DeleteEdgeMsg && getActor(((DeleteEdgeMsg)parsed).getSourceName()).compareTo(self()) == 0 ) {
+						DeleteEdgeMsg msg = (DeleteEdgeMsg) parsed;
+						VertexM vertex = vertices.get(msg.getSourceName());
+						vertex.deleteEdge(msg.getDestinationName());
+					}
+					else if (parsed instanceof UpdateVertexMsg && getActor(((UpdateVertexMsg)parsed).vertexName).compareTo(self()) == 0 ) {
+						UpdateVertexMsg msg = (UpdateVertexMsg) parsed;
+						VertexM vertex = vertices.get(msg.getVertexName());
+						if (vertex == null){ //Create a new vertex
+							vertex = new VertexM(msg.vertexName, new VertexM.State());
+						}
+						for (Pair<String, String[]> attribute : msg.getAttributes()) {
+							vertex.setLabelVartex(attribute.first(), attribute.second());
+						}
+						vertices.putIfAbsent(vertex.getNodeId(), vertex);
+					}
+					else if (parsed instanceof DeleteVertexMsg && getActor(((DeleteVertexMsg)parsed).getVertexName()).compareTo(self()) == 0 ) {
+						DeleteVertexMsg msg = (DeleteVertexMsg) parsed;
+						vertices.remove(msg.getVertexName());
+					}
+				}
+				line = reader.readLine();
+			}
+			reader.close();
+			debugTaskManagerState();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		//endregion
+
 		master.tell(new AckMsg(), self());
 
 		getContext().become(initializedState());
@@ -150,6 +219,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 		}
 
 		master.tell(new AckMsg(), self());
+		debugTaskManagerState();
 	}
 
 	private final void onDeleteEdgeMsg(DeleteEdgeMsg msg) {
@@ -158,6 +228,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 		vertex.deleteEdge(msg.getDestinationName());
 
 		master.tell(new AckMsg(), self());
+		debugTaskManagerState();
 	}
 
 	private final void onDeleteVertexMsg(DeleteVertexMsg msg) {
@@ -165,6 +236,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 		vertices.remove(msg.getVertexName());
 
 		master.tell(new AckMsg(), self());
+		debugTaskManagerState();
 	}
 
 	private final void onUpdateVertexMsg(UpdateVertexMsg msg) {
@@ -176,7 +248,9 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 		for (Pair<String, String[]> attribute : msg.getAttributes()) {
 			vertex.setLabelVartex(attribute.first(), attribute.second());
 		}
+		vertices.putIfAbsent(vertex.getNodeId(), vertex);
 		master.tell(new AckMsg(), self());
+		debugTaskManagerState();
 	}
 
 	private final void onUpdateEdgeMsg(UpdateEdgeMsg msg) {
@@ -194,6 +268,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 			edgeState.put(attribute.first(), attribute.second());
 		}
 		master.tell(new AckMsg(), self());
+		debugTaskManagerState();
 	}
 
 	private final void onInstallComputationMsg(InstallComputationMsg msg) {
@@ -713,5 +788,11 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 	@Override
 	public VariableSolver getVariableSolver() {
 		return this.variables;
+	}
+
+	private void debugTaskManagerState() {
+		for (VertexM vertex: this.vertices.values()) {
+			System.out.println(vertex.toString());
+		}
 	}
 }
