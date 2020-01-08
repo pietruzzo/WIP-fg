@@ -1,6 +1,7 @@
 package shared.antlr4.pattern.patternSubParsers;
 
 import master.PatternCallback;
+import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.apache.flink.api.java.tuple.Tuple3;
 import shared.antlr4.pattern.PatternBaseListener;
 import shared.antlr4.pattern.PatternParser;
@@ -16,8 +17,11 @@ public class PartitionParser extends PatternBaseListener {
 
 
     public static Partition getSelectionSolver (shared.antlr4.pattern.PatternParser.PartitionContext ctx, Trigger trigger, PatternCallback callback) {
+
         PartitionParser partitionParser = new PartitionParser();
-        partitionParser.enterPartition(ctx);
+        ParseTreeWalker walker = new ParseTreeWalker();
+
+        walker.walk(partitionParser, ctx);
 
         Partition partition = new Partition(
                 trigger,

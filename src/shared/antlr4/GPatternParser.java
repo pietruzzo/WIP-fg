@@ -2,6 +2,7 @@ package shared.antlr4;
 
 import master.PatternCallback;
 import org.antlr.v4.runtime.*;
+import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.antlr.v4.runtime.tree.TerminalNode;
 import org.apache.flink.api.java.tuple.Tuple3;
 import shared.Utils;
@@ -38,12 +39,15 @@ public class GPatternParser extends PatternBaseListener {
         TokenStream tokens = new CommonTokenStream(lexer);
         PatternParser parser = new PatternParser(tokens);
 
+        //Entry point
+        PatternParser.PatternEntryContext patternEntryContext = parser.patternEntry();
 
-        //Generate top Listener
-        GPatternParser gPatternParser = new GPatternParser(callback);
+        //Walk it and attach listener
+        ParseTreeWalker walker = new ParseTreeWalker();
+        GPatternParser gPatternListener = new GPatternParser(callback);
+        walker.walk(gPatternListener, patternEntryContext);
 
-        gPatternParser.enterTemporalPattern(parser.temporalPattern());
-        return gPatternParser.patternElements;
+        return gPatternListener.patternElements;
     }
 
 

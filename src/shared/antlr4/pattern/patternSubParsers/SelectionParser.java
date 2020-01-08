@@ -2,6 +2,7 @@ package shared.antlr4.pattern.patternSubParsers;
 
 import akka.japi.Pair;
 import master.PatternCallback;
+import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.antlr.v4.runtime.tree.TerminalNode;
 import org.apache.flink.api.java.tuple.Tuple3;
 import shared.antlr4.pattern.PatternBaseListener;
@@ -23,7 +24,8 @@ public class SelectionParser extends PatternBaseListener {
 
     public static Selection getSelectionSolver (shared.antlr4.pattern.PatternParser.SelectionContext ctx, Trigger trigger, PatternCallback callback) {
         SelectionParser selectionSolver = new SelectionParser();
-        selectionSolver.enterSelection(ctx);
+        ParseTreeWalker walker = new ParseTreeWalker();
+        walker.walk(selectionSolver, ctx);
 
         Selection selection = new Selection(
                 trigger,

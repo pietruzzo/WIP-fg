@@ -1,7 +1,9 @@
 package shared.antlr4.pattern.patternSubParsers;
 
 import master.PatternCallback;
+import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.apache.flink.api.java.tuple.Tuple3;
+import shared.antlr4.GPatternParser;
 import shared.antlr4.pattern.PatternBaseListener;
 import shared.antlr4.pattern.PatternParser;
 import shared.computation.ComputationParameters;
@@ -28,8 +30,14 @@ public class ComputationParser extends PatternBaseListener {
     }
 
     public static Computation getComputation (shared.antlr4.pattern.PatternParser.ComputationContext ctx, Trigger trigger, PatternCallback callback) {
+
+        //Entry point is computation context ctx
+
+        //Walk it and attach listener
+        ParseTreeWalker walker = new ParseTreeWalker();
         ComputationParser computationParser = new ComputationParser(trigger, callback);
-        computationParser.enterComputation(ctx);
+        walker.walk(computationParser, ctx);
+
         return computationParser.computation;
     }
 

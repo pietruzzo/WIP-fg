@@ -4,6 +4,7 @@ import computationImpl.OperationImplementations;
 import master.PatternCallback;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.RuleContext;
+import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -38,7 +39,8 @@ public class StreamParser extends PatternBaseListener {
 
     public static Stream getStream (shared.antlr4.pattern.PatternParser.ExtractStreamProcessingContext ctx, Trigger trigger, PatternCallback callback) {
         StreamParser streamParser = new StreamParser();
-        streamParser.enterExtractStreamProcessing(ctx);
+        ParseTreeWalker walker = new ParseTreeWalker();
+        walker.walk(streamParser, ctx);
 
         Stream stream = new Stream(
                 trigger,
@@ -53,7 +55,8 @@ public class StreamParser extends PatternBaseListener {
 
     public static Stream getStream (shared.antlr4.pattern.PatternParser.CollectStreamProcessingContext ctx, Trigger trigger, PatternCallback callback) {
         StreamParser streamParser = new StreamParser();
-        streamParser.enterCollectStreamProcessing(ctx);
+        ParseTreeWalker walker = new ParseTreeWalker();
+        walker.walk(streamParser, ctx);
 
         Stream stream = new Stream(
                 trigger,
