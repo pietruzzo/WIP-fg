@@ -149,7 +149,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 			while (line != null) {
 				if (!line.isBlank()) {
 					java.io.Serializable parsed = InputParser.parse(line);
-					//todo create ad hoc methods shared with below message handling
+
 					if ( parsed instanceof AddEdgeMsg && getActor(((AddEdgeMsg)parsed).getSourceName()).compareTo(self()) == 0 ) {
 						AddEdgeMsg msg = (AddEdgeMsg) parsed;
 						VertexM vertex = vertices.get(msg.getSourceName());
@@ -160,18 +160,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 					}
 					else if (parsed instanceof UpdateEdgeMsg && getActor(((UpdateEdgeMsg)parsed).sourceId).compareTo(self()) == 0 ) {
 						UpdateEdgeMsg msg = (UpdateEdgeMsg) parsed;
-						VertexM vertex = vertices.get(msg.sourceId);
-						if (vertex == null){
-							vertex = new VertexM(msg.sourceId, new VertexM.State());
-						}
-
-						VertexM.State edgeState = vertex.getEdgeState(msg.destId);
-						if (edgeState == null) {
-							vertex.addEdge(msg.destId);
-						}
-						for (Pair<String, String[]> attribute : msg.getAttributes()) {
-							edgeState.put(attribute.first(), attribute.second());
-						}
+						updateEdgeOperations(msg);
 					}
 					else if (parsed instanceof DeleteEdgeMsg && getActor(((DeleteEdgeMsg)parsed).getSourceName()).compareTo(self()) == 0 ) {
 						DeleteEdgeMsg msg = (DeleteEdgeMsg) parsed;
@@ -180,14 +169,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 					}
 					else if (parsed instanceof UpdateVertexMsg && getActor(((UpdateVertexMsg)parsed).vertexName).compareTo(self()) == 0 ) {
 						UpdateVertexMsg msg = (UpdateVertexMsg) parsed;
-						VertexM vertex = vertices.get(msg.getVertexName());
-						if (vertex == null){ //Create a new vertex
-							vertex = new VertexM(msg.vertexName, new VertexM.State());
-						}
-						for (Pair<String, String[]> attribute : msg.getAttributes()) {
-							vertex.setLabelVartex(attribute.first(), attribute.second());
-						}
-						vertices.putIfAbsent(vertex.getNodeId(), vertex);
+						updateVertexOperations(msg);
 					}
 					else if (parsed instanceof DeleteVertexMsg && getActor(((DeleteVertexMsg)parsed).getVertexName()).compareTo(self()) == 0 ) {
 						DeleteVertexMsg msg = (DeleteVertexMsg) parsed;
@@ -208,6 +190,31 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 		getContext().become(initializedState());
 	}
 
+	private void updateVertexOperations(UpdateVertexMsg msg) {
+		VertexM vertex = vertices.get(msg.getVertexName());
+		if (vertex == null){ //Create a new vertex
+			vertex = new VertexM(msg.vertexName, new VertexM.State());
+		}
+		for (Pair<String, String[]> attribute : msg.getAttributes()) {
+			vertex.setLabelVartex(attribute.first(), attribute.second());
+		}
+		vertices.putIfAbsent(vertex.getNodeId(), vertex);
+	}
+
+	private void updateEdgeOperations(UpdateEdgeMsg msg) {
+		VertexM vertex = vertices.get(msg.sourceId);
+		if (vertex == null){
+			vertex = new VertexM(msg.sourceId, new VertexM.State());
+		}
+
+		VertexM.State edgeState = vertex.getEdgeState(msg.destId);
+		if (edgeState == null) {
+			vertex.addEdge(msg.destId);
+		}
+		for (Pair<String, String[]> attribute : msg.getAttributes()) {
+			edgeState.put(attribute.first(), attribute.second());
+		}
+	}
 
 
 	private final void onAddEdgeMsg(AddEdgeMsg msg) {
@@ -241,32 +248,14 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 
 	private final void onUpdateVertexMsg(UpdateVertexMsg msg) {
 		log.info(msg.toString());
-		VertexM vertex = vertices.get(msg.getVertexName());
-		if (vertex == null){ //Create a new vertex
-			vertex = new VertexM(msg.vertexName, new VertexM.State());
-		}
-		for (Pair<String, String[]> attribute : msg.getAttributes()) {
-			vertex.setLabelVartex(attribute.first(), attribute.second());
-		}
-		vertices.putIfAbsent(vertex.getNodeId(), vertex);
+		updateVertexOperations(msg);
 		master.tell(new AckMsg(), self());
 		debugTaskManagerState();
 	}
 
 	private final void onUpdateEdgeMsg(UpdateEdgeMsg msg) {
 		log.info(msg.toString());
-		VertexM vertex = vertices.get(msg.sourceId);
-		if (vertex == null){
-			vertex = new VertexM(msg.sourceId, new VertexM.State());
-		}
-
-		VertexM.State edgeState = vertex.getEdgeState(msg.destId);
-		if (edgeState == null) {
-			vertex.addEdge(msg.destId);
-		}
-		for (Pair<String, String[]> attribute : msg.getAttributes()) {
-			edgeState.put(attribute.first(), attribute.second());
-		}
+		updateEdgeOperations(msg);
 		master.tell(new AckMsg(), self());
 		debugTaskManagerState();
 	}

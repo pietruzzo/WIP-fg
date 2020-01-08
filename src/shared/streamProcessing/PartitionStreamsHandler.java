@@ -315,7 +315,7 @@ public class PartitionStreamsHandler {
     }
 
     private ExtractedStream reducePartitions(PartitionsReducer reducer){
-        //todo: implement or not? Probably yesssa per il max, min...
+        //todo: NOT IMPLEMENTED RIGHT NOW
         return null;
     }
 
