@@ -28,6 +28,10 @@ public class Client {
 		final ActorSystem sys = ActorSystem.create("Client", conf);
 		final ActorRef clientActor = sys.actorOf(ClientActor.props(jobManager), "Client");
 
+		System.out.println("Client console: \n" +
+				"\t q : quit \n" +
+				"\t start : launch system \n" +
+				"\t (vertex | edge) (insert | update | delete) : SRC, (DST ,), [LABELS ,] timestamp");
 		final Scanner scanner = new Scanner(System.in);
 		while (true) {
 			final String line = scanner.nextLine();
@@ -43,8 +47,15 @@ public class Client {
 
 			// Graph inputs
 			else {
-				Serializable parsedMessage = InputParser.parse(line);
-				clientActor.tell(parsedMessage, ActorRef.noSender());
+				try {
+					Serializable parsedMessage = InputParser.parse(line);
+					if (parsedMessage == null) throw new NullPointerException();
+					clientActor.tell(parsedMessage, ActorRef.noSender());
+				} catch (Exception e) {
+					e.printStackTrace();
+					System.err.println("Parsing error, no message has been sent to Job Manager. Try again");
+				}
+
 			}
 		}
 		scanner.close();

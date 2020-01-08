@@ -83,6 +83,7 @@
                 <directory>src/shared/resources</directory>
             </resource>
         </resources>
+        <testSourceDirectory>JUnit5</testSourceDirectory>
         <plugins>
             <plugin>
                 <groupId>org.antlr</groupId>
