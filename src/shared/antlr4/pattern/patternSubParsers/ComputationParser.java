@@ -3,7 +3,6 @@ package shared.antlr4.pattern.patternSubParsers;
 import master.PatternCallback;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.apache.flink.api.java.tuple.Tuple3;
-import shared.antlr4.GPatternParser;
 import shared.antlr4.pattern.PatternBaseListener;
 import shared.antlr4.pattern.PatternParser;
 import shared.computation.ComputationParameters;
@@ -11,7 +10,6 @@ import shared.patterns.Computation;
 import shared.patterns.Trigger;
 import shared.selection.SelectionSolver;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 

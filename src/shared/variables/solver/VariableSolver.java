@@ -18,13 +18,14 @@ import shared.variables.*;
 import shared.selection.SelectionSolver.Operation.WindowType;
 
 import javax.naming.OperationNotSupportedException;
+import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class VariableSolver {
+public class VariableSolver implements Serializable {
 
 
     //Done : use tail with navigableTreeMap (navigable can't be final)

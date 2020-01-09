@@ -6,13 +6,9 @@ import org.antlr.v4.runtime.RuleContext;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.apache.flink.api.java.tuple.Tuple3;
 import shared.Utils;
-import shared.antlr4.GPatternParser;
 import shared.antlr4.pattern.PatternBaseListener;
 import shared.antlr4.pattern.PatternParser;
-import shared.patterns.Computation;
-import shared.patterns.Trigger;
 import shared.selection.SelectionSolver;
-import shared.variables.solver.VariableSolver;
 
 import java.util.HashMap;
 import java.util.Map;

@@ -189,6 +189,8 @@ OR : 'or' ;
 
 Timeunit : ([0-9]+ ('s' | 'm' | 'h'))+ ;
 
-Litterals : ( [a-z] | [A-Z] | [0-9] )+ ;
+Litterals : ( [a-z] | [A-Z] | [0-9] | DOT )+ ;
+
+DOT: '.';
 
 Skip : [ \t\n]+ -> skip;

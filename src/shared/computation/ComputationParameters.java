@@ -6,13 +6,14 @@ import shared.VertexM;
 import shared.selection.SelectionSolver;
 import shared.variables.solver.VariableSolver;
 
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-public class ComputationParameters {
+public class ComputationParameters implements Serializable {
 
     private VariableSolver variableSolver;
     private Map<String, String> partition;
@@ -122,7 +123,7 @@ public class ComputationParameters {
         return this.parameters.put(key, value);
     }
 
-    public static class Parameter {
+    public static class Parameter implements Serializable{
         private boolean isValue;
         private boolean isLabel;
         private String[] parameter;

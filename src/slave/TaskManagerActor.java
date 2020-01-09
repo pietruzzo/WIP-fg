@@ -10,6 +10,11 @@ import akka.japi.Pair;
 import akka.japi.Procedure;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
+import b.h.N;
+import computationImpl.IngoingEdges;
+import computationImpl.OutgoingEdges;
+import computationImpl.PageRank;
+import computationImpl.TriangleCounting;
 import org.jetbrains.annotations.Nullable;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -185,6 +190,9 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 		}
 		//endregion
 
+		//get some default computations
+		defaultComputations();
+
 		master.tell(new AckMsg(), self());
 
 		getContext().become(initializedState());
@@ -275,7 +283,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 	}
 
 	private final void onValidateNodesMsg(ValidateNodesMsg msg) {
-
+		log.info(msg.toString());
 		MultiKeyMap<Set<String>> invalidNodesPartitions = new MultiKeyMap<>(msg.nodesToValidate.getKeys());
 		msg.nodesToValidate.getAllElements().entrySet().parallelStream().forEach(entry -> {
 
@@ -296,6 +304,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 	}
 
 	private final void onInvalidNodesMsg(InvalidNodesMsg msg) {
+		log.info(msg.toString());
 		msg.invalidNodes.getAllElements().entrySet().parallelStream().forEach(entry -> {
 			HashSet<String> deleteEdges = new HashSet<>(entry.getValue());
 			 Stream<Vertex> partitionVertices = this.partitionComputations.getValue(entry.getKey()).getVertices().values().parallelStream();
@@ -315,6 +324,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 	}
 
 	private final void onSaveVariableGraphMsg(SaveVariableGraphMsg msg) {
+		log.info(msg.toString());
 
 		instantiatePartitionsIfAbsent();
 
@@ -330,6 +340,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 	}
 
 	private  final void onRestoreVariableGraphMsg(RestoreVariableGraphMsg msg) {
+		log.info(msg.toString());
 
 		/*
 		For each partition, for each node, keep only vertices and nodes not deleted
@@ -365,6 +376,11 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 
 		log.info(msg.toString());
 		boolean isCompleted = false; //If true computation has terminated for all runtimes
+
+		//Check computation name
+		if (!this.computations.containsKey(msg.getComputationId())) {
+			throw new NullPointerException("Computation " + msg.getComputationId() + " isn't registered on taskManager");
+		}
 
 		//Set VariableSolver in ComputationParameters and set the Parameters list if first step
 		if (msg.getStepNumber() == 0) {
@@ -419,6 +435,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 	}
 
 	private final void onComputeResultMsg(ComputeResultsMsg msg) throws ExecutionException, InterruptedException {
+		log.info(msg.toString());
 
 		if (msg.getFreeVars() == null) {
 			//Get all Runtimes, set return value variable name and send messages
@@ -448,6 +465,8 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 	 * @implNote Get runtimes and add messages, than decrease waiting, send back ack and if waiting is zero change state
 	 */
 	private final void onInboxMsg(BoxMsg incoming){
+		log.info(incoming.toString());
+
 		ComputationRuntime computationRuntime = this.partitionComputations.getValue(incoming.getPartition());
 		computationRuntime.updateIncomingMsgs(incoming);
 		getSender().tell(new AckMsg(), self());
@@ -462,17 +481,22 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 	 * Other slave has received my Outgoing messages
 	 */
 	private final void onAckMsg(AckMsg msg){
+		log.info(msg.toString());
+
 		if (this.waitingResponses.decrementAndGet() == 0){
 			getContext().become(initializedState());
 		}
 	}
 
 	private final void onRegisterVariableMsg(RegisterVariableMsg msg) {
+		log.info(msg.toString());
+
 		this.variables.addVariable(msg.getVariable());
 		master.tell(new AckMsg(), self());
 	}
 
 	private final void onNewPartitionMsg(NewPartitionMsg msg) throws ExecutionException, InterruptedException {
+		log.info(msg.toString());
 
 		this.instantiatePartitionsIfAbsent();
 		List<String> newPartitioningLabels = new ArrayList<>();
@@ -579,11 +603,15 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 	}
 
 	private final void onExtractMsg (ExtractMsg msg) throws Exception {
+		log.info(msg.toString());
+
 		new PartitionStreamsHandler(this.partitionComputations, msg.getOperationsList(), variables, this)
 				.solveOperationChain();
 	}
 
 	private final void onSelectMsg (SelectMsg msg) {
+		log.info(msg.toString());
+
 		/*
 				For each partition: do select
 				if select on vertices: validate edges
@@ -715,6 +743,14 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 		}
 		this.waitingResponses.set(this.slaves.size()*2); //2 times slaves
 		getContext().become(edgeValidation());
+	}
+
+
+	private void defaultComputations() {
+		this.computations.putIfAbsent("IngoingEdges", new IngoingEdges());
+		this.computations.putIfAbsent("OutgoingEdges", new OutgoingEdges());
+		this.computations.putIfAbsent("PageRank", new PageRank());
+		this.computations.putIfAbsent("TriangleCounting", new TriangleCounting());
 	}
 
 	@Override

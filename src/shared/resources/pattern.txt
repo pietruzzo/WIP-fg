@@ -1,1 +1,1 @@
-.g().compute(computation , $varRet, $varRet2 , [ Param1 = 'value', Param2 = $var within 10s] );
+.g().compute(PageRank , $varRet, $varRet2 , [ maxIterations = '100', threshold = '0.001'] );

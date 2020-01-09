@@ -45,9 +45,19 @@ public class PatternLogic {
 
     /**
      * Run current element or take the following if finished
-     * @return true if pattern execution has finished
+     * If pattern is finished, change receive state
      */
     public void runElement (@Nullable Serializable message) {
+
+        if (patternElements.isEmpty()) {
+            //No installed pattern
+            transportLayer.becomeReceiveChangeState();
+            return;
+        }
+        if (currentElement == null) {
+            //First step
+            currentElement = currentPattern.next();
+        }
 
         if (currentElement.processMessage(message)) {
 

@@ -155,6 +155,7 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 		this.clients.add(sender());
 
 	}
+
 	private final void onAddEdgeMsg(AddEdgeMsg msg){
 		ActorRef slave = getActor(msg.getSourceName());
 		slave.tell(new AddEdgeMsg(msg.getSourceName(), msg.getDestinationName(), msg.getAttributes(), System.currentTimeMillis()), self());
@@ -165,8 +166,9 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 			slave.tell(new AddEdgeMsg(msg.getDestinationName(), msg.getSourceName(), destinationAttribute, System.currentTimeMillis()), self());
 			waitingResponses.incrementAndGet();
 		}
-		getContext().become(waitAck(), true);
+		startNewIteration(msg.getTimestamp(), Trigger.TriggerEnum.EDGE_ADDITION);
 	}
+
 	private final void onDeleteEdgeMsg(DeleteEdgeMsg msg){
 		ActorRef slave = getActor(msg.getSourceName());
 		slave.tell(new DeleteEdgeMsg(msg.getSourceName(), msg.getDestinationName(), System.currentTimeMillis()), self());
@@ -175,20 +177,23 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 			slave.tell(new DeleteEdgeMsg(msg.getDestinationName(), msg.getSourceName(), System.currentTimeMillis()), self());
 			waitingResponses.incrementAndGet();
 		}
-		getContext().become(waitAck(), true);
+		startNewIteration(msg.getTimestamp(), Trigger.TriggerEnum.EDGE_DELETION);
 	}
+
 	private final void onDeleteVertexMsg(DeleteVertexMsg msg){
 		ActorRef slave = getActor(msg.getVertexName());
 		slave.tell(new DeleteVertexMsg(msg.getVertexName(),  System.currentTimeMillis()), self());
 		waitingResponses.set(1);
-		getContext().become(waitAck(), true);
+		startNewIteration(msg.getTimestamp(), Trigger.TriggerEnum.VERTEX_DELETION);
 	}
-	private final void onUpdateVertexMsg(UpdateVertexMsg msg){
+
+	private final void onUpdateVertexMsg(UpdateVertexMsg msg){ //todo necessario distinguere insert ed update per il trigger
 		ActorRef slave = getActor(msg.getVertexName());
 		slave.tell(new UpdateVertexMsg(msg.getVertexName(), msg.getAttributes(), System.currentTimeMillis()), self());
 		waitingResponses.set(1);
-		getContext().become(waitAck(), true);
+		startNewIteration(msg.getTimestamp(), Trigger.TriggerEnum.VERTEX_UPDATE);
 	}
+
 	private final void onUpdateEdgeMsg(UpdateEdgeMsg msg){
 		ActorRef slave = getActor(msg.sourceId);
 		slave.tell(new UpdateEdgeMsg(msg.sourceId, msg.destId, msg.getAttributes(), System.currentTimeMillis()), self());
@@ -199,7 +204,7 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 			slave.tell(new UpdateEdgeMsg(msg.destId, msg.sourceId, destinationAttribute, System.currentTimeMillis()), self());
 			waitingResponses.incrementAndGet();
 		}
-		getContext().become(waitAck(), true);
+		startNewIteration(msg.getTimestamp(), Trigger.TriggerEnum.EDGE_UPDATE);
 	}
 
 	private final void onSlaveAnnounceMsg(SlaveAnnounceMsg msg) {
@@ -232,6 +237,7 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 			e.printStackTrace();
 			System.err.println("Unable to read file PATTERNPATH");
 		}
+
 		patternLogic.startNewIteration(this.currentTimestamp, Trigger.TriggerEnum.ALL, validVariables);
 
 
@@ -245,6 +251,7 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 	}
 
 	private final void onAckMsg(AckMsg msg){
+		log.info(msg.toString() + "| Waiting " + (waitingResponses.get()-1) + " responses");
 
 		if(waitingResponses.decrementAndGet() == 0)
 			this.patternLogic.runElement(null);
@@ -252,6 +259,7 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 	}
 
 	private final void onAckMsg(AckMsgComputationTerminated msg) {
+		log.info(msg.toString());
 
 		this.patternLogic.runElement(msg);
 
@@ -343,6 +351,12 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 		return hashMapping.get(Utils.getPartition(name, hashMapping.size()));
 	}
 
+	private void startNewIteration(Long timestamp, Trigger.TriggerEnum trigger) {
+		this.currentTimestamp = timestamp;
+		this.validVariables.clear();
+		patternLogic.startNewIteration(currentTimestamp, trigger, this.validVariables);
+		getContext().become(waitAck(), true);
+	}
 	@FunctionalInterface
 	public interface State{
 		Receive invoke();

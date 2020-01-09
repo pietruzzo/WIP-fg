@@ -3,7 +3,6 @@ package shared.antlr4;
 import master.PatternCallback;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
-import org.antlr.v4.runtime.tree.TerminalNode;
 import org.apache.flink.api.java.tuple.Tuple3;
 import shared.Utils;
 import shared.antlr4.pattern.PatternBaseListener;

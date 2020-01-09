@@ -3,7 +3,6 @@ package shared.antlr4.pattern.patternSubParsers;
 import computationImpl.OperationImplementations;
 import master.PatternCallback;
 import org.antlr.v4.runtime.ParserRuleContext;
-import org.antlr.v4.runtime.RuleContext;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;

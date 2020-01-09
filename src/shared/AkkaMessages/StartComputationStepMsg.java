@@ -16,6 +16,7 @@ public class StartComputationStepMsg implements Serializable {
     private final long timestamp;
     private final ComputationParameters computationParameters;
 
+
     public StartComputationStepMsg(String computationId, LinkedHashMap<String, String> freeVars, int stepNumber, long timestamp, @Nullable ComputationParameters computationParameters) {
         this.computationId = computationId;
         this.freeVars = freeVars;
@@ -45,5 +46,16 @@ public class StartComputationStepMsg implements Serializable {
 
     public ComputationParameters getComputationParameters() {
         return computationParameters;
+    }
+
+    @Override
+    public String toString() {
+        return "StartComputationStepMsg{" +
+                "computationId='" + computationId + '\'' +
+                ", freeVars=" + freeVars +
+                ", stepNumber=" + stepNumber +
+                ", timestamp=" + timestamp +
+                ", computationParameters=" + computationParameters +
+                '}';
     }
 }
