@@ -1,5 +1,6 @@
 package shared;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -12,7 +13,7 @@ public class Utils {
     /**
      * Support seconds (s), minutes (m), hours (h)
      */
-    public static final String TIME_DELIMETER_REGEX = "(smh)";
+    public static final String TIME_DELIMETER_REGEX = "[smh]";
 
     public static int getPartition(String name, int numPartitions) {
         return name.hashCode() % numPartitions;
@@ -55,6 +56,11 @@ public class Utils {
                 result = result + (Long.parseLong(tokens[tokenIndex])*3600000);
                 tokenIndex = tokenIndex +1;
             }
+        }
+
+        char last = time.charAt(time.length()-1);
+        if ( last >= '0' && last <= '9' ) {
+            result = result + Long.parseLong(tokens[tokenIndex]);
         }
         return result;
     }
