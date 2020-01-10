@@ -1,6 +1,6 @@
 package shared.antlr4.pattern.patternSubParsers;
 
-import computationImpl.OperationImplementations;
+import shared.resources.computationImpl.OperationImplementations;
 import master.PatternCallback;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;

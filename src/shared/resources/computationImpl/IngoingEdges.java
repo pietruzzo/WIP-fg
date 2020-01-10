@@ -1,4 +1,4 @@
-package computationImpl;
+package shared.resources.computationImpl;
 
 import akka.japi.Pair;
 import shared.AkkaMessages.StepMsg;

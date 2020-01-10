@@ -1,11 +1,10 @@
-package computationImpl;
+package shared.resources.computationImpl;
 
 import akka.japi.Pair;
 import shared.AkkaMessages.StepMsg;
 import shared.computation.Computation;
 import shared.computation.Vertex;
 
-import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 

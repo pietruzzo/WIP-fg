@@ -1,4 +1,4 @@
-package computationImpl;
+package shared.resources.computationImpl;
 
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
