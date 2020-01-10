@@ -1,9 +1,6 @@
 package slave;
 
-import akka.actor.AbstractActor;
-import akka.actor.ActorRef;
-import akka.actor.ActorSelection;
-import akka.actor.Props;
+import akka.actor.*;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import akka.japi.Pair;
@@ -43,15 +40,18 @@ import javax.naming.OperationNotSupportedException;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.intellij.util.lang.UrlClassLoader.build;
+
 //LAST USED: private static final long serialVersionUID = 200062L;
 
-public class TaskManagerActor extends AbstractActor implements ComputationCallback, StreamProcessingCallback {
+public class TaskManagerActor extends AbstractActorWithStash implements ComputationCallback, StreamProcessingCallback {
 	private final LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
 	public static final String GRAPHPATH = "src/shared/resources/graph.txt";
 
@@ -126,6 +126,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 		return receiveBuilder().
 				match(BoxMsg.class, this::onInboxMsg). //
 				match(AckMsg.class, this::onAckMsg). //
+				match(Serializable.class, x->stash()).
 				build();
 	}
 
@@ -485,10 +486,12 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 
 		if (this.waitingResponses.decrementAndGet() == 0){
 			getContext().become(initializedState());
+			unstashAll();
 		} else if (this.waitingResponses.get() < 0 ) {
 			System.out.println("Warning: waiting responses = " + this.waitingResponses.get());
 			this.waitingResponses.set(0);
 			getContext().become(initializedState());
+			unstashAll();
 		}
 
 		log.info("Waiting " + this.waitingResponses + " responses");

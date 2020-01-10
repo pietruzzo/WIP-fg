@@ -131,6 +131,7 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 				match(AckMsg.class, this::onAckMsg).
 				match(AckMsgComputationTerminated.class, this::onAckMsg).
 				match(AggregateMsg.class, this::onAggregateMsg).
+				match(Serializable.class, x-> stash()).
 				build();
 	}
 
@@ -315,7 +316,9 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 
 	@Override
 	public void becomeReceiveChangeState() {
+
 		getContext().become(receiveChangeState());
+		unstashAll();
 	}
 
 	@Override
