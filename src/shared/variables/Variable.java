@@ -25,4 +25,13 @@ public abstract class Variable implements Serializable {
     public long getTimestamp() {
         return timestamp;
     }
+
+    @Override
+    public String toString() {
+        return "Variable{" +
+                "name='" + name + '\'' +
+                ", persistence=" + persistence +
+                ", timestamp=" + timestamp +
+                '}';
+    }
 }

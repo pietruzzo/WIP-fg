@@ -18,4 +18,11 @@ public class VariableGraph extends Variable {
     public MultiKeyMap<Map<String, Vertex>> getSavedPartitions() {
         return savedPartitions;
     }
+
+    @Override
+    public String toString() {
+        return "VariableGraph{" +
+                "savedPartitions=" + savedPartitions +
+                '}';
+    }
 }

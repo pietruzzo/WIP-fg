@@ -1,6 +1,8 @@
 package master;
 
 import akka.actor.ActorRef;
+import akka.event.Logging;
+import akka.event.LoggingAdapter;
 
 import java.io.Serializable;
 
@@ -20,4 +22,6 @@ public interface PatternCallback {
     void putInOngoingAggregateList (int identifier, OngoingAggregate ongoingAggregate);
 
     ActorRef getSelf();
+
+    LoggingAdapter getLogger ();
 }

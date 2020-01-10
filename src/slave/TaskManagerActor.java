@@ -118,6 +118,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 			match(NewTimestampMsg.class, this::onNewTimestampMsg).
 			match(SaveVariableGraphMsg.class, this::onSaveVariableGraphMsg). //
 			match(RestoreVariableGraphMsg.class, this::onRestoreVariableGraphMsg). //
+			match(BoxMsg.class, this::onInboxMsg). //
 		    build();
 	}
 
@@ -347,27 +348,30 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 		 */
 
 		if	(msg.getVariableName() == null) {
+
 			//Restore general partition
 			this.partitionComputations = null;
 			this.instantiatePartitionsIfAbsent();
-		}
-		MultiKeyMap<Map<String, Vertex>> newPartitions = this.variables.getGraphs(msg.getVariableName(), msg.getTimeAgo());
 
-		newPartitions.getAllElements().entrySet().stream().forEach(entryP ->{
+		} else {
 
-			entryP.getValue().values().parallelStream()
-					.filter(vertex -> this.vertices.get(vertex.getNodeId()) != null)
-					.forEach(vertex -> {
-						Arrays.asList(vertex.getEdges()).stream().forEach(edge -> {
-							VertexM vertexM = ((VertexM) vertex);
-							String[] edges = vertexM.getEdges();
-							if ( !(Arrays.asList(edges).contains(edge)) ){
-								vertexM.deleteEdge(edge);
-							}
+			MultiKeyMap<Map<String, Vertex>> newPartitions = this.variables.getGraphs(msg.getVariableName(), msg.getTimeAgo());
+
+			newPartitions.getAllElements().entrySet().stream().forEach(entryP -> {
+
+				entryP.getValue().values().parallelStream()
+						.filter(vertex -> this.vertices.get(vertex.getNodeId()) != null)
+						.forEach(vertex -> {
+							Arrays.asList(vertex.getEdges()).stream().forEach(edge -> {
+								VertexM vertexM = ((VertexM) vertex);
+								String[] edges = vertexM.getEdges();
+								if (!(Arrays.asList(edges).contains(edge))) {
+									vertexM.deleteEdge(edge);
+								}
+							});
 						});
-					});
-		});
-
+			});
+		}
 		master.tell(new AckMsg(), self());
 
 	}
@@ -377,24 +381,10 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 		log.info(msg.toString());
 		boolean isCompleted = false; //If true computation has terminated for all runtimes
 
-		//Check computation name
-		if (!this.computations.containsKey(msg.getComputationId())) {
-			throw new NullPointerException("Computation " + msg.getComputationId() + " isn't registered on taskManager");
-		}
+		//Performe it before first superstep only
+		computationSetup(msg);
 
-		//Set VariableSolver in ComputationParameters and set the Parameters list if first step
-		if (msg.getStepNumber() == 0) {
-			msg.getComputationParameters().setVariableSolver(this.variables);
-			this.computations.get(msg.getComputationId()).setComputationParameters(msg.getComputationParameters());
-		}
 
-		//If no partitions are available, no select or free variables have been allocated
-		this.instantiatePartitionsIfAbsent();
-
-		//set computation for each runtime
-		for (ComputationRuntime computation: this.partitionComputations.getAllElements().values()) {
-			computation.setComputation(this.computations.get(msg.getComputationId()));
-		}
 		//Run RuntimeComputation (in series)
 		if (msg.getFreeVars() == null) {
 
@@ -402,7 +392,6 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 			int numCompleted = 0;
 			for (ComputationRuntime computationRuntime: partitionComputations.getAllElements().values()) {
 				try {
-					//If first step, solve aggregates
 					computationRuntime.compute(msg.getStepNumber(), this.executors);
 				} catch (ComputationFinishedException e) {
 					numCompleted = numCompleted + 1;
@@ -428,11 +417,15 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 
 		if (isCompleted) {
 			master.tell(new AckMsgComputationTerminated(), self());
+			log.info("Computation has terminated");
 		} else {
+			log.info("Computation requires more steps: end of step " + msg.getStepNumber());
 			master.tell(new AckMsg(), self());
 		}
 
 	}
+
+
 
 	private final void onComputeResultMsg(ComputeResultsMsg msg) throws ExecutionException, InterruptedException {
 		log.info(msg.toString());
@@ -456,6 +449,11 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 
 		master.tell(new AckMsg(), self());
 
+		//debug only
+		for (String name: msg.getReturnVarNames()) {
+			variables.printVariable(name);
+		}
+
 	}
 
 
@@ -467,13 +465,15 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 	private final void onInboxMsg(BoxMsg incoming){
 		log.info(incoming.toString());
 
-		ComputationRuntime computationRuntime = this.partitionComputations.getValue(incoming.getPartition());
+		//Set message partition
+		Map<String, String> partition = incoming.getPartition();
+		if (incoming.getPartition() == null) {
+			partition = new HashMap<>();
+			partition.put("all", "all");
+		}
+		ComputationRuntime computationRuntime = this.partitionComputations.getValue(partition);
 		computationRuntime.updateIncomingMsgs(incoming);
 		getSender().tell(new AckMsg(), self());
-
-		if (this.waitingResponses.decrementAndGet() == 0){
-			getContext().become(initializedState());
-		}
 
 	}
 
@@ -485,7 +485,13 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 
 		if (this.waitingResponses.decrementAndGet() == 0){
 			getContext().become(initializedState());
+		} else if (this.waitingResponses.get() < 0 ) {
+			System.out.println("Warning: waiting responses = " + this.waitingResponses.get());
+			this.waitingResponses.set(0);
+			getContext().become(initializedState());
 		}
+
+		log.info("Waiting " + this.waitingResponses + " responses");
 	}
 
 	private final void onRegisterVariableMsg(RegisterVariableMsg msg) {
@@ -665,7 +671,7 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 		SynchronizedIterator<Map.Entry<String, ArrayList>> destIterator = outgoingBox.getSyncIterator();
 		Utils.parallelizeAndWait(executors, new PopulateOutbox(this, destIterator, outboxes));
 			//Increase waiting response and send also if empty
-		this.waitingResponses.set(outboxes.size()*2);
+		this.waitingResponses.set(outboxes.size());
 			for (Map.Entry<ActorRef, BoxMsg> destOutbox: outboxes.entrySet()) {
 
 					destOutbox.getKey().tell(destOutbox.getValue(), self());
@@ -676,6 +682,31 @@ public class TaskManagerActor extends AbstractActor implements ComputationCallba
 		getContext().become(waitingResponseState());
 		//End
 	}
+
+	private void computationSetup(StartComputationStepMsg msg) {
+		//Set VariableSolver in ComputationParameters and set the Parameters list if first step
+		if (msg.getStepNumber() == 0) {
+
+			//Check computation name
+			if (!this.computations.containsKey(msg.getComputationId())) {
+				throw new NullPointerException("Computation " + msg.getComputationId() + " isn't registered on taskManager");
+			}
+
+			msg.getComputationParameters().setVariableSolver(this.variables);
+			this.computations.get(msg.getComputationId()).setComputationParameters(msg.getComputationParameters());
+
+			//If no partitions are available, no select or free variables have been allocated
+			this.instantiatePartitionsIfAbsent();
+
+
+			//set computation for each runtime
+			for (ComputationRuntime computation: this.partitionComputations.getAllElements().values()) {
+				computation.setComputation(this.computations.get(msg.getComputationId()));
+			}
+
+		}
+	}
+
 
 	private ActorRef getActor(String vertex) {
 		return this.slaves.get(Utils.getPartition(vertex, this.slaves.size()));

@@ -164,7 +164,7 @@ public class VariableSolver implements Serializable {
         Variable variable;
 
         //Get variable
-        synchronized (this) {
+        synchronized (this) { //todo: WARNING, long synchronized
 
             //Create variable/partition if not present
             this.varablesNew.putIfAbsent(variableName, new TreeMap<>());
@@ -566,5 +566,9 @@ public class VariableSolver implements Serializable {
         String[] elements = variableName.split(".", 2);
         if (elements.length == 1) return new Tuple2<>(elements[0], null);
         else return new Tuple2<>(elements[0], elements[1]);
+    }
+
+    public void printVariable(String name) {
+        System.out.println(this.varablesNew.get(name).lastEntry().getValue().toString());
     }
 }

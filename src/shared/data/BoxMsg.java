@@ -40,12 +40,8 @@ public class BoxMsg<TMsg> implements Serializable {
     }
 
     public synchronized void put(String destination, TMsg message){
-        ArrayList<TMsg> messages = data.get(destination);
+        ArrayList<TMsg> messages = data.computeIfAbsent(destination, k -> new ArrayList<>());
 
-        if (messages == null) {
-            messages = new ArrayList<>();
-            data.put(destination, messages);
-        }
         messages.add(message);
     }
 
@@ -66,5 +62,12 @@ public class BoxMsg<TMsg> implements Serializable {
         return new SynchronizedIterator<>(this.data.entrySet().iterator());
     }
 
-
+    @Override
+    public String toString() {
+        return "BoxMsg{" +
+                "stepNumber=" + stepNumber +
+                ", partition=" + partition +
+                ", data=" + data +
+                '}';
+    }
 }

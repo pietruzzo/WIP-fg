@@ -79,4 +79,11 @@ public class VariableVertex extends Variable {
 
     }
 
+    @Override
+    public String toString() {
+        return "VariableVertex{" +
+                "verticesValues=" + verticesValues +
+                ", tupleNames=" + tupleNames +
+                '}';
+    }
 }

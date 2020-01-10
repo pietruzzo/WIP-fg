@@ -47,4 +47,10 @@ public class VariablePartition extends Variable {
         return this.insideVariable;
     }
 
+    @Override
+    public String toString() {
+        return "VariablePartition{" +
+                "insideVariable=" + insideVariable +
+                '}';
+    }
 }

@@ -65,4 +65,12 @@ public class VariableEdge extends Variable {
         if (edgesValues.get(vertexName) == null) return null;
         return edgesValues.get(vertexName).get(edgeName);
     }
+
+    @Override
+    public String toString() {
+        return "VariableEdge{" +
+                "edgesValues=" + edgesValues +
+                ", tupleNames=" + tupleNames +
+                '}';
+    }
 }

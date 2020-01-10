@@ -1,1 +1,1 @@
-.g().compute(PageRank , $varRet, $varRet2 , [ maxIterations = '100', threshold = '0.001'] );
+.g().compute(PageRank , $varRet, $varRet2 , [ maxIterations = '100', threshold = '0.0000001'] );

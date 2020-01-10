@@ -37,17 +37,10 @@ public class Computation extends Pattern {
         completedSlaves = 0;
         resultComputed = false;
 
-        //Prepare computation message
-        StartComputationStepMsg message = new StartComputationStepMsg(computationId, null, stepNumber, transportLayer.getCurrentTimestamp(), parameters);
+        return performStepMessage();
 
-        //send to all slaves
-        transportLayer.sendToAllSlaves(message);
-
-        //set next state and Wait Acks
-        transportLayer.becomeAwaitAckFromAll();
-
-        return false;
     }
+
 
     @Override
     public boolean processMessage(Serializable message) {
@@ -56,22 +49,58 @@ public class Computation extends Pattern {
 
         if (message instanceof AckMsgComputationTerminated) {
             completedSlaves = completedSlaves + 1;
+
+
+            //Terminate computation and notify completion
+            if (completedSlaves == this.transportLayer.getNumSlaves()) {
+                computeResult();
+            }
+
+
+        } else {
+            stepNumber = stepNumber + 1;
+            performStepMessage();
         }
 
-        //Terminate computation and notify completion
-        if (completedSlaves == this.transportLayer.getNumSlaves()) {
-            computeResult();
-            transportLayer.becomeAwaitAckFromAll();
-            resultComputed = true;
-        }
-
-        completedSlaves = 0;
         return false;
+
+
+        //Detect end of superstep and begins new one
+        /*
+        if (receivedSlaves == this.transportLayer.getNumSlaves()) {
+            stepNumber = stepNumber + 1;
+            performStepMessage();
+        }
+         */
+
     }
 
     private void computeResult () {
 
         transportLayer.sendToAllSlaves(new ComputeResultsMsg(null, outputLabels));
+        transportLayer.becomeAwaitAckFromAll();
+        resultComputed = true;
+
+    }
+
+    private boolean performStepMessage() {
+
+        ComputationParameters params = null;
+        completedSlaves = 0;
+
+        if (stepNumber == 0) params = parameters;
+
+        //Prepare computation message
+        transportLayer.getLogger().info("Launch superstep " + stepNumber);
+        StartComputationStepMsg message = new StartComputationStepMsg(computationId, null, stepNumber, transportLayer.getCurrentTimestamp(), params);
+
+        //send to all slaves
+        transportLayer.sendToAllSlaves(message);
+
+        //set next state and Wait Acks
+        transportLayer.becomeAwaitAckFromAll();
+
+        return false;
     }
 
 }

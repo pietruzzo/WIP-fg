@@ -54,4 +54,12 @@ public class VariableAggregate extends Variable {
     public ArrayList<String> getTupleNames() {
         return tupleNames;
     }
+
+    @Override
+    public String toString() {
+        return "VariableAggregate{" +
+                "value=" + Arrays.toString(value) +
+                ", tupleNames=" + tupleNames +
+                '}';
+    }
 }

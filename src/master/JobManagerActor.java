@@ -306,6 +306,7 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 	@Override
 	public <Msg extends Serializable> void sendToAllSlaves(Msg message) {
 		this.slaves.keySet().stream().forEach(slave -> slave.tell(message, self()));
+		log.info(message + " sent to all slaves");
 	}
 
 	public long getCurrentTimestamp() {
@@ -331,6 +332,11 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 	@Override
 	public void putInOngoingAggregateList(int identifier, OngoingAggregate ongoingAggregate) {
 		this.aggregates.put(String.valueOf(identifier), ongoingAggregate);
+	}
+
+	@Override
+	public LoggingAdapter getLogger() {
+		return this.log;
 	}
 
 	//endregion

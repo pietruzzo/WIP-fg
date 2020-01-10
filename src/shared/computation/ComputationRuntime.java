@@ -92,9 +92,7 @@ public class ComputationRuntime {
         Collection<Future> executions = new LinkedList<>();
 
         //Launch executors
-        for (int i = 0; i < executors.getMaximumPoolSize(); i++) {
-            executors.submit(new ComputeResultsThread(this, new SynchronizedIterator<>(vertices.values().iterator()), null));
-        }
+        Utils.parallelizeAndWait(executors, new ComputeResultsThread(this, new SynchronizedIterator<>(vertices.values().iterator()), null));
 
         //Wait executors end
         for (Future<?> future: executions) {
@@ -150,16 +148,21 @@ public class ComputationRuntime {
      * and add new messages
      */
     public <TMes> void updateIncomingMsgs(BoxMsg ingoingMessages){
+
         if (inboxMessages == null){
             this.inboxMessages = new BoxMsg(ingoingMessages.getStepNumber());
         }
+
         SynchronizedIterator<Map.Entry<String, ArrayList<TMes>>> entry = ingoingMessages.getSyncIterator();
+
         try{
             while(true){
                 Map.Entry<String, ArrayList<TMes>> e = entry.next();
 
                 for (TMes message: e.getValue()) {
-                    this.inboxMessages.put(e.getKey(), e.getValue());
+
+                    this.inboxMessages.put(e.getKey(), message);
+
                 }
             }
         } catch (NoSuchElementException e) {/*End*/}
@@ -170,9 +173,9 @@ public class ComputationRuntime {
 
         private final ComputationRuntime computationRuntime;
         private final SynchronizedIterator<Vertex> vertexIterator;
-        private final SynchronizedIterator<Map.Entry<String, List<StepMsg>>> ingoingMessages;
+        private final SynchronizedIterator<Map.Entry<String, List<ArrayList<StepMsg>>>> ingoingMessages;
 
-        ComputationThread(ComputationRuntime computationRuntime, @Nullable SynchronizedIterator<Vertex> vertexIterator, @Nullable SynchronizedIterator<Map.Entry<String, List<StepMsg>>> ingoingMessages){
+        ComputationThread(ComputationRuntime computationRuntime, @Nullable SynchronizedIterator<Vertex> vertexIterator, @Nullable SynchronizedIterator<Map.Entry<String, List<ArrayList<StepMsg>>>> ingoingMessages){
             this.computationRuntime = computationRuntime;
             this.vertexIterator = vertexIterator;
             this.ingoingMessages = ingoingMessages;
@@ -206,11 +209,12 @@ public class ComputationRuntime {
 
         private void step(){
             while (true) {
-                Map.Entry<String, List<StepMsg>> next = ingoingMessages.next();
+                Map.Entry<String, List<ArrayList<StepMsg>>> next = ingoingMessages.next();
                 Vertex vertex = computationRuntime.vertices.get(next.getKey());
-                List<StepMsg> messages = next.getValue();
+                List<ArrayList<StepMsg>> messages = next.getValue();
+                List<StepMsg> flattered = messages.stream().flatMap(arraylist -> arraylist.stream()).collect(Collectors.toList());
                 int stepNumber = computationRuntime.stepNumber;
-                registerOutgoingMsg(computationRuntime.computation.iterate(vertex, messages, stepNumber));
+                registerOutgoingMsg(computationRuntime.computation.iterate(vertex, flattered, stepNumber));
             }
         }
 
@@ -233,7 +237,7 @@ public class ComputationRuntime {
     static class ComputeResultsThread extends ComputationThread {
 
 
-        ComputeResultsThread(ComputationRuntime computationRuntime, @Nullable SynchronizedIterator<Vertex> vertexIterator, @Nullable SynchronizedIterator<Map.Entry<String, List<StepMsg>>> ingoingMessages) {
+        ComputeResultsThread(ComputationRuntime computationRuntime, @Nullable SynchronizedIterator<Vertex> vertexIterator, @Nullable SynchronizedIterator<Map.Entry<String, List<ArrayList<StepMsg>>>> ingoingMessages) {
             super(computationRuntime, vertexIterator, ingoingMessages);
         }
 

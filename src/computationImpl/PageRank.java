@@ -33,7 +33,7 @@ public class PageRank extends Computation {
 
         Double newWeight = incoming
                 .stream()
-                .map(msg -> (double)msg.computationValues)
+                .map(msg -> (Double)msg.computationValues)
                 .reduce((d1, d2) -> d1 + d2)
                 .get();
 
@@ -46,7 +46,7 @@ public class PageRank extends Computation {
         } else {
 
             List<StepMsg> outbox = new ArrayList<>();
-            double weightToSend =  newWeight / vertex.getEdges().length;
+            Double weightToSend =  newWeight / vertex.getEdges().length;
 
             for (String dest: vertex.getEdges()) {
                 outbox.add(new StepMsg(dest, vertex.getNodeId(), weightToSend));
