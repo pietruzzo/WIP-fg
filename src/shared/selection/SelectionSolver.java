@@ -405,10 +405,17 @@ public class SelectionSolver implements Cloneable, Selection{
                 boolean converted = false;
 
                 try {
+
                     converted1 = Double.parseDouble(value1);
                     converted2 = Double.parseDouble(value2);
                     converted = true;
-                } catch (Exception e) {
+
+                } catch (NullPointerException e) {
+
+                    //Value1 or Value2 aren't defined -> comparison fails and return false
+                    return false;
+
+                } catch (NumberFormatException e) {
                     //System.out.println("Parsing as double Failed: " + value1 + " " + value2);
                 }
 
@@ -449,14 +456,31 @@ public class SelectionSolver implements Cloneable, Selection{
                 }
             }
 
+            /**
+             * Get the operator object corresponding to string
+             * @param operatorString
+             * @return
+             */
+            public static Operator getOperator(String operatorString) {
+                for ( Operator op : Operator.values() ) {
+                    if (op.opString.equals(operatorString))
+                        return op;
+                }
+                throw new IllegalArgumentException("Unrecognized operator");
+            }
+
+
             public boolean apply(String[] values1, String[] values2) {
 
-                for (String value1: values1) {
-                    for (String value2 : values2) {
-                        if (this.apply(value1, value2))
-                            return true;
+                if (values1 != null && values2 != null) {
+                    for (String value1 : values1) {
+                        for (String value2 : values2) {
+                            if (this.apply(value1, value2))
+                                return true;
+                        }
                     }
                 }
+
                 return false;
 
             }

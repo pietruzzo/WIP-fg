@@ -26,11 +26,13 @@ public class PartitionStreamsHandler {
 
         //Check the begin of stream
 
-        if( ! (operationsList.get(0) instanceof Operations.Extract) || ! (operationsList.get(0) instanceof Operations.StreamVariable)) {
+        if( ! (operationsList.get(0) instanceof Operations.Extract) && ! (operationsList.get(0) instanceof Operations.StreamVariable)) {
             throw new InvalidOperationChain("Chain must begin with extract operation (" + operationsList.get(0).getClass().toGenericString() + ").");
         }
 
         this.variableSolver = variableSolver;
+
+        this.operationsList = operationsList;
 
         this.callback = callback;
     }

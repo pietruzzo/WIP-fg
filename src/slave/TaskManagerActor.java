@@ -296,8 +296,12 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 			invalidNodesPartitions.putValue(entry.getKey().getKeysMapping(), invalidNodes);
 		});
 
+		InvalidNodesMsg invalidNodesMsg = new InvalidNodesMsg(invalidNodesPartitions);
+		getSender().tell(invalidNodesMsg, self());
+
 		if(this.waitingResponses.decrementAndGet() == 0){
 			getContext().become(initializedState());
+			master.tell(new AckMsg(), self());
 		}
 	}
 
@@ -626,21 +630,36 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 
 		this.partitionComputations.getAllElements().values().stream().forEach(computationRuntime -> {
 
-			Collection<VertexM> verticesM = computationRuntime.getVertices().values().parallelStream().map(vertex -> (VertexM)vertex).collect(Collectors.toList());
-			Select select = new Select(msg.operations, verticesM.iterator(), this.variables, executors, new HashMap<>(computationRuntime.getPartition()));
+			Collection<VertexM> verticesM =
+					computationRuntime
+							.getVertices()
+							.values()
+							.parallelStream()
+							.map(vertex -> (VertexM)vertex)
+							.collect(Collectors.toList());
+
+			HashMap<String,String> newPartition = null;
+			if (computationRuntime.getPartition()!= null) {
+				newPartition = new HashMap<>(computationRuntime.getPartition());
+			}
+
+			Select select = new Select(msg.operations, verticesM.iterator(), this.variables, executors, newPartition);
+
 			try {
 				Map<String, Vertex> selected = select.performSelection();
 				computationRuntime.setVertices(selected);
-			} catch (ExecutionException e) {
-				e.printStackTrace();
-			} catch (InterruptedException e) {
+			} catch (ExecutionException | InterruptedException e) {
 				e.printStackTrace();
 			}
 		});
 
-		if (msg.operations.hasEdgeToken()) validateEdges();
+		if (msg.operations.hasEdgeToken()) {
+			//Ack to master will be sent after validation operations
+			validateEdges();
+		} else {
+			master.tell(new AckMsg(), self());
+		}
 
-		master.tell(new AckMsg(), self());
 	}
 
 	/**
@@ -738,7 +757,6 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 			key.put("all", "all");
 			this.partitionComputations.putValue(key, computationRuntime);
 
-			//Run first iteration on selected free variables, if NULL on all free variables
 		}
 	}
 
@@ -767,12 +785,15 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 
 				});
 
+
+		this.waitingResponses.set(this.slaves.size()*2); //2 times slaves
+		getContext().become(edgeValidation());
+
 		for (int i = 0; i < destinations.size(); i++) {
 			MultiKeyMap<Set<String>> destination = destinations.get(i);
 			this.slaves.get(i).tell(new ValidateNodesMsg(destination), self());
 		}
-		this.waitingResponses.set(this.slaves.size()*2); //2 times slaves
-		getContext().become(edgeValidation());
+
 	}
 
 

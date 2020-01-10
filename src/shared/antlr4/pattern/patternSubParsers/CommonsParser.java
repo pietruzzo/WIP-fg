@@ -45,7 +45,8 @@ public class CommonsParser extends PatternBaseListener {
         CommonsParser commonsParser = new CommonsParser();
         walker.walk(commonsParser, root);
 
-        return commonsParser.varPersistance.get(varName);
+        return commonsParser.varPersistance.getOrDefault(varName, 0L);
+
     }
     public static Tuple3<String, String, SelectionSolver.Operation.WindowType> getTemporalVar(shared.antlr4.pattern.PatternParser.TemporalVariableContext ctx) {
         CommonsParser commonsParser = new CommonsParser();

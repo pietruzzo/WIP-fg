@@ -1,1 +1,1 @@
-.g().compute(PageRank , $varRet, [ maxIterations = '100', threshold = '0.0000001'] );
+.g().select(label > '33').extractV(label).emit($res);

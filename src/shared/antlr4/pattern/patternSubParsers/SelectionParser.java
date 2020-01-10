@@ -97,7 +97,7 @@ public class SelectionParser extends PatternBaseListener {
 
 
         //Get operator type
-        operator = SelectionSolver.Operation.Operator.valueOf(ctx.Operator().getText());
+        operator = SelectionSolver.Operation.Operator.getOperator(ctx.Operator().getText());
 
 
         if (ctx.leftOp.label() != null) {

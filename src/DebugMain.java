@@ -8,9 +8,6 @@ public class DebugMain {
 
         JobManager.main(new String[0]);
         TaskManager.main(new String[0]);
-        TaskManager.main(new String[0]);
-        TaskManager.main(new String[0]);
-        TaskManager.main(new String[0]);
         Client.main(new String[0]);
     }
 }
