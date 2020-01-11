@@ -188,11 +188,15 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 		startNewIteration(msg.getTimestamp(), Trigger.TriggerEnum.VERTEX_DELETION);
 	}
 
-	private final void onUpdateVertexMsg(UpdateVertexMsg msg){ //todo necessario distinguere insert ed update per il trigger
+	private final void onUpdateVertexMsg(UpdateVertexMsg msg){
 		ActorRef slave = getActor(msg.getVertexName());
-		slave.tell(new UpdateVertexMsg(msg.getVertexName(), msg.getAttributes(), System.currentTimeMillis()), self());
+		slave.tell(new UpdateVertexMsg(msg.getVertexName(), msg.getAttributes(), System.currentTimeMillis(), msg.isInsertion()), self());
 		waitingResponses.set(1);
-		startNewIteration(msg.getTimestamp(), Trigger.TriggerEnum.VERTEX_UPDATE);
+		if (!msg.isInsertion()){
+			startNewIteration(msg.getTimestamp(), Trigger.TriggerEnum.VERTEX_UPDATE);
+		} else {
+			startNewIteration(msg.getTimestamp(), Trigger.TriggerEnum.VERTEX_ADDITION);
+		}
 	}
 
 	private final void onUpdateEdgeMsg(UpdateEdgeMsg msg){

@@ -4,8 +4,6 @@ import akka.japi.Pair;
 import org.antlr.v4.runtime.*;
 import org.apache.flink.api.java.tuple.Tuple3;
 import shared.AkkaMessages.modifyGraph.*;
-import shared.VertexM;
-import shared.antlr4.input.CommandsBaseListener;
 import shared.antlr4.input.CommandsBaseVisitor;
 import shared.antlr4.input.CommandsLexer;
 import shared.antlr4.input.CommandsParser;
@@ -13,7 +11,6 @@ import shared.antlr4.input.CommandsParser;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class InputParser extends CommandsBaseVisitor {
 
@@ -80,13 +77,20 @@ public class InputParser extends CommandsBaseVisitor {
 
             Tuple3<String, String, String> vertexOptions = visitVertexUpdate(ctx.vertexUpdate());
 
-            if (vertexOptions.f1.equals("insert") || vertexOptions.f1.equals("update")) {
+            if (vertexOptions.f1.equals("update")) {
                 return new UpdateVertexMsg(
                         vertexOptions.f2,
                         state,
-                        timestamp
-                );
-            } else if (vertexOptions.f1.equals("delete")) {
+                        timestamp,
+                        false);
+            } else if (vertexOptions.f1.equals("insert")) {
+                    return new UpdateVertexMsg(
+                            vertexOptions.f2,
+                            state,
+                            timestamp,
+                            true);
+            }
+            else if (vertexOptions.f1.equals("delete")) {
                 return new DeleteVertexMsg(
                         vertexOptions.f2,
                         timestamp
