@@ -1,5 +1,5 @@
-vertex insert: A, lab1=1, lab2 = true , 0
-vertex insert: B, lab1=2, lab2 = true , 0
+vertex insert: A, label = 40, lab1=1, lab2 = true , 0
+vertex insert: B, label = 20, lab1=2, lab2 = true , 0
 vertex insert: C, lab1=3, lab2 = true , 0
 vertex insert: D, lab1=4, lab2 = true , 0
 vertex insert: E, lab1=5, lab2 = true , 0

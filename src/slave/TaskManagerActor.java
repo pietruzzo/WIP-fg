@@ -616,6 +616,10 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 
 		new PartitionStreamsHandler(this.partitionComputations, msg.getOperationsList(), variables, this)
 				.solveOperationChain();
+
+		master.tell(new AckMsg(), self());
+
+		variables.printAllVariables();
 	}
 
 	private final void onSelectMsg (SelectMsg msg) {

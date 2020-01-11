@@ -23,6 +23,13 @@ public interface Operations extends Serializable {
         public Map(Function<Tuple, Tuple> function) {
             this.function = function;
         }
+
+        @Override
+        public String toString() {
+            return "Map{" +
+                    "function=" + function +
+                    '}';
+        }
     }
 
     class Extract implements Operations{
@@ -33,6 +40,14 @@ public interface Operations extends Serializable {
         public Extract(String[] labels, boolean edges) {
             this.labels = labels;
             this.edges = edges;
+        }
+
+        @Override
+        public String toString() {
+            return "Extract{" +
+                    "labels=" + Arrays.toString(labels) +
+                    ", edges=" + edges +
+                    '}';
         }
     }
 
@@ -49,6 +64,16 @@ public interface Operations extends Serializable {
             this.transaction_Id = transaction_id;
             this.fieldNames = new ArrayList<>(Arrays.asList(fieldsNames));
         }
+
+        @Override
+        public String toString() {
+            return "Reduce{" +
+                    "identity=" + identity +
+                    ", accumulator=" + accumulator +
+                    ", transaction_Id=" + transaction_Id +
+                    ", fieldNames=" + fieldNames +
+                    '}';
+        }
     }
 
     class FlatMap implements Operations{
@@ -57,6 +82,13 @@ public interface Operations extends Serializable {
 
         public FlatMap(Function<Tuple, Stream<Tuple>> mapper) {
             this.mapper = mapper;
+        }
+
+        @Override
+        public String toString() {
+            return "FlatMap{" +
+                    "mapper=" + mapper +
+                    '}';
         }
     }
 
@@ -68,6 +100,13 @@ public interface Operations extends Serializable {
         public GroupBy(String[] groupingLabels) {
             this.groupingLabels = groupingLabels;
         }
+
+        @Override
+        public String toString() {
+            return "GroupBy{" +
+                    "groupingLabels=" + Arrays.toString(groupingLabels) +
+                    '}';
+        }
     }
 
     class Merge implements Operations{
@@ -76,6 +115,13 @@ public interface Operations extends Serializable {
 
         public Merge(String[] groupingLabels) {
             this.groupingLabels = groupingLabels;
+        }
+
+        @Override
+        public String toString() {
+            return "Merge{" +
+                    "groupingLabels=" + Arrays.toString(groupingLabels) +
+                    '}';
         }
     }
 
@@ -90,6 +136,15 @@ public interface Operations extends Serializable {
             this.timeAgo = timeAgo;
             this.wType = wType;
         }
+
+        @Override
+        public String toString() {
+            return "StreamVariable{" +
+                    "VariableName='" + VariableName + '\'' +
+                    ", timeAgo='" + timeAgo + '\'' +
+                    ", wType=" + wType +
+                    '}';
+        }
     }
 
     class Filter implements Operations{
@@ -98,6 +153,13 @@ public interface Operations extends Serializable {
 
         public Filter(Predicate<Tuple> filterFunction) {
             this.filterFunction = filterFunction;
+        }
+
+        @Override
+        public String toString() {
+            return "Filter{" +
+                    "filterFunction=" + filterFunction +
+                    '}';
         }
     }
 
@@ -114,6 +176,15 @@ public interface Operations extends Serializable {
             this.persistence = persistence;
             this.transaction_id = transaction_id;
         }
+
+        @Override
+        public String toString() {
+            return "Emit{" +
+                    "variableName='" + variableName + '\'' +
+                    ", persistence=" + persistence +
+                    ", transaction_id=" + transaction_id +
+                    '}';
+        }
     }
 
     class Evaluate implements Operations{
@@ -128,6 +199,16 @@ public interface Operations extends Serializable {
             this.transaction_id = transaction_id;
             this.value = value;
             this.fireEvent = fireEvent;
+        }
+
+        @Override
+        public String toString() {
+            return "Evaluate{" +
+                    "operator=" + operator +
+                    ", transaction_id=" + transaction_id +
+                    ", value='" + value + '\'' +
+                    ", fireEvent='" + fireEvent + '\'' +
+                    '}';
         }
     }
 

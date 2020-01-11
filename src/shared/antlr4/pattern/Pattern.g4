@@ -177,7 +177,7 @@ tupleField
 
 //lexer
 
-Operator : ('<'| '>'| '=' | '<=' | '>=') ;
+Operator : ('<'| '>'| '==' | '<=' | '>=') ;
 
 //BinBoolOperator : 'and' | 'or' ;
 NOT : 'not' ;

@@ -40,12 +40,17 @@ public class ExtractedStream implements ExtractedIf{
 
         //Tuple field handling
         this.tupleFields = new ArrayList<>();
-        tupleFields.add(NODELABEL);
-        if (isEdgeExtraction) tupleFields.add(EDGELABEL);
+        this.tupleFields.add(NODELABEL);
+
+        if (isEdgeExtraction) {
+            this.tupleFields.add(EDGELABEL);
+            streamType = StreamType.EDGE;
+        } else {
+            streamType = StreamType.NODE;
+        }
+
         this.tupleFields.addAll(tupleFields);
 
-        if (isEdgeExtraction) streamType = StreamType.EDGE;
-        else    streamType = StreamType.NODE;
 
         //Create parallel stream
         if (!isEdgeExtraction) {

@@ -151,14 +151,15 @@ public class SelectionSolver implements Cloneable, Selection{
             }
         }
 
-        if (i >= 1 && pointEdgeToken /*exclude EDGETOKEN at first position*/ || !((Solved)elements.get(i-1)).solution /*node not selected*/) return null;
+        if (i >= 1 && pointEdgeToken /*exclude EDGETOKEN at first position*/ && !((Solved)elements.get(i-1)).solution /*node not selected*/) return null;
+
         if (!pointEdgeToken) {
             //No selection on edges, just return
             if (!((Solved)elements.get(i-1)).solution) return null;
             else return vertex;
         }
 
-        elements = (ArrayList<Element>)elements.subList(i, elements.size());
+        elements = new ArrayList<>(elements.subList(i, elements.size()));
 
         if (elements.size() == 1){
             //Selection on edge is empty -> return vertex
@@ -387,7 +388,7 @@ public class SelectionSolver implements Cloneable, Selection{
 
         public enum Operator {
 
-            EQUAL("="),
+            EQUAL("=="),
             GREATER(">"),
             LESS("<"),
             GREATEREQUAL(">="),

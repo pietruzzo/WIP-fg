@@ -19,4 +19,10 @@ public class ExtractMsg implements Serializable {
         return operationsList;
     }
 
+    @Override
+    public String toString() {
+        return "ExtractMsg{" +
+                "operationsList=" + operationsList +
+                '}';
+    }
 }

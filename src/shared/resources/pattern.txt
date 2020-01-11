@@ -1,1 +1,1 @@
-.g().select(label > '33').extractV(label).emit($res);
+.g().select(label > '10' or lab1 == '5').extractV(label).emit($res);
