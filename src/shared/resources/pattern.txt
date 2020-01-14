@@ -1,1 +1,1 @@
-.g().select(label > '10' or lab1 == '5').extractV(label).emit($res);
+.g().GroupV(label).extractV(label).emit($LAB);

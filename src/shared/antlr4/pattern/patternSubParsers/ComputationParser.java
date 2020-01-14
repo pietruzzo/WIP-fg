@@ -1,7 +1,9 @@
 package shared.antlr4.pattern.patternSubParsers;
 
 import master.PatternCallback;
+import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import shared.antlr4.pattern.PatternBaseListener;
 import shared.antlr4.pattern.PatternParser;
@@ -20,7 +22,7 @@ public class ComputationParser extends PatternBaseListener {
     private Computation computation;
     private String functionName;
     private ComputationParameters computationParameters;
-    private List<String> returnVariablesNames;
+    private List<Tuple2<String, Long>> returnVariablesNames;
 
     private ComputationParser(Trigger trigger, PatternCallback callback) {
         this.trigger = trigger;
@@ -59,10 +61,18 @@ public class ComputationParser extends PatternBaseListener {
      * @param ctx
      */
     @Override public void enterComputationReturnVariables(PatternParser.ComputationReturnVariablesContext ctx){
+
+        //Get Root
+        ParserRuleContext root = ctx;
+        while (root.getParent()!=null) {
+            root = root.getParent();
+        }
+        PatternParser.PatternEntryContext fRoot = (PatternParser.PatternEntryContext)root;
         // Name of target label
         this.returnVariablesNames = ctx.variable()
                 .stream()
                 .map(ctxVar -> CommonsParser.getVarName(ctxVar))
+                .map(var -> new Tuple2<>(var, CommonsParser.getMaxTemporalWindow(fRoot, var)))
                 .collect(Collectors.toList());
     }
 

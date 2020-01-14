@@ -154,14 +154,15 @@ public class VariableSolver implements Serializable {
     /**
      * Add values to variable, create variable or partition if not present
      * @implSpec This method is only supporting VariableVertex right now
-     * @param variableName
+     * @param varNamePersistence
      * @param type
      * @param partition if null -> no variable partition
      * @param values vertex name, associated values
      */
-    public void addToVariable (String variableName, VariableType type,  @Nullable Map<String, String> partition, Tuple2< String, List<String>> values) throws OperationNotSupportedException {
+    public void addToVariable (Tuple2<String, Long> varNamePersistence, VariableType type,  @Nullable Map<String, String> partition, Tuple2< String, List<String>> values) throws OperationNotSupportedException {
 
         Variable variable;
+        String variableName = varNamePersistence.f0;
 
         //Get variable
         synchronized (this) { //todo: WARNING, long synchronized
@@ -175,7 +176,7 @@ public class VariableSolver implements Serializable {
 
                 switch (type) {
                     case VERTEX:
-                        variable = new VariableVertex(variableName, 1, this.currentTimestamp, new HashMap<>(), variableName);
+                        variable = new VariableVertex(variableName, varNamePersistence.f1, this.currentTimestamp, new HashMap<>(), variableName);
                         break;
                     case AGGREGATE:
                         throw new OperationNotSupportedException("addToVariable method doesn't support aggregates right now");
@@ -197,7 +198,7 @@ public class VariableSolver implements Serializable {
 
                     this.varablesNew.get(variableName).put(
                             this.currentTimestamp,
-                            new VariablePartition(variableName, 1, this.currentTimestamp, partitionVar)
+                            new VariablePartition(variableName, varNamePersistence.f1, this.currentTimestamp, partitionVar)
                     );
 
                 }

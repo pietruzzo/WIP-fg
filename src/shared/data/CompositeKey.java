@@ -1,11 +1,12 @@
 package shared.data;
 
 
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-public class CompositeKey {
+public class CompositeKey implements Serializable {
 
     private final HashMap<String, String> keysMapping;
 
@@ -19,15 +20,15 @@ public class CompositeKey {
 
     @Override
     public int hashCode() {
-        String toBeHashed = "";
+        StringBuilder toBeHashed = new StringBuilder();
         //Order and Hash
         String[] keys = keysMapping.keySet().toArray(String[]::new);
         Arrays.sort(keys);
 
         for (String key: keys) {
-            toBeHashed = toBeHashed+key+keysMapping.get(key);
+            toBeHashed.append(key).append(keysMapping.get(key));
         }
-        return toBeHashed.hashCode();
+        return toBeHashed.toString().hashCode();
     }
 
     @Override
@@ -36,7 +37,10 @@ public class CompositeKey {
         CompositeKey otherKey = (CompositeKey) compositeKey;
         if (this.keysMapping.size() != otherKey.keysMapping.size()) return false;
         for (Map.Entry<String, String> entry: otherKey.keysMapping.entrySet()) {
-            if (! (entry.getValue().equals(this.keysMapping.get(entry.getKey()))) ) return false;
+            if ( entry.getValue() == null && this.keysMapping.get(entry.getKey()) != null ) return false;
+            else if ( entry.getValue() != null && this.keysMapping.get(entry.getKey()) == null ) return false;
+            else if ( entry.getValue() == null && this.keysMapping.get(entry.getKey()) == null ) {}
+            else if (! (entry.getValue().equals(this.keysMapping.get(entry.getKey()))) ) return false;
         }
         return true;
     }

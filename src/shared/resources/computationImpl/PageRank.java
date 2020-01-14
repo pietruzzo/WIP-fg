@@ -76,7 +76,7 @@ public class PageRank extends Computation {
         List<Pair<String, String[]>> returnLabels = new ArrayList<>();
 
         returnLabels.add(new Pair<>(
-                this.returnVarNames.get(0),
+                this.returnVarNames().get(0),
                 new String[]{String.valueOf(this.weights.get(vertex.getNodeId()))}
                 ));
 

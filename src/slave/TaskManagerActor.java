@@ -6,6 +6,7 @@ import akka.event.LoggingAdapter;
 import akka.japi.Pair;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
+import com.twelvemonkeys.util.LinkedSet;
 import shared.resources.computationImpl.IngoingEdges;
 import shared.resources.computationImpl.OutgoingEdges;
 import shared.resources.computationImpl.PageRank;
@@ -451,8 +452,8 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 		master.tell(new AckMsg(), self());
 
 		//debug only
-		for (String name: msg.getReturnVarNames()) {
-			variables.printVariable(name);
+		for (Tuple2<String, Long> name: msg.getReturnVarNames()) {
+			variables.printVariable(name.f0);
 		}
 
 	}
@@ -514,7 +515,17 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 
 		MultiKeyMap<ComputationRuntime> newRuntimes = new MultiKeyMap<>(newPartitioningLabels.toArray(String[]::new));
 
-		for (ComputationRuntime computationRuntime: this.partitionComputations.getAllElements().values()) { //For each previus computation runtime
+		for (ComputationRuntime computationRuntime: this.partitionComputations.getAllElements().values()) { //For each previous computation runtime
+
+			//region: Get before partition
+			HashMap<String, String> beforePartition;
+			if (computationRuntime.getPartition() == null) {
+				beforePartition = new HashMap<>();
+				beforePartition.put("all", "all");
+			} else{
+				beforePartition = new HashMap<>(computationRuntime.getPartition());
+			}
+			//endregion
 
 			Partition partition = new Partition(computationRuntime, msg.getPartitioningSolver(), this.variables, this.executors);
 			partition.computeSubpartitions();
@@ -525,7 +536,7 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 				List<Tuple3<String, String, HashMap<String, String[]>>> collected = partition.getCollectedResultsEdges();
 
 				//Flat collected partitioning
-				collected.parallelStream().map(tuple3 -> new Tuple3<>(tuple3.f0, tuple3.f1, elencatePartitions(tuple3.f2, null)))
+				collected.parallelStream().map(tuple3 -> new Tuple3<>(tuple3.f0, tuple3.f1, elencatePartitions(tuple3.f2, beforePartition)))
 						.map(tuple -> {
 					ArrayList<Tuple3<String, String, HashMap<String, String>>> returnTuple = new ArrayList<>();
 					for (HashMap<String, String> singlePartition: tuple.f2) {
@@ -542,10 +553,8 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 				 */
 				.forEach(tuple3 -> {
 					ComputationRuntime computation;
-					try {
 						 computation = newRuntimes.getValue(tuple3.f2);
-						 if (computation == null) throw new IllegalArgumentException();
-					} catch (IllegalArgumentException e ){
+						 if (computation == null) {
 						computation = new ComputationRuntime(this, null, new LinkedHashMap<>(tuple3.f2));
 						newRuntimes.putValue(tuple3.f2, computation);
 					}
@@ -566,7 +575,7 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 				List<Pair<String, HashMap<String, String[]>>> collected = partition.getCollectedResultsVertices();
 
 				//Flat collected partitioning
-				collected.parallelStream().map(tuple2 -> new Tuple2<>(tuple2.first(), elencatePartitions(tuple2.second(), null)))
+				collected.parallelStream().map(tuple2 -> new Tuple2<>(tuple2.first(), elencatePartitions(tuple2.second(), beforePartition)))
 						.map(tuple -> {
 							ArrayList<Tuple2<String, HashMap<String, String>>> returnTuple = new ArrayList<>();
 							for (HashMap<String, String> singlePartition: tuple.f1) {
@@ -583,21 +592,15 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
                          */
 						.forEach(tuple2 -> {
 							ComputationRuntime computation;
-							try {
-								computation = newRuntimes.getValue(tuple2.f1);
-								if (computation == null) throw new IllegalArgumentException();
-							} catch (IllegalArgumentException e ){
+							computation = newRuntimes.getValue(tuple2.f1);
+								if (computation == null) {
 								computation = new ComputationRuntime(this, null, new LinkedHashMap<>(tuple2.f1));
 								newRuntimes.putValue(tuple2.f1, computation);
 							}
 
 							VertexM globalVertex = this.vertices.get(tuple2.f0);
 
-							VertexM vertex = (VertexM) computation.getVertices().get(tuple2.f0);
-							if (vertex == null) {
-								vertex = new VertexM(globalVertex.getNodeId(), globalVertex.getState());
-								computation.getVertices().put(vertex.getNodeId(), vertex);
-							}
+							computation.getVertices().put(tuple2.f0, globalVertex);
 						});
 			}
 
@@ -734,7 +737,22 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 		return this.slaves.get(Utils.getPartition(vertex, this.slaves.size()));
 	}
 
+	/**
+	 *
+	 * @param compressed new elements key-values
+	 * @param solved HashMap of pre-existing partitions
+	 * @return
+	 */
 	private ArrayList<HashMap<String, String>> elencatePartitions(HashMap<String, String[]> compressed, @Nullable HashMap<String, String> solved){
+
+		if (solved == null)
+			return elencatePartitionsRecursion(compressed, new HashMap<>());
+		else
+			return elencatePartitionsRecursion(compressed, solved);
+
+	}
+
+	private ArrayList<HashMap<String, String>> elencatePartitionsRecursion(HashMap<String, String[]> compressed, HashMap<String, String> solved){
 		ArrayList<HashMap<String, String>> results = new ArrayList<>();
 		//Basecase
 		if (compressed.isEmpty()) {
@@ -746,9 +764,8 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 		HashMap<String, String[]> subMap = (HashMap<String, String[]>) compressed.clone();
 		subMap.remove(element.getKey());
 		for (int i = 0; i < element.getValue().length; i++) {
-			if (solved == null) solved = new HashMap<>();
 			solved.put(element.getKey(), element.getValue()[i]);
-				results.addAll(elencatePartitions(subMap, solved));
+			results.addAll(elencatePartitionsRecursion(subMap, solved));
 		}
 		return results;
 	}
@@ -784,7 +801,7 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 						return (Arrays.asList(vertexM.getEdges()));
 					}).flatMap(list -> list.stream()).forEach(edge -> {
 						int destination = Utils.getPartition(edge, this.slaves.size());
-						destinations.get(destination).getValue(entry.getKey().getKeysMapping()).add(edge);
+						destinations.get(destination).getValue(entry.getKey()).add(edge);
 					});
 
 				});
@@ -855,7 +872,7 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 	}
 
 	@Override
-	public void registerComputationResult(String vertexName, String variableName, String[] values, @Nullable Map<String, String> partition) { //Update
+	public void registerComputationResult(String vertexName, Tuple2<String, Long> variableName, String[] values, @Nullable Map<String, String> partition) { //Update
 		// Add to variable and create variable if not present
 		try {
 			this.variables.addToVariable(variableName, VariableSolver.VariableType.VERTEX, partition, new Tuple2<>(vertexName, Arrays.asList(values)));

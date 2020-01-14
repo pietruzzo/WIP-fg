@@ -130,7 +130,13 @@ public class PartitioningSolver implements Selection, Cloneable{ //Inside partit
         }
 
 
+        /**
+         *
+         * @param values
+         * @return HashSet with null
+         */
         public String[] deduplicateValues (String[] values) {
+            if (values == null || values.length == 0) return new String[]{null};
             LinkedHashSet<String> hashSet = new LinkedHashSet<>(Arrays.asList(values));
             return hashSet.toArray(String[]::new);
         }

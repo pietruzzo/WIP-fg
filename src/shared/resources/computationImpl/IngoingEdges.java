@@ -81,7 +81,7 @@ public class IngoingEdges extends Computation {
 
         List<Pair<String, String[]>> returnValues = new ArrayList<>();
 
-        returnValues.add(new Pair<>(this.returnVarNames.get(0), new String[]{
+        returnValues.add(new Pair<>(this.returnVarNames().get(0), new String[]{
                 String.valueOf(this.ingoingEdgeNum.get(vertex.getNodeId()))
         }));
 

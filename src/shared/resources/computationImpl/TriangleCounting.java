@@ -144,7 +144,7 @@ public class TriangleCounting extends Computation {
             triangles.add(triangleString);
         });
 
-        Pair<String, String[]> pair = new Pair<>(this.returnVarNames.get(0), triangles.toArray(String[]::new));
+        Pair<String, String[]> pair = new Pair<>(this.returnVarNames().get(0), triangles.toArray(String[]::new));
         returnResults.add(pair);
         return returnResults;
     }

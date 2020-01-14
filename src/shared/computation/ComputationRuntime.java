@@ -1,6 +1,7 @@
 package shared.computation;
 
 import akka.japi.Pair;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.jetbrains.annotations.Nullable;
 import shared.AkkaMessages.StepMsg;
 import shared.Utils;
@@ -137,7 +138,7 @@ public class ComputationRuntime {
      * @param variableName
      * @param values
      */
-    private void registerResult(String vertexName, String variableName, String[] values) { //DONE Modify to write on Variables (node)
+    private void registerResult(String vertexName, Tuple2<String, Long> variableName, String[] values) { //DONE Modify to write on Variables (node)
 
             taskManager.registerComputationResult(vertexName, variableName, values, this.getPartition());
 
@@ -248,7 +249,13 @@ public class ComputationRuntime {
                     Vertex vertex = super.vertexIterator.next();
                     List<Pair<String, String[]>> results = super.computationRuntime.computation.computeResults(vertex);
                     for (Pair<String, String[]> e: results) {
-                        super.computationRuntime.registerResult(vertex.getNodeId(), e.first(), e.second());
+                        for (Tuple2<String, Long> returnVar : super.computationRuntime.computation.getVarsTemporalWindow()) {
+                            if (returnVar.f0.equals(e.first())) {
+                                super.computationRuntime.registerResult(vertex.getNodeId(), returnVar, e.second());
+                                break;
+                            }
+                        }
+
                     }
                 }
             } catch (NoSuchElementException e) {/* END */}

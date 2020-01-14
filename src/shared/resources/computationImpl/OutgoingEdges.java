@@ -73,7 +73,7 @@ public class OutgoingEdges extends Computation {
 
         List<Pair<String, String[]>> returnValues = new ArrayList<>();
 
-        returnValues.add(new Pair<>(this.returnVarNames.get(0), new String[]{
+        returnValues.add(new Pair<>(this.returnVarNames().get(0), new String[]{
                 String.valueOf(this.outgoingEdgesNum.get(vertex.getNodeId()))
         }));
 

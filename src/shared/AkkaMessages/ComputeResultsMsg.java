@@ -1,5 +1,7 @@
 package shared.AkkaMessages;
 
+import org.apache.flink.api.java.tuple.Tuple2;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -10,9 +12,9 @@ public class ComputeResultsMsg implements Serializable {
     private static final long serialVersionUID = 200020L;
 
     private final LinkedHashMap<String, String> freeVars;
-    private final List<String> returnVarNames;
+    private final List<Tuple2<String, Long>> returnVarNames;
 
-    public ComputeResultsMsg(LinkedHashMap<String, String> freeVars, List<String> returnVarNames) {
+    public ComputeResultsMsg(LinkedHashMap<String, String> freeVars, List<Tuple2<String, Long>> returnVarNames) {
         this.freeVars = freeVars;
         this.returnVarNames = returnVarNames;
     }
@@ -25,7 +27,7 @@ public class ComputeResultsMsg implements Serializable {
         return freeVars;
     }
 
-    public List<String> getReturnVarNames() {
+    public List<Tuple2<String, Long>> getReturnVarNames() {
         return returnVarNames;
     }
 }

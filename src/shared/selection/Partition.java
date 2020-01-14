@@ -76,30 +76,20 @@ public class Partition {
 
                     if (!partitioningSolver.partitionOnEdge){
                         HashMap<String, String[]> result = partitioningSolver.getPartitionsVertex(vertex, partition.variableSolver);
-                        if (!result.isEmpty()){
-                            boolean valid = true;
-                            for (String[] values: result.values()) {
-                                if (values.length == 0) {
-                                    valid = false;
-                                    break;
-                                }
-                            }
-                            partition.collectResultsVertices(new Pair<>(vertex.getNodeId(), result));
-                        }
+                        /*
+                        * result contains for each vertex a list of values without repetitions
+                        * if a vertex doesn't match any value it is cast to value null
+                        */
+                        partition.collectResultsVertices(new Pair<>(vertex.getNodeId(), result));
 
                     } else {
                         for (String edge: vertex.getEdges()) {
                             HashMap<String, String[]> result = partitioningSolver.getPartitionsEdge(vertex, edge, partition.variableSolver);
-                            if (!result.isEmpty()){
-                                boolean valid = true;
-                                for (String[] values: result.values()) {
-                                    if (values.length == 0) {
-                                        valid = false;
-                                        break;
-                                    }
-                                }
-                                partition.collectResultsEdges(new Tuple3<>(vertex.getNodeId(), edge, result));
-                            }
+                            /*
+                             * result contains for each edge a list of values without repetitions
+                             * if an edge doesn't match any value it is cast to value null
+                             */
+                            partition.collectResultsEdges(new Tuple3<>(vertex.getNodeId(), edge, result));
                         }
 
                     }

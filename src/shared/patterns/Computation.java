@@ -1,6 +1,7 @@
 package shared.patterns;
 
 import master.PatternCallback;
+import org.apache.flink.api.java.tuple.Tuple2;
 import shared.AkkaMessages.AckMsgComputationTerminated;
 import shared.AkkaMessages.ComputeResultsMsg;
 import shared.AkkaMessages.StartComputationStepMsg;
@@ -12,7 +13,7 @@ import java.util.List;
 public class Computation extends Pattern {
 
     private String computationId;
-    private List<String> outputLabels;
+    private List<Tuple2<String, Long>> outputLabels;
     private ComputationParameters parameters;
     private int stepNumber;
     private int completedSlaves;
@@ -22,7 +23,7 @@ public class Computation extends Pattern {
         super(trigger, variablesToBeGenerated, transportLayer);
     }
 
-    public void setComputation (String computationName, List<String> outputLabels, ComputationParameters parameters) {
+    public void setComputation (String computationName, List<Tuple2<String, Long>> outputLabels, ComputationParameters parameters) {
         this.computationId = computationName;
         this.outputLabels = outputLabels;
         this.parameters = parameters;
