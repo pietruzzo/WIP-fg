@@ -1,6 +1,6 @@
 package shared.antlr4.pattern.patternSubParsers;
 
-import shared.resources.computationImpl.OperationImplementations;
+import shared.streamProcessing.OperationImplementations;
 import master.PatternCallback;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
@@ -12,15 +12,16 @@ import shared.antlr4.pattern.PatternParser;
 import shared.patterns.Stream;
 import shared.patterns.Trigger;
 import shared.selection.SelectionSolver;
-import shared.streamProcessing.CustomBinaryOperator;
+import shared.streamProcessing.abstractOperators.CustomBinaryOperator;
 import shared.streamProcessing.Operations;
+import shared.streamProcessing.abstractOperators.CustomFlatMapper;
+import shared.streamProcessing.abstractOperators.CustomFunction;
+import shared.streamProcessing.abstractOperators.CustomPredicate;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class StreamParser extends PatternBaseListener {
@@ -138,42 +139,42 @@ public class StreamParser extends PatternBaseListener {
 
         //Get Registerd Operation
         if (ctx.getText().startsWith("map(")){
-            Function<Tuple, Tuple> map = OperationImplementations.getMap(ctx.functionName().getText());
-            this.operations.add(new Operations.Map(map));
+            CustomFunction map = OperationImplementations.getMap(ctx.functionName().getText());
+            this.operations.add(new Operations.Map(map, fields));
         } else if (ctx.getText().startsWith("flatmap(")){
-            Function<Tuple, java.util.stream.Stream<Tuple>> map = OperationImplementations.getFlatMap(ctx.functionName().getText());
-            this.operations.add(new Operations.FlatMap(map));
+            CustomFlatMapper map = OperationImplementations.getFlatMap(ctx.functionName().getText());
+            this.operations.add(new Operations.FlatMap(map, fields));
         } else if (ctx.getText().startsWith("reduce(")){
-            Tuple2<CustomBinaryOperator, Tuple> reduce = OperationImplementations.getReduce(ctx.functionName().getText());
-            this.operations.add(new Operations.Reduce(reduce.f1, reduce.f0, Long.valueOf(this.transactionId.getAndIncrement()), fields));
+            CustomBinaryOperator reduce = OperationImplementations.getReduce(ctx.functionName().getText());
+            this.operations.add(new Operations.Reduce(reduce, Long.valueOf(this.transactionId.getAndIncrement()), fields));
         } else if (ctx.getText().startsWith("filter(")) {
-            Predicate<Tuple> filter = OperationImplementations.getFilter(ctx.functionName().getText());
-            this.operations.add(new Operations.Filter(filter));
+            CustomPredicate filter = OperationImplementations.getFilter(ctx.functionName().getText());
+            this.operations.add(new Operations.Filter(filter, fields));
         } else if (ctx.oneFieldOperationAlias() != null) {
             //Aliasing function
             if (ctx.oneFieldOperationAlias().getText().contains("avg")) {
-                Tuple2<CustomBinaryOperator, Tuple> reduce = OperationImplementations.getReduce("avg");
-                this.operations.add(new Operations.Reduce(reduce.f1, reduce.f0, Long.valueOf(this.transactionId.getAndIncrement()), fields));
+                CustomBinaryOperator reduce = OperationImplementations.getReduce("avg");
+                this.operations.add(new Operations.Reduce(reduce, Long.valueOf(this.transactionId.getAndIncrement()), fields));
 
             }
             else if (ctx.oneFieldOperationAlias().getText().contains("max")) {
-                Tuple2<CustomBinaryOperator, Tuple> reduce = OperationImplementations.getReduce("max");
-                this.operations.add(new Operations.Reduce(reduce.f1, reduce.f0, Long.valueOf(this.transactionId.getAndIncrement()), fields));
+                CustomBinaryOperator reduce = OperationImplementations.getReduce("max");
+                this.operations.add(new Operations.Reduce(reduce, Long.valueOf(this.transactionId.getAndIncrement()), fields));
 
             }
             else if (ctx.oneFieldOperationAlias().getText().contains("min")) {
-                Tuple2<CustomBinaryOperator, Tuple> reduce = OperationImplementations.getReduce("min");
-                this.operations.add(new Operations.Reduce(reduce.f1, reduce.f0, Long.valueOf(this.transactionId.getAndIncrement()), fields));
+                CustomBinaryOperator reduce = OperationImplementations.getReduce("min");
+                this.operations.add(new Operations.Reduce(reduce, Long.valueOf(this.transactionId.getAndIncrement()), fields));
 
             }
             else if (ctx.oneFieldOperationAlias().getText().contains("count")) {
-                Tuple2<CustomBinaryOperator, Tuple> reduce = OperationImplementations.getReduce("count");
-                this.operations.add(new Operations.Reduce(reduce.f1, reduce.f0, Long.valueOf(this.transactionId.getAndIncrement()), fields));
+                CustomBinaryOperator reduce = OperationImplementations.getReduce("count");
+                this.operations.add(new Operations.Reduce(reduce, Long.valueOf(this.transactionId.getAndIncrement()), fields));
 
             }
             else if (ctx.oneFieldOperationAlias().getText().contains("select")) {
-                Function<Tuple, Tuple> map = OperationImplementations.getMap("select");
-                this.operations.add(new Operations.Map(map));
+                CustomFunction map = OperationImplementations.getMap("select");
+                this.operations.add(new Operations.Map(map, fields));
             }
         } else if (ctx.getText().startsWith("groupby")) {
             this.operations.add(new Operations.GroupBy(fields));

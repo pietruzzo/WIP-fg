@@ -1,11 +1,10 @@
 package shared.streamProcessing;
 
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.jetbrains.annotations.NotNull;
+import shared.streamProcessing.abstractOperators.CustomBinaryOperator;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;

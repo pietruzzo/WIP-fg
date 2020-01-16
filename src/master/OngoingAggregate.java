@@ -5,7 +5,7 @@ import org.jetbrains.annotations.Nullable;
 import org.apache.flink.api.java.tuple.Tuple;
 import shared.AkkaMessages.AggregateMsg;
 import shared.data.MultiKeyMap;
-import shared.streamProcessing.CustomBinaryOperator;
+import shared.streamProcessing.abstractOperators.CustomBinaryOperator;
 import shared.streamProcessing.StreamProcessingCallback;
 import shared.streamProcessing.StreamProcessingCallback.Aggregate;
 import shared.streamProcessing.StreamProcessingCallback.AggregateType;
@@ -151,11 +151,11 @@ public class OngoingAggregate {
                         .map(aggregate -> (StreamProcessingCallback.ReduceAggregate) aggregate)
                         .collect(Collectors.toList());
 
-        MultiKeyMap<Map<Tuple, Tuple>> result = new MultiKeyMap<>(aggregates.get(0).getReducedPartitions().getKeys());
-        MultiKeyMap<HashMap<Tuple, ArrayList<Tuple>>> reducedPartitions = new MultiKeyMap<>(aggregates.get(0).getReducedPartitions().getKeys());
+        MultiKeyMap<Map<Tuple, Object>> result = new MultiKeyMap<>(aggregates.get(0).getReducedPartitions().getKeys());
+        MultiKeyMap<HashMap<Tuple, ArrayList<Object>>> reducedPartitions = new MultiKeyMap<>(aggregates.get(0).getReducedPartitions().getKeys());
 
         for (int i = 0; i < aggregates.size(); i++) {
-            MultiKeyMap<Map<Tuple, Tuple>> collected = aggregates.get(i).getReducedPartitions();
+            MultiKeyMap<Map<Tuple, Object>> collected = aggregates.get(i).getReducedPartitions();
 
             collected.getAllElements().entrySet().stream().forEach(map -> {
 
@@ -182,7 +182,7 @@ public class OngoingAggregate {
         reducedPartitions.getAllElements().entrySet().stream().forEach(map -> {
 
             map.getValue().entrySet().stream().forEach( list -> {
-                Tuple resultForGroupPartition = list.getValue().stream().reduce(this.operator).get();
+                Object resultForGroupPartition = list.getValue().stream().reduce(this.operator.getBinaryOperator()).get();
                 result.getValue(map.getKey()).put(list.getKey(), resultForGroupPartition);
             });
         });

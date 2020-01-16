@@ -1,15 +1,17 @@
 package shared.streamProcessing;
 
 
-import com.google.common.collect.Lists;
 import org.jetbrains.annotations.Nullable;
 import org.apache.flink.api.java.tuple.Tuple;
 import shared.selection.SelectionSolver;
+import shared.streamProcessing.abstractOperators.CustomBinaryOperator;
+import shared.streamProcessing.abstractOperators.CustomFlatMapper;
+import shared.streamProcessing.abstractOperators.CustomFunction;
+import shared.streamProcessing.abstractOperators.CustomPredicate;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -18,16 +20,19 @@ public interface Operations extends Serializable {
 
     class Map implements Operations{
 
-        public final Function<Tuple, Tuple> function;
+        public final CustomFunction function;
+        public final ArrayList<String> fieldNames;
 
-        public Map(Function<Tuple, Tuple> function) {
+        public Map(CustomFunction function, String[] fieldNames) {
             this.function = function;
+            this.fieldNames = new ArrayList<>(Arrays.asList(fieldNames));
         }
 
         @Override
         public String toString() {
             return "Map{" +
                     "function=" + function +
+                    ", fieldNames=" + fieldNames +
                     '}';
         }
     }
@@ -53,13 +58,11 @@ public interface Operations extends Serializable {
 
     class Reduce implements Operations{
 
-        public final Tuple identity;
         public final CustomBinaryOperator accumulator;
         public final Long transaction_Id;
         public final ArrayList<String> fieldNames;
 
-        public Reduce(Tuple identity, CustomBinaryOperator accumulator, @Nullable Long transaction_id, String[] fieldsNames) {
-            this.identity = identity;
+        public Reduce(CustomBinaryOperator accumulator, @Nullable Long transaction_id, String[] fieldsNames) {
             this.accumulator = accumulator;
             this.transaction_Id = transaction_id;
             this.fieldNames = new ArrayList<>(Arrays.asList(fieldsNames));
@@ -68,7 +71,6 @@ public interface Operations extends Serializable {
         @Override
         public String toString() {
             return "Reduce{" +
-                    "identity=" + identity +
                     ", accumulator=" + accumulator +
                     ", transaction_Id=" + transaction_Id +
                     ", fieldNames=" + fieldNames +
@@ -78,16 +80,19 @@ public interface Operations extends Serializable {
 
     class FlatMap implements Operations{
 
-        public final Function<Tuple, Stream<Tuple>> mapper;
+        public final CustomFlatMapper mapper;
+        public final ArrayList<String> fieldNames;
 
-        public FlatMap(Function<Tuple, Stream<Tuple>> mapper) {
+        public FlatMap( CustomFlatMapper mapper, String[] fieldNames) {
             this.mapper = mapper;
+            this.fieldNames = new ArrayList<>(Arrays.asList(fieldNames));
         }
 
         @Override
         public String toString() {
             return "FlatMap{" +
                     "mapper=" + mapper +
+                    ", fieldNames=" + fieldNames +
                     '}';
         }
     }
@@ -149,16 +154,19 @@ public interface Operations extends Serializable {
 
     class Filter implements Operations{
 
-        public final Predicate<Tuple> filterFunction;
+        public final CustomPredicate filterFunction;
+        public final ArrayList<String> fieldNames;
 
-        public Filter(Predicate<Tuple> filterFunction) {
+        public Filter(CustomPredicate filterFunction, String[] fieldNames) {
             this.filterFunction = filterFunction;
+            this.fieldNames = new ArrayList<>(Arrays.asList(fieldNames));
         }
 
         @Override
         public String toString() {
             return "Filter{" +
                     "filterFunction=" + filterFunction +
+                    ", fieldNames=" + fieldNames +
                     '}';
         }
     }

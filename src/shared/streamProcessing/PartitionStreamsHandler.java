@@ -46,7 +46,7 @@ public class PartitionStreamsHandler {
             if (operation instanceof Operations.Map) {
 
                 Operations.Map opMap = (Operations.Map) operation;
-                partitions.getAllElements().values().forEach(partition -> partition.set(partition.map(opMap.function)));
+                partitions.getAllElements().values().forEach(partition -> partition.set(partition.map(opMap.function, opMap.fieldNames)));
 
             }
             else if (operation instanceof Operations.Extract) {
@@ -183,13 +183,13 @@ public class PartitionStreamsHandler {
             else if (operation instanceof Operations.Filter) {
 
                 Operations.Filter opFilter = (Operations.Filter) operation;
-                partitions.getAllElements().values().stream().forEach(partition -> partition.set(partition.filter(opFilter.filterFunction)));
+                partitions.getAllElements().values().stream().forEach(partition -> partition.set(partition.filter(opFilter.filterFunction, opFilter.fieldNames)));
 
             }
             else if (operation instanceof Operations.FlatMap) {
 
                 Operations.FlatMap opFlatMap = (Operations.FlatMap) operation;
-                partitions.getAllElements().values().stream().forEach(partition -> partition.set(partition.flatmap(opFlatMap.mapper)));
+                partitions.getAllElements().values().stream().forEach(partition -> partition.set(partition.flatmap(opFlatMap.mapper, opFlatMap.fieldNames)));
 
             }
             else if (operation instanceof Operations.GroupBy) {
@@ -207,12 +207,13 @@ public class PartitionStreamsHandler {
             else if (operation instanceof Operations.Reduce) {
 
                 Operations.Reduce opReduce = (Operations.Reduce) operation;
-                final MultiKeyMap<Map<Tuple, Tuple>> reduced = new MultiKeyMap<>(partitions.getKeys());
-                partitions.getAllElements().entrySet().stream().forEach(entry -> reduced.putValue(entry.getKey(), entry.getValue().reduce(opReduce.identity, opReduce.accumulator)));
+                final MultiKeyMap<Map<Tuple, Object>> reduced = new MultiKeyMap<>(partitions.getKeys());
+                final ArrayList<String> fieldNames = opReduce.accumulator.getNewFieldNames(null);
+                partitions.getAllElements().entrySet().stream().forEach(entry -> reduced.putValue(entry.getKey(), entry.getValue().reduce(opReduce.accumulator, opReduce.fieldNames)));
 
                 //send to master reduced results -> USE ASK to get response
 
-                MultiKeyMap<Map<Tuple, Tuple>> returned = ((StreamProcessingCallback.ReduceAggregate)
+                MultiKeyMap<Map<Tuple, Object>> returned = ((StreamProcessingCallback.ReduceAggregate)
                         callback.getAggregatedResult(
                         new StreamProcessingCallback.ReduceAggregate(opReduce.transaction_Id, reduced)))
                         .getReducedPartitions();
@@ -223,22 +224,22 @@ public class PartitionStreamsHandler {
                     if (oldValue instanceof ExtractedStream) {
 
                         ArrayList<Tuple> tuples = new ArrayList<>();
-                        tuples.add(returned.getValue(entryKey).values().iterator().next());
+                        tuples.add((Tuple) opReduce.accumulator.extractResult().apply(returned.getValue(entryKey).values().iterator().next()));
                         ExtractedStream oldExtracted = (ExtractedStream) oldValue;
-                        return new ExtractedStream(oldExtracted.getPartition(), opReduce.fieldNames, ExtractedStream.StreamType.AGGREGATE, tuples.stream());
+                        return new ExtractedStream(oldExtracted.getPartition(), fieldNames, ExtractedStream.StreamType.AGGREGATE, tuples.stream());
 
                     } else {
 
-                        Map<Tuple, Tuple> tuples = returned.getValue(entryKey);
+                        Map<Tuple, Object> tuples = returned.getValue(entryKey);
                         Map<Tuple, Stream<Tuple>> newStreams = tuples.entrySet().stream()
                                 .map(entry -> {
                                     List<Tuple> tuple = new ArrayList<>();
-                                    tuple.add(entry.getValue());
+                                    tuple.add((Tuple) opReduce.accumulator.extractResult().apply(entry.getValue()));
                                     return new Tuple2<>(entry.getKey(), tuple.stream());
                                 }).collect(Collectors.toMap(tuple-> tuple.f0, tuple -> tuple.f1));
 
                         ExtractedGroupedStream oldExtracted = (ExtractedGroupedStream) oldValue;
-                        return new ExtractedGroupedStream(oldExtracted.getPartition(), opReduce.fieldNames, newStreams, ExtractedStream.StreamType.AGGREGATE);
+                        return new ExtractedGroupedStream(oldExtracted.getPartition(), fieldNames, newStreams, ExtractedStream.StreamType.AGGREGATE);
 
                     }
                 });

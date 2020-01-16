@@ -1,18 +1,21 @@
 package shared.streamProcessing;
 
-import master.JobManager;
 import master.JobManagerActor;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.api.java.tuple.Tuple2;
 import shared.computation.ComputationRuntime;
 import shared.exceptions.InvalidOperationChain;
+import shared.streamProcessing.abstractOperators.CustomBinaryOperator;
+import shared.streamProcessing.abstractOperators.CustomFlatMapper;
+import shared.streamProcessing.abstractOperators.CustomFunction;
+import shared.streamProcessing.abstractOperators.CustomPredicate;
 import shared.variables.Variable;
 import shared.variables.VariableAggregate;
 import shared.variables.VariableEdge;
 import shared.variables.VariableVertex;
 import shared.variables.solver.VariableSolver;
-import slave.TaskManager;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -32,6 +35,7 @@ public class ExtractedStream implements ExtractedIf{
 
     private Map<String, String> partition;
     private ArrayList<String> tupleFields;
+    private int[] arguments;
     private StreamType streamType;
     private Stream<Tuple> stream;
 
@@ -89,6 +93,38 @@ public class ExtractedStream implements ExtractedIf{
         this.stream = stream;
     }
 
+
+    @Override
+    public String[] getField(Tuple tuple, int argument) {
+        if (argument == 0 && arguments == null) return getField(tuple);
+        return tuple.getField(arguments[argument]);
+    }
+
+    @Override
+    public String[] getField(Tuple tuple) {
+        return tuple.getField(tuple.getArity()-1);
+    }
+
+    @Override
+    public String[] getNodeId(Tuple tuple) {
+        int index = tupleFields.indexOf(NODELABEL);
+        if (index == -1) return null;
+        return tuple.getField(index);
+    }
+
+    @Override
+    public String[] getEdgeId(Tuple tuple) {
+        int index = tupleFields.indexOf(EDGELABEL);
+        if (index == -1) return null;
+        return tuple.getField(index);
+    }
+
+    @Override
+    public Tuple generateTuple(Tuple oldTuple, List<String[]> fields) {
+        return getTuple(oldTuple, fields, streamType, tupleFields);
+    }
+
+
     public StreamType getStreamType() {
         return streamType;
     }
@@ -111,14 +147,18 @@ public class ExtractedStream implements ExtractedIf{
         return this.stream;
     }
 
-    public ExtractedStream map(Function<Tuple, Tuple> function){
+    public ExtractedStream map(CustomFunction function, ArrayList<String> args){
+        function.setLabels(this);
+        arguments = ExtractedStream.solveArguments(tupleFields, args);
         Stream<Tuple> newStream = stream.map(function);
-        return this.getExtractedStream(newStream, this.tupleFields, this.streamType);
+        return this.getExtractedStream(newStream, function.getNewFieldNames(this.streamType), this.streamType);
     }
 
-    public Map<Tuple,Tuple> reduce(Tuple identity, CustomBinaryOperator accumulator){
-        Map<Tuple, Tuple> map = new HashMap<>();
-        map.put(new Tuple0(), new Tuple1<Tuple>(stream.reduce(identity, accumulator)));
+    public Map<Tuple, Object> reduce(CustomBinaryOperator accumulator, ArrayList<String> args){
+        accumulator.setLabels(this);
+        arguments = ExtractedStream.solveArguments(tupleFields, args);
+        Map<Tuple, Object> map = new HashMap<>();
+        map.put(new Tuple0(), new Tuple1<Tuple>((Tuple) stream.reduce(accumulator.getIdentity(), accumulator, accumulator.getBinaryOperator())));
         return map;
     }
 
@@ -127,12 +167,16 @@ public class ExtractedStream implements ExtractedIf{
         return getExtractedStream(newStream, this.tupleFields, this.streamType);
     }
 
-    public ExtractedStream flatmap(Function<Tuple, Stream<Tuple>> mapper){
+    public ExtractedStream flatmap(CustomFlatMapper mapper, ArrayList<String> args){
+        mapper.setLabels(this);
+        arguments = ExtractedStream.solveArguments(tupleFields, args);
         Stream<Tuple> newStream = this.stream.flatMap(mapper);
-        return getExtractedStream(newStream, this.tupleFields, this.streamType);
+        return getExtractedStream(newStream, mapper.getNewFieldNames(this.streamType), this.streamType);
     }
 
-    public ExtractedStream filter(Predicate<Tuple> filterFunction){
+    public ExtractedStream filter(CustomPredicate filterFunction, ArrayList<String> args){
+        filterFunction.setLabels(this);
+        arguments = ExtractedStream.solveArguments(tupleFields, args);
         Stream<Tuple> newStream = stream.filter(filterFunction);
         return getExtractedStream(newStream, this.tupleFields, this.streamType);
     }
@@ -494,5 +538,48 @@ public class ExtractedStream implements ExtractedIf{
 
         return new ExtractedStream(this.partition, extendedTupleFields, type, stream);
     }
+
+    static int[] solveArguments (ArrayList<String> fieldNames, ArrayList<String> argsNames){
+
+        if ( argsNames == null || argsNames.isEmpty()){
+            return null;
+        }
+
+        int[] result = new int[argsNames.size()];
+        for (int i = 0; i < argsNames.size(); i++) {
+            result[i] = fieldNames.indexOf(argsNames.get(i));
+        }
+        return result;
+    }
+    static Tuple getTuple(Tuple oldTuple, List<String[]> fields, ExtractedStream.StreamType streamType, ArrayList<String> tupleFields) {
+        Tuple result;
+
+        if (streamType == ExtractedStream.StreamType.NODE) {
+            result = Tuple.newInstance(fields.size()+1);
+            result.setField(oldTuple.getField(tupleFields.indexOf(NODELABEL)), 0);
+
+            for (int i = 0; i < fields.size(); i++) {
+                result.setField(fields.get(i), i + 1);
+            }
+        } else if (streamType == ExtractedStream.StreamType.EDGE) {
+            result = Tuple.newInstance(fields.size()+2);
+            result.setField(oldTuple.getField(tupleFields.indexOf(NODELABEL)), 0);
+            result.setField(oldTuple.getField(tupleFields.indexOf(EDGELABEL)), 1);
+
+            for (int i = 0; i < fields.size(); i++) {
+                result.setField(fields.get(i), i + 2);
+            }
+        } else if (streamType == ExtractedStream.StreamType.AGGREGATE) {
+            result = Tuple.newInstance(fields.size());
+            for (int i = 0; i < fields.size(); i++) {
+                result.setField(fields.get(i), i);
+            }
+        } else {
+            throw new RuntimeException("Unrecognized stream type: " + streamType);
+        }
+
+        return result;
+    }
+
 
 }

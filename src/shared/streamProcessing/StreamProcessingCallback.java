@@ -45,14 +45,14 @@ public interface StreamProcessingCallback {
     class ReduceAggregate extends Aggregate {
 
         //For each partition, for each group, tre reduced tuple
-        private MultiKeyMap<Map<Tuple, Tuple>> reducedPartitions;
+        private MultiKeyMap<Map<Tuple, Object>> reducedPartitions;
 
-        public ReduceAggregate(Long transactionId, MultiKeyMap<Map<Tuple, Tuple>> reducedPartitions) {
+        public ReduceAggregate(Long transactionId, MultiKeyMap<Map<Tuple, Object>> reducedPartitions) {
             super(transactionId);
             this.reducedPartitions = reducedPartitions;
         }
 
-        public MultiKeyMap<Map<Tuple, Tuple>> getReducedPartitions() {
+        public MultiKeyMap<Map<Tuple, Object>> getReducedPartitions() {
             return reducedPartitions;
         }
 

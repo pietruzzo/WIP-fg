@@ -1,6 +1,7 @@
-# WIP-fg
+# Flowgraph Framework
 
-##Shortcuts
+
+## Shortcuts
 
 Antlr4 grammar: [PatternGrammar](src/shared/antlr4/pattern/Pattern.g4)
 
@@ -17,3 +18,5 @@ Put your initial graph here: [InitialGraph](src/shared/resources/Graph.txt)
 `.g().compute(PageRank , $varRet, [ maxIterations = '100', threshold = '0.0000001'] );`
 
 `.g().select(label > '10' or lab1 == '5').extractV(label).emit($res);`
+
+`.g().GroupV(label).extractV(label).emit($LAB);`

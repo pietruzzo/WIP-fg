@@ -1,6 +1,10 @@
 package shared.streamProcessing;
 
 import org.apache.flink.api.java.tuple.Tuple;
+import shared.streamProcessing.abstractOperators.CustomBinaryOperator;
+import shared.streamProcessing.abstractOperators.CustomFlatMapper;
+import shared.streamProcessing.abstractOperators.CustomFunction;
+import shared.streamProcessing.abstractOperators.CustomPredicate;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -10,10 +14,13 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
+import static shared.streamProcessing.ExtractedStream.*;
+
 public class ExtractedGroupedStream implements ExtractedIf {
 
     private Map<String, String> partition;
     private ArrayList<String> tupleFields;
+    private int[] arguments;
     private ExtractedStream.StreamType streamType;
     private Map<Tuple, Stream<Tuple>> groupedStreams;
 
@@ -35,6 +42,40 @@ public class ExtractedGroupedStream implements ExtractedIf {
         this.groupedStreams = groupedStreams;
     }
 
+
+    @Override
+    public String[] getField(Tuple tuple, int argument) {
+        if (argument == 0 && arguments == null) return getField(tuple);
+        return tuple.getField(arguments[argument]);
+    }
+
+    @Override
+    public String[] getField(Tuple tuple) {
+        return tuple.getField(tuple.getArity()-1);
+    }
+
+    @Override
+    public Tuple generateTuple(Tuple oldTuple, List<String[]> fields) {
+
+        return getTuple(oldTuple, fields, streamType, tupleFields);
+    }
+
+    @Override
+    public String[] getNodeId(Tuple tuple) {
+        int index = tupleFields.indexOf(NODELABEL);
+        if (index == -1) return null;
+        return tuple.getField(index);
+    }
+
+    @Override
+    public String[] getEdgeId(Tuple tuple) {
+        int index = tupleFields.indexOf(EDGELABEL);
+        if (index == -1) return null;
+        return tuple.getField(index);
+    }
+
+
+
     @Override
     public void set(ExtractedIf extractedIf) {
         ExtractedGroupedStream extractedStream = (ExtractedGroupedStream)extractedIf;
@@ -55,38 +96,46 @@ public class ExtractedGroupedStream implements ExtractedIf {
     }
 
     @Override
-    public ExtractedIf map(Function<Tuple, Tuple> function){
+    public ExtractedIf map(CustomFunction function, ArrayList<String> args){
+        function.setLabels(this);
+        arguments = ExtractedStream.solveArguments(tupleFields, args);
         Map<Tuple, Stream<Tuple>> newGroupedStreams  = new HashMap<>();
         for (Map.Entry<Tuple, Stream<Tuple>> stream: groupedStreams.entrySet()) {
             Stream<Tuple> newStream = stream.getValue().map(function);
             newGroupedStreams.put(stream.getKey(), newStream);
         }
-        return this.getExtractedStream(newGroupedStreams, this.tupleFields, this.streamType);
+        return this.getExtractedStream(newGroupedStreams, function.getNewFieldNames(this.streamType), this.streamType);
     }
 
     @Override
-    public Map<Tuple, Tuple> reduce(Tuple identity, CustomBinaryOperator accumulator){
-        Map<Tuple, Tuple> newGroupedAccumulated  = new HashMap<>();
+    public Map<Tuple, Object> reduce(CustomBinaryOperator accumulator, ArrayList<String> args){
+        accumulator.setLabels(this);
+        arguments = ExtractedStream.solveArguments(tupleFields, args);
+        Map<Tuple, Object> newGroupedAccumulated  = new HashMap<>();
 
         for (Map.Entry<Tuple, Stream<Tuple>> stream: groupedStreams.entrySet()) {
-            Tuple newAccumulated = stream.getValue().reduce(identity.copy(), accumulator);
+            Object newAccumulated = stream.getValue().reduce(accumulator.getIdentity(), accumulator, accumulator.getBinaryOperator());
             newGroupedAccumulated.put(stream.getKey(), newAccumulated);
         }
         return newGroupedAccumulated;
     }
 
     @Override
-    public ExtractedIf flatmap(Function<Tuple, Stream<Tuple>> mapper){
+    public ExtractedIf flatmap(CustomFlatMapper mapper, ArrayList<String> args){
+        mapper.setLabels(this);
+        arguments = ExtractedStream.solveArguments(tupleFields, args);
         Map<Tuple, Stream<Tuple>> newGroupedStreams  = new HashMap<>();
         for (Map.Entry<Tuple, Stream<Tuple>> stream: groupedStreams.entrySet()) {
             Stream<Tuple> newStream = stream.getValue().flatMap(mapper);
             newGroupedStreams.put(stream.getKey(), newStream);
         }
-        return this.getExtractedStream(newGroupedStreams, this.tupleFields, this.streamType);
+        return this.getExtractedStream(newGroupedStreams, mapper.getNewFieldNames(this.streamType), this.streamType);
     }
 
     @Override
-    public ExtractedIf filter(Predicate<Tuple> filterFunction){
+    public ExtractedIf filter(CustomPredicate filterFunction, ArrayList<String> args){
+        filterFunction.setLabels(this);
+        arguments = ExtractedStream.solveArguments(tupleFields, args);
         Map<Tuple, Stream<Tuple>> newGroupedStreams  = new HashMap<>();
         for (Map.Entry<Tuple, Stream<Tuple>> stream: groupedStreams.entrySet()) {
             Stream<Tuple> newStream = stream.getValue().filter(filterFunction);
