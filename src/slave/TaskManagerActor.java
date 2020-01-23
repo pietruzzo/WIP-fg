@@ -51,6 +51,7 @@ import java.util.stream.Stream;
 public class TaskManagerActor extends AbstractActorWithStash implements ComputationCallback, StreamProcessingCallback {
 	private final LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
 	public static final String GRAPHPATH = "src/shared/resources/graph.txt";
+	public static final Integer IGNORELASTRECORDS = 100;
 
 	private final String name;
 	private final int numWorkers;
@@ -149,8 +150,9 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 		BufferedReader reader;
 		try {
 			reader = new BufferedReader(new FileReader(GRAPHPATH));
+			int numberOfLines = Utils.countLines(GRAPHPATH);
 			String line = reader.readLine();
-			while (line != null) {
+			for (int i = 0; i < numberOfLines-IGNORELASTRECORDS; i++) {
 				if (!line.isBlank()) {
 					java.io.Serializable parsed = InputParser.parse(line);
 

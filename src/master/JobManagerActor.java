@@ -159,12 +159,12 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 
 	private final void onAddEdgeMsg(AddEdgeMsg msg){
 		ActorRef slave = getActor(msg.getSourceName());
-		slave.tell(new AddEdgeMsg(msg.getSourceName(), msg.getDestinationName(), msg.getAttributes(), System.currentTimeMillis()), self());
+		slave.tell(new AddEdgeMsg(msg.getSourceName(), msg.getDestinationName(), msg.getAttributes(), msg.getTimestamp()), self());
 		waitingResponses.set(1);
 		if (!DIRECTED_EDGES) {
 			ArrayList<Pair<String, String[]>> destinationAttribute = msg.getAttributes();
 			destinationAttribute.add(DESTINATION_EDGE);
-			slave.tell(new AddEdgeMsg(msg.getDestinationName(), msg.getSourceName(), destinationAttribute, System.currentTimeMillis()), self());
+			slave.tell(new AddEdgeMsg(msg.getDestinationName(), msg.getSourceName(), destinationAttribute, msg.getTimestamp()), self());
 			waitingResponses.incrementAndGet();
 		}
 		startNewIteration(msg.getTimestamp(), Trigger.TriggerEnum.EDGE_ADDITION);
@@ -172,10 +172,10 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 
 	private final void onDeleteEdgeMsg(DeleteEdgeMsg msg){
 		ActorRef slave = getActor(msg.getSourceName());
-		slave.tell(new DeleteEdgeMsg(msg.getSourceName(), msg.getDestinationName(), System.currentTimeMillis()), self());
+		slave.tell(new DeleteEdgeMsg(msg.getSourceName(), msg.getDestinationName(), msg.getTimestamp()), self());
 		waitingResponses.set(1);
 		if (!DIRECTED_EDGES) {
-			slave.tell(new DeleteEdgeMsg(msg.getDestinationName(), msg.getSourceName(), System.currentTimeMillis()), self());
+			slave.tell(new DeleteEdgeMsg(msg.getDestinationName(), msg.getSourceName(), msg.getTimestamp()), self());
 			waitingResponses.incrementAndGet();
 		}
 		startNewIteration(msg.getTimestamp(), Trigger.TriggerEnum.EDGE_DELETION);
@@ -183,14 +183,14 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 
 	private final void onDeleteVertexMsg(DeleteVertexMsg msg){
 		ActorRef slave = getActor(msg.getVertexName());
-		slave.tell(new DeleteVertexMsg(msg.getVertexName(),  System.currentTimeMillis()), self());
+		slave.tell(new DeleteVertexMsg(msg.getVertexName(),  msg.getTimestamp()), self());
 		waitingResponses.set(1);
 		startNewIteration(msg.getTimestamp(), Trigger.TriggerEnum.VERTEX_DELETION);
 	}
 
 	private final void onUpdateVertexMsg(UpdateVertexMsg msg){
 		ActorRef slave = getActor(msg.getVertexName());
-		slave.tell(new UpdateVertexMsg(msg.getVertexName(), msg.getAttributes(), System.currentTimeMillis(), msg.isInsertion()), self());
+		slave.tell(new UpdateVertexMsg(msg.getVertexName(), msg.getAttributes(), msg.getTimestamp(), msg.isInsertion()), self());
 		waitingResponses.set(1);
 		if (!msg.isInsertion()){
 			startNewIteration(msg.getTimestamp(), Trigger.TriggerEnum.VERTEX_UPDATE);
@@ -201,12 +201,12 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 
 	private final void onUpdateEdgeMsg(UpdateEdgeMsg msg){
 		ActorRef slave = getActor(msg.sourceId);
-		slave.tell(new UpdateEdgeMsg(msg.sourceId, msg.destId, msg.getAttributes(), System.currentTimeMillis()), self());
+		slave.tell(new UpdateEdgeMsg(msg.sourceId, msg.destId, msg.getAttributes(), msg.getTimestamp()), self());
 		waitingResponses.set(1);
 		if (!DIRECTED_EDGES) {
             ArrayList<Pair<String, String[]>> destinationAttribute = msg.getAttributes();
             destinationAttribute.add(DESTINATION_EDGE);
-			slave.tell(new UpdateEdgeMsg(msg.destId, msg.sourceId, destinationAttribute, System.currentTimeMillis()), self());
+			slave.tell(new UpdateEdgeMsg(msg.destId, msg.sourceId, destinationAttribute, msg.getTimestamp()), self());
 			waitingResponses.incrementAndGet();
 		}
 		startNewIteration(msg.getTimestamp(), Trigger.TriggerEnum.EDGE_UPDATE);
