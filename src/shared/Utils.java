@@ -3,10 +3,11 @@ package shared;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.*;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.LinkedList;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -84,41 +85,24 @@ public class Utils {
     }
 
     public static int countLines(String filename) throws IOException {
-        InputStream is = new BufferedInputStream(new FileInputStream(filename));
-        try {
-            byte[] c = new byte[1024];
-
-            int readChars = is.read(c);
-            if (readChars == -1) {
-                // bail out if nothing to read
-                return 0;
+        int noOfLines = 1;
+        try (FileChannel channel = FileChannel.open(Paths.get(filename), StandardOpenOption.READ)) {
+            ByteBuffer byteBuffer = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size());
+            while (byteBuffer.hasRemaining()) {
+                byte currentByte = byteBuffer.get();
+                if (currentByte == '\n')
+                    noOfLines++;
             }
-
-            // make it easy for the optimizer to tune this loop
-            int count = 0;
-            while (readChars == 1024) {
-                for (int i=0; i<1024;) {
-                    if (c[i++] == '\n') {
-                        ++count;
-                    }
-                }
-                readChars = is.read(c);
-            }
-
-            // count remaining characters
-            while (readChars != -1) {
-                System.out.println(readChars);
-                for (int i=0; i<readChars; ++i) {
-                    if (c[i] == '\n') {
-                        ++count;
-                    }
-                }
-                readChars = is.read(c);
-            }
-
-            return count == 0 ? 1 : count;
-        } finally {
-            is.close();
         }
+        return noOfLines;
+    }
+
+    public static <K, V> K getKey(Map<K, V> map, V value) {
+        for (Map.Entry<K, V> entry : map.entrySet()) {
+            if (value.equals(entry.getValue())) {
+                return entry.getKey();
+            }
+        }
+        return null;
     }
 }

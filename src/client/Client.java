@@ -2,11 +2,15 @@ package client;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
+import akka.actor.PoisonPill;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import org.apache.flink.api.java.utils.ParameterTool;
 import shared.AkkaMessages.LaunchMsg;
+import shared.AkkaMessages.TerminateMsg;
+import shared.PropertyHandler;
+import shared.Utils;
 import shared.antlr4.InputParser;
 
 import java.io.*;
@@ -15,12 +19,12 @@ import java.util.*;
 
 public class Client {
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws IOException {
 		final ParameterTool param = ParameterTool.fromArgs(args);
 
 		final String configFile = param.get("config", "conf/client.conf");
-		final String jobManagerAddr = param.get("jobManagerAddr", "127.0.0.1");
-		final int jobManagerPort = param.getInt("jobManagerPort", 6123);
+		final String jobManagerAddr = PropertyHandler.getProperty("masterIp");
+		final int jobManagerPort = Integer.parseInt(PropertyHandler.getProperty("masterPort"));
 
 		final String jobManager = "akka.tcp://JobManager@" + jobManagerAddr + ":" + jobManagerPort + "/user/JobManager";
 
@@ -28,6 +32,19 @@ public class Client {
 		final ActorSystem sys = ActorSystem.create("Client", conf);
 		final ActorRef clientActor = sys.actorOf(ClientActor.props(jobManager), "Client");
 
+		try {
+			if (PropertyHandler.getProperty("autonomousMode").equals("true")){
+				automaticMode(clientActor);
+			} else {
+				manualMode(clientActor);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		clientActor.tell(new TerminateMsg(), ActorRef.noSender());
+	}
+
+	private static void manualMode(ActorRef clientActor) {
 		System.out.println("Client console: \n" +
 				"\t q : quit \n" +
 				"\t start : launch system \n" +
@@ -59,7 +76,32 @@ public class Client {
 			}
 		}
 		scanner.close();
-		sys.terminate();
+	}
+
+	private static void automaticMode(ActorRef clientActor) throws IOException {
+
+		int numRecords = Integer.parseInt(PropertyHandler.getProperty("numRecordsAsInput"));
+		long numTotalRecords = Utils.countLines(PropertyHandler.getProperty("datasetPath"));
+		try {
+
+			BufferedReader lineReader = new BufferedReader(new FileReader(PropertyHandler.getProperty("datasetPath")));
+
+			for (int i = 0; i < (numTotalRecords-numRecords); i++) {
+				lineReader.readLine();
+			}
+
+			for (int i = (int)(numTotalRecords-numRecords); i < numTotalRecords; i++) {
+				String line = lineReader.readLine();
+				Serializable parsedMessage = InputParser.parse(line);
+				if (parsedMessage == null) throw new NullPointerException();
+				clientActor.tell(parsedMessage, ActorRef.noSender());
+
+			}
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			System.err.println("Parsing error, no message has been sent to Job Manager. Try again");
+		}
 	}
 
 }

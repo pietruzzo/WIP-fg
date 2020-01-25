@@ -7,6 +7,7 @@ import akka.japi.Pair;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
 import com.twelvemonkeys.util.LinkedSet;
+import shared.PropertyHandler;
 import shared.resources.computationImpl.IngoingEdges;
 import shared.resources.computationImpl.OutgoingEdges;
 import shared.resources.computationImpl.PageRank;
@@ -43,15 +44,15 @@ import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.FileHandler;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-//LAST USED: private static final long serialVersionUID = 200062L;
+//LAST USED: private static final long serialVersionUID = 200063L;
 
 public class TaskManagerActor extends AbstractActorWithStash implements ComputationCallback, StreamProcessingCallback {
 	private final LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
-	public static final String GRAPHPATH = "src/shared/resources/graph.txt";
-	public static final Integer IGNORELASTRECORDS = 100;
 
 	private final String name;
 	private final int numWorkers;
@@ -142,6 +143,16 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 	private final void onDistributeHashMapMsg(DistributeHashMapMsg initMsg) {
 		log.info(initMsg.toString());
 		slaves = initMsg.getHashMapping();
+
+		//region: Register logger
+		try {
+			Logger performance = Logger.getLogger(PropertyHandler.getProperty("logName"));
+			performance.addHandler(new FileHandler(PropertyHandler.getProperty("logPath") + PropertyHandler.getProperty("logName") + "S_" + Utils.getKey(initMsg.getHashMapping(), self()) + ".log", true));
+		} catch	(IOException e) {
+			e.printStackTrace();
+		}
+		//endregion
+
 		executors = new ThreadPoolExecutor(numWorkers, numWorkers, 0, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
 
 		//region: Initialize Graph
@@ -149,10 +160,11 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 
 		BufferedReader reader;
 		try {
-			reader = new BufferedReader(new FileReader(GRAPHPATH));
-			int numberOfLines = Utils.countLines(GRAPHPATH);
+			int numberOfLines = Utils.countLines(PropertyHandler.getProperty("datasetPath"));
+			int ignoreLastRecords = Integer.parseInt(PropertyHandler.getProperty("numRecordsAsInput"));
+			reader = new BufferedReader(new FileReader(PropertyHandler.getProperty("datasetPath")));
 			String line = reader.readLine();
-			for (int i = 0; i < numberOfLines-IGNORELASTRECORDS; i++) {
+			for (int i = 0; i < numberOfLines-ignoreLastRecords; i++) {
 				if (!line.isBlank()) {
 					java.io.Serializable parsed = InputParser.parse(line);
 

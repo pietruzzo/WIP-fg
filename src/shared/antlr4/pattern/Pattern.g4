@@ -36,8 +36,8 @@ selection
     ;
 
 partition
-    :   '.GroupV(' partitionFunction ')'
-    |   '.GroupE(' partitionFunction ')'
+    :   '.SubGraphByV(' partitionFunction ')'
+    |   '.SubGraphByE(' partitionFunction ')'
     ;
 
 extraction

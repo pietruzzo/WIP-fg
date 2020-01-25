@@ -1,13 +1,13 @@
 package master;
 
-import akka.actor.AbstractActorWithStash;
-import akka.actor.ActorRef;
-import akka.actor.Props;
+import akka.Done;
+import akka.actor.*;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import akka.japi.Pair;
 import shared.AkkaMessages.*;
 import shared.AkkaMessages.modifyGraph.*;
+import shared.PropertyHandler;
 import shared.Utils;
 import shared.antlr4.GPatternParser;
 import shared.computation.Computation;
@@ -26,12 +26,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class JobManagerActor extends AbstractActorWithStash implements PatternCallback {
 
-	public static final Boolean DIRECTED_EDGES = true;
 	public static final Pair<String, String[]> DESTINATION_EDGE = new Pair<>("_DEST", new String[]{"true"});
-	public static final String PATTERNPATH = "src/shared/resources/pattern.txt";
 
 	private final LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
 
+	public Boolean directedEdges = true;
 
 	/**
 	 * Ref to slave and associated number of threads
@@ -108,7 +107,14 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 
 	@Override
 	public Receive createReceive() {
+
+		try {
+			directedEdges = PropertyHandler.getProperty("directedEdges").equals("true");
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 		return waitSlaves();
+
 	}
 
 
@@ -123,6 +129,7 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 		    match(SlaveAnnounceMsg.class, this::onSlaveAnnounceMsg).
 		    match(LaunchMsg.class, this::onLaunchMsg).
 			match(AckMsg.class, this::onAckMsg).
+			match(Serializable.class, x-> stash()).
 		    build();
 	}
 
@@ -144,6 +151,7 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 			match(UpdateVertexMsg.class, this::onUpdateVertexMsg).
 			match(UpdateEdgeMsg.class, this::onUpdateEdgeMsg).
 			match(InstallComputationMsg.class, this::onInstallComputationMsg).
+			match(TerminateMsg.class, this::onTerminateMsg).
 		    build();
 	}
 
@@ -161,7 +169,7 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 		ActorRef slave = getActor(msg.getSourceName());
 		slave.tell(new AddEdgeMsg(msg.getSourceName(), msg.getDestinationName(), msg.getAttributes(), msg.getTimestamp()), self());
 		waitingResponses.set(1);
-		if (!DIRECTED_EDGES) {
+		if (!directedEdges) {
 			ArrayList<Pair<String, String[]>> destinationAttribute = msg.getAttributes();
 			destinationAttribute.add(DESTINATION_EDGE);
 			slave.tell(new AddEdgeMsg(msg.getDestinationName(), msg.getSourceName(), destinationAttribute, msg.getTimestamp()), self());
@@ -174,7 +182,7 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 		ActorRef slave = getActor(msg.getSourceName());
 		slave.tell(new DeleteEdgeMsg(msg.getSourceName(), msg.getDestinationName(), msg.getTimestamp()), self());
 		waitingResponses.set(1);
-		if (!DIRECTED_EDGES) {
+		if (!directedEdges) {
 			slave.tell(new DeleteEdgeMsg(msg.getDestinationName(), msg.getSourceName(), msg.getTimestamp()), self());
 			waitingResponses.incrementAndGet();
 		}
@@ -203,7 +211,7 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 		ActorRef slave = getActor(msg.sourceId);
 		slave.tell(new UpdateEdgeMsg(msg.sourceId, msg.destId, msg.getAttributes(), msg.getTimestamp()), self());
 		waitingResponses.set(1);
-		if (!DIRECTED_EDGES) {
+		if (!directedEdges) {
             ArrayList<Pair<String, String[]>> destinationAttribute = msg.getAttributes();
             destinationAttribute.add(DESTINATION_EDGE);
 			slave.tell(new UpdateEdgeMsg(msg.destId, msg.sourceId, destinationAttribute, msg.getTimestamp()), self());
@@ -215,6 +223,13 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 	private final void onSlaveAnnounceMsg(SlaveAnnounceMsg msg) {
 		log.info(msg.toString());
 		slaves.put(getSender(), msg.numThreads);
+		try {
+			if (slaves.size() == Integer.parseInt(PropertyHandler.getProperty("numberOfSlaves"))) {
+				this.onLaunchMsg(new LaunchMsg());
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 
@@ -236,7 +251,7 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 		//Get Pattern and parse it
 		patternLogic = new PatternLogic(this);
 		try {
-			ArrayList<Pattern> parsed = GPatternParser.parse(Files.readString(Paths.get(PATTERNPATH), StandardCharsets.US_ASCII), this);
+			ArrayList<Pattern> parsed = GPatternParser.parse(Files.readString(Paths.get(PropertyHandler.getProperty("patternPath")), StandardCharsets.US_ASCII), this);
 			patternLogic.installPattern(parsed);
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -253,6 +268,12 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 		}
 		nextState = this::receiveChangeState;
 		getContext().become(waitAck());
+	}
+
+	private final void onTerminateMsg (TerminateMsg msg) {
+		log.info(msg.toString());
+
+		getContext().system().terminate();
 	}
 
 	private final void onAckMsg(AckMsg msg){

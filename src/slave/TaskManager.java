@@ -4,17 +4,19 @@ import akka.actor.ActorSystem;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import org.apache.flink.api.java.utils.ParameterTool;
+import shared.PropertyHandler;
 
 import java.io.File;
+import java.io.IOException;
 
 public class TaskManager {
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws IOException {
 		final ParameterTool param = ParameterTool.fromArgs(args);
 		final String name = param.get("name", "slave");
 		final int numWorkers = param.getInt("numWorkers", 1);
-		final String jobManagerAddr = param.get("jobManagerAddr", "127.0.0.1");
-		final int jobManagerPort = param.getInt("jobManagerPort", 6123);
+		final String jobManagerAddr = PropertyHandler.getProperty("masterIp");
+		final int jobManagerPort = Integer.parseInt(PropertyHandler.getProperty("masterPort"));
 		final String configFile = param.get("config", "conf/taskmanager.conf");
 
 		final String jobManager = "akka.tcp://JobManager@" + jobManagerAddr + ":" + jobManagerPort + "/user/JobManager";
