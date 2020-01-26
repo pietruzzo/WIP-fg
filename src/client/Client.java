@@ -7,6 +7,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import org.apache.flink.api.java.utils.ParameterTool;
+import shared.AkkaMessages.HelloClientMsg;
 import shared.AkkaMessages.LaunchMsg;
 import shared.AkkaMessages.TerminateMsg;
 import shared.PropertyHandler;
@@ -31,6 +32,7 @@ public class Client {
 		final Config conf = ConfigFactory.parseFile(new File(configFile));
 		final ActorSystem sys = ActorSystem.create("Client", conf);
 		final ActorRef clientActor = sys.actorOf(ClientActor.props(jobManager), "Client");
+		clientActor.tell(new HelloClientMsg(), ActorRef.noSender());
 
 		try {
 			if (PropertyHandler.getProperty("autonomousMode").equals("true")){

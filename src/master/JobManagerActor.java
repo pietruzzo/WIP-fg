@@ -273,7 +273,16 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 	private final void onTerminateMsg (TerminateMsg msg) {
 		log.info(msg.toString());
 
-		getContext().system().terminate();
+		//Stop slaves
+		for (ActorRef slave: slaves.keySet()) {
+			getContext().getSystem().stop(slave);
+		}
+		//Stop clients
+		for (ActorRef client: this.clients) {
+			getContext().getSystem().stop(client);
+		}
+		getContext().getSystem().stop(self());
+		System.exit(0);
 	}
 
 	private final void onAckMsg(AckMsg msg){
@@ -386,6 +395,9 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 	}
 
 	private void startNewIteration(Long timestamp, Trigger.TriggerEnum trigger) {
+		if (this.currentTimestamp > timestamp) {
+			throw new RuntimeException("Decreasing timestamps: old = " + this.currentTimestamp + ", new = " + timestamp);
+		}
 		this.currentTimestamp = timestamp;
 		this.validVariables.clear();
 		patternLogic.startNewIteration(currentTimestamp, trigger, this.validVariables);

@@ -906,4 +906,12 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 			System.out.println(vertex.toString());
 		}
 	}
+
+	@Override
+	public void postStop() {
+		this.executors.shutdown();
+		super.postStop();
+		System.exit(0);
+	}
+
 }

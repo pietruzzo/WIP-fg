@@ -6,6 +6,7 @@ import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import shared.AkkaMessages.FireMsg;
+import shared.AkkaMessages.HelloClientMsg;
 import shared.AkkaMessages.LaunchMsg;
 
 import java.io.Serializable;
@@ -34,7 +35,8 @@ class ClientActor extends AbstractActor {
 		match(LaunchMsg.class, this::onStartMsg).
 		match(FireMsg.class, this::onFireMsg).
 		match(Serializable.class, this::onUpdateGraphMsg).
-		    build();
+		match(HelloClientMsg.class, this::onHelloClientMsg).
+		build();
 
 	}
 
@@ -42,6 +44,11 @@ class ClientActor extends AbstractActor {
 	 * Message processing
 	 */
 
+
+	private final void onHelloClientMsg(HelloClientMsg msg) {
+		log.info("HelloClientMsg");
+		jobManager.tell(msg, self());
+	}
 
 	private final void onStartMsg(LaunchMsg msg) {
 		log.info("StartMsg");
