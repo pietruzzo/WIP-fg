@@ -3,6 +3,7 @@ package shared.patterns;
 import org.jetbrains.annotations.Nullable;
 import master.PatternCallback;
 import shared.AkkaMessages.select.SelectMsg;
+import shared.PropertyHandler;
 import shared.selection.SelectionSolver;
 
 import java.io.Serializable;
@@ -20,6 +21,7 @@ public class Selection extends Pattern{
 
     @Override
     boolean startPatternLogic() {
+        PropertyHandler.writeOnPerformanceLog("ENTERING_SELECTION_"+ System.currentTimeMillis());
         transportLayer.sendToAllSlaves(new SelectMsg(this.selectionSolver));
         transportLayer.becomeAwaitAckFromAll();
         return false;
@@ -28,6 +30,7 @@ public class Selection extends Pattern{
     @Override
     public boolean processMessage(@Nullable Serializable message) {
         //After acks
+        PropertyHandler.writeOnPerformanceLog("EXITING_SELECTION_"+ System.currentTimeMillis());
         return true;
     }
 }

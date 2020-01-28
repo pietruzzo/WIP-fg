@@ -5,6 +5,7 @@ import org.jetbrains.annotations.Nullable;
 import shared.AkkaMessages.NewPartitionMsg;
 import shared.AkkaMessages.RestoreVariableGraphMsg;
 import shared.AkkaMessages.SaveVariableGraphMsg;
+import shared.PropertyHandler;
 
 import java.io.Serializable;
 
@@ -38,6 +39,8 @@ public class GraphSaver extends Pattern {
 
     @Override
     boolean startPatternLogic() {
+
+        PropertyHandler.writeOnPerformanceLog("ENTERING_GRAPH_SAVER_"+ System.currentTimeMillis());
         if (store) {
             transportLayer.sendToAllSlaves(new SaveVariableGraphMsg(survivalTime, varName));
         } else {
@@ -49,6 +52,8 @@ public class GraphSaver extends Pattern {
 
     @Override
     public boolean processMessage(@Nullable Serializable message) {
+
+        PropertyHandler.writeOnPerformanceLog("EXITING_GRAPH_SAVER_"+ System.currentTimeMillis());
         return true;
     }
 }

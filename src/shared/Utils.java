@@ -3,6 +3,8 @@ package shared;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.*;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Paths;
@@ -104,5 +106,15 @@ public class Utils {
             }
         }
         return null;
+    }
+
+    public static String getLocalIP() {
+        InetAddress inetAddress = null;
+        try {
+            inetAddress = InetAddress.getLocalHost();
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        }
+        return inetAddress.getHostAddress();
     }
 }

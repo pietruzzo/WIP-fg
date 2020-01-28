@@ -8,6 +8,8 @@ import akka.event.LoggingAdapter;
 import shared.AkkaMessages.FireMsg;
 import shared.AkkaMessages.HelloClientMsg;
 import shared.AkkaMessages.LaunchMsg;
+import shared.AkkaMessages.TerminateMsg;
+import shared.PropertyHandler;
 
 import java.io.Serializable;
 
@@ -36,6 +38,7 @@ class ClientActor extends AbstractActor {
 		match(FireMsg.class, this::onFireMsg).
 		match(Serializable.class, this::onUpdateGraphMsg).
 		match(HelloClientMsg.class, this::onHelloClientMsg).
+				match(TerminateMsg.class, this::onTerminateMsg).
 		build();
 
 	}
@@ -55,6 +58,11 @@ class ClientActor extends AbstractActor {
 		jobManager.tell(msg, self());
 	}
 
+	private final void onTerminateMsg(TerminateMsg msg) {
+		log.info("TerminateMsg");
+		jobManager.tell(msg, self());
+	}
+
 	private final void onFireMsg(FireMsg msg) {
 		log.info("FireMsg: " + msg.toString());
 	}
@@ -62,6 +70,13 @@ class ClientActor extends AbstractActor {
 	private final void onUpdateGraphMsg(Serializable msg) {
 		log.info(msg.toString());
 		jobManager.tell(msg, self());
+	}
+
+	@Override
+	public void postStop() throws Exception {
+		PropertyHandler.finalizeLog();
+		super.postStop();
+		System.exit(0);
 	}
 
 	static final Props props(String jobManagerAddr) {

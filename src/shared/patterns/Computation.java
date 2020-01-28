@@ -5,10 +5,14 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import shared.AkkaMessages.AckMsgComputationTerminated;
 import shared.AkkaMessages.ComputeResultsMsg;
 import shared.AkkaMessages.StartComputationStepMsg;
+import shared.PropertyHandler;
 import shared.computation.ComputationParameters;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
+import java.util.Properties;
+import java.util.logging.Logger;
 
 public class Computation extends Pattern {
 
@@ -38,6 +42,8 @@ public class Computation extends Pattern {
         completedSlaves = 0;
         resultComputed = false;
 
+        PropertyHandler.writeOnPerformanceLog("ENTER_COMPUTATION_"+ System.currentTimeMillis());
+
         return performStepMessage();
 
     }
@@ -46,7 +52,10 @@ public class Computation extends Pattern {
     @Override
     public boolean processMessage(Serializable message) {
 
-        if (resultComputed) return true;
+        if (resultComputed) {
+            PropertyHandler.writeOnPerformanceLog("EXITING_COMPUTATION_"+ System.currentTimeMillis());
+            return true;
+        }
 
         if (message instanceof AckMsgComputationTerminated) {
             completedSlaves = completedSlaves + 1;
@@ -64,15 +73,6 @@ public class Computation extends Pattern {
         }
 
         return false;
-
-
-        //Detect end of superstep and begins new one
-        /*
-        if (receivedSlaves == this.transportLayer.getNumSlaves()) {
-            stepNumber = stepNumber + 1;
-            performStepMessage();
-        }
-         */
 
     }
 

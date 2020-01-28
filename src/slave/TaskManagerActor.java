@@ -54,6 +54,7 @@ import java.util.stream.Stream;
 public class TaskManagerActor extends AbstractActorWithStash implements ComputationCallback, StreamProcessingCallback {
 	private final LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
 
+
 	private final String name;
 	private final int numWorkers;
 	private final String masterAddress;
@@ -144,14 +145,6 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 		log.info(initMsg.toString());
 		slaves = initMsg.getHashMapping();
 
-		//region: Register logger
-		try {
-			Logger performance = Logger.getLogger(PropertyHandler.getProperty("logName"));
-			performance.addHandler(new FileHandler(PropertyHandler.getProperty("logPath") + PropertyHandler.getProperty("logName") + "S_" + Utils.getKey(initMsg.getHashMapping(), self()) + ".log", true));
-		} catch	(IOException e) {
-			e.printStackTrace();
-		}
-		//endregion
 
 		executors = new ThreadPoolExecutor(numWorkers, numWorkers, 0, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
 
@@ -910,6 +903,7 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 	@Override
 	public void postStop() {
 		this.executors.shutdown();
+		PropertyHandler.finalizeLog();
 		super.postStop();
 		System.exit(0);
 	}

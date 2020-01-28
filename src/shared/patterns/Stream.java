@@ -3,6 +3,7 @@ package shared.patterns;
 import master.OngoingAggregate;
 import master.PatternCallback;
 import shared.AkkaMessages.ExtractMsg;
+import shared.PropertyHandler;
 import shared.streamProcessing.Operations;
 import shared.streamProcessing.StreamProcessingCallback;
 
@@ -28,6 +29,8 @@ public class Stream extends Pattern{
         //Set Reduce and collect aggregates
         setReduceCollectAggregates();
 
+        PropertyHandler.writeOnPerformanceLog("ENTERING_STREAMS_"+ System.currentTimeMillis());
+
         //Distribute operations
         transportLayer.sendToAllSlaves(new ExtractMsg(operationsList));
 
@@ -39,6 +42,8 @@ public class Stream extends Pattern{
 
     @Override
     public boolean processMessage(Serializable message) {
+
+        PropertyHandler.writeOnPerformanceLog("EXITING_STREAMS_"+ System.currentTimeMillis());
 
         //After acks
         return true;

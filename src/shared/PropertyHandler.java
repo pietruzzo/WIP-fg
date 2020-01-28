@@ -1,8 +1,16 @@
 package shared;
 
+import javafx.application.Platform;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.FileHandler;
+import java.util.logging.Logger;
 
 public class PropertyHandler {
 
@@ -12,6 +20,7 @@ public class PropertyHandler {
     private final String DEFAULT_PROP_LOCATION2 = "src/shared/resources/config.properties";
 
     private Properties prop;
+    private ExecutorService writeExecutor;
 
 
     public static String getProperty(String name) throws IOException {
@@ -21,6 +30,27 @@ public class PropertyHandler {
         }
         return propertyHandler.prop.getProperty(name);
 
+    }
+
+    public static void writeOnPerformanceLog(String msg) {
+        if ( Boolean.parseBoolean(propertyHandler.prop.getProperty("timingLog")) ) {
+            writeAsyncOnLog(msg);
+        }
+    }
+
+    public static void writeSpacePerformanceLog(String msg) {
+        if ( Boolean.parseBoolean(propertyHandler.prop.getProperty("spaceLog")) ) {
+            writeAsyncOnLog(msg);
+        }
+    }
+
+    private static void writeAsyncOnLog(String msg) {
+        //Initialize logs
+        propertyHandler.initializeLog();
+
+        propertyHandler.writeExecutor.submit( () -> {
+            Logger.getLogger(propertyHandler.prop.getProperty("performanceLogName")).info(msg);
+        });
     }
 
     private PropertyHandler() throws IOException {
@@ -43,6 +73,23 @@ public class PropertyHandler {
         prop.load(inputStream);
         inputStream.close();
 
+
     }
 
+    private void initializeLog() {
+        if (this.writeExecutor == null) {
+            try {
+                Logger performance = Logger.getLogger(PropertyHandler.getProperty("performanceLogName"));
+                performance.addHandler(new FileHandler(PropertyHandler.getProperty("logPath") + PropertyHandler.getProperty("performanceLogName") + ".log", PropertyHandler.getProperty("appendLog").equals("true")));
+                performance.info("___OPENING_PEFORMANCE_LOG___");
+                writeExecutor = new ThreadPoolExecutor(1, 1, 5, TimeUnit.SECONDS, new ArrayBlockingQueue<>(100, true));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public static void finalizeLog(){
+        propertyHandler.writeExecutor.shutdown();
+    }
 }

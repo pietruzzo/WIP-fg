@@ -17,14 +17,6 @@ public class JobManager {
 		final ParameterTool param = ParameterTool.fromArgs(args);
 		final String configFile = param.get("config", "conf/jobmanager.conf");
 
-		try {
-			Logger performance = Logger.getLogger(PropertyHandler.getProperty("logName"));
-			performance.addHandler(new FileHandler(PropertyHandler.getProperty("logPath") + PropertyHandler.getProperty("logName") + "M.log", PropertyHandler.getProperty("appendLog").equals("true")));
-		} catch	(IOException e) {
-			e.printStackTrace();
-		}
-
-
 		final Config conf = ConfigFactory.parseFile(new File(configFile));
 		final ActorSystem sys = ActorSystem.create("JobManager", conf);
 		sys.actorOf(JobManagerActor.props(), "JobManager");
