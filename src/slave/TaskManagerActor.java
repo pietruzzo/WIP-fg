@@ -1,34 +1,38 @@
 package slave;
 
-import akka.actor.*;
+import akka.actor.AbstractActorWithStash;
+import akka.actor.ActorRef;
+import akka.actor.ActorSelection;
+import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import akka.japi.Pair;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
-import com.twelvemonkeys.util.LinkedSet;
-import shared.PropertyHandler;
-import shared.resources.computationImpl.IngoingEdges;
-import shared.resources.computationImpl.OutgoingEdges;
-import shared.resources.computationImpl.PageRank;
-import shared.resources.computationImpl.TriangleCounting;
-import org.jetbrains.annotations.Nullable;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple2;
-
+import org.apache.flink.api.java.tuple.Tuple3;
+import org.jetbrains.annotations.Nullable;
 import scala.concurrent.Await;
 import scala.concurrent.duration.Duration;
 import shared.AkkaMessages.*;
 import shared.AkkaMessages.modifyGraph.*;
 import shared.AkkaMessages.select.SelectMsg;
+import shared.PropertyHandler;
 import shared.Utils;
 import shared.VertexM;
 import shared.antlr4.InputParser;
-import shared.computation.*;
+import shared.computation.Computation;
+import shared.computation.ComputationCallback;
+import shared.computation.ComputationRuntime;
+import shared.computation.Vertex;
 import shared.data.BoxMsg;
 import shared.data.MultiKeyMap;
 import shared.data.SynchronizedIterator;
 import shared.exceptions.ComputationFinishedException;
+import shared.resources.computationImpl.IngoingEdges;
+import shared.resources.computationImpl.OutgoingEdges;
+import shared.resources.computationImpl.PageRank;
+import shared.resources.computationImpl.TriangleCounting;
 import shared.selection.Partition;
 import shared.selection.Select;
 import shared.streamProcessing.PartitionStreamsHandler;
@@ -42,10 +46,11 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.logging.FileHandler;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -83,7 +88,11 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 	public void preStart() throws Exception {
 		super.preStart();
 		master = getContext().actorSelection(masterAddress);
-		master.tell(new SlaveAnnounceMsg(name, numWorkers), self());
+		master.tell(new SlaveAnnounceMsg(name, 1), self());
+
+		if (!Boolean.parseBoolean(PropertyHandler.getProperty("debugLog"))) {
+			getContext().getSystem().eventStream().setLogLevel(0);
+		}
 	}
 
 	@Override
@@ -496,7 +505,7 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 			getContext().become(initializedState());
 			unstashAll();
 		} else if (this.waitingResponses.get() < 0 ) {
-			System.out.println("Warning: waiting responses = " + this.waitingResponses.get());
+			log.info("Warning: waiting responses = " + this.waitingResponses.get());
 			this.waitingResponses.set(0);
 			getContext().become(initializedState());
 			unstashAll();
@@ -629,7 +638,7 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 
 		master.tell(new AckMsg(), self());
 
-		variables.printAllVariables();
+		//variables.printAllVariables();
 	}
 
 	private final void onSelectMsg (SelectMsg msg) {
@@ -896,7 +905,7 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 
 	private void debugTaskManagerState() {
 		for (VertexM vertex: this.vertices.values()) {
-			System.out.println(vertex.toString());
+			log.info(vertex.toString());
 		}
 	}
 

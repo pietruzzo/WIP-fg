@@ -1,7 +1,8 @@
 package master;
 
-import akka.Done;
-import akka.actor.*;
+import akka.actor.AbstractActorWithStash;
+import akka.actor.ActorRef;
+import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import akka.japi.Pair;
@@ -110,6 +111,11 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 
 		try {
 			directedEdges = PropertyHandler.getProperty("directedEdges").equals("true");
+
+			if (!Boolean.parseBoolean(PropertyHandler.getProperty("debugLog"))) {
+				getContext().getSystem().eventStream().setLogLevel(0);
+			}
+
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

@@ -1,6 +1,6 @@
 package shared.AkkaMessages.modifyGraph;
 
-import org.jetbrains.annotations.*;
+import org.jetbrains.annotations.Nullable;
 
 public class DeleteEdgeMsg implements ModifyGraphMsg {
     private static final long serialVersionUID = 200010L;

@@ -8,7 +8,6 @@ import shared.Utils;
 import shared.data.BoxMsg;
 import shared.data.SynchronizedIterator;
 import shared.exceptions.ComputationFinishedException;
-import shared.exceptions.VariableNotDefined;
 
 import java.util.*;
 import java.util.concurrent.ExecutionException;

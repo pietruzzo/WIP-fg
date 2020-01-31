@@ -2,7 +2,6 @@ package shared.patterns;
 
 import master.PatternCallback;
 import org.jetbrains.annotations.Nullable;
-import shared.AkkaMessages.NewPartitionMsg;
 import shared.AkkaMessages.RestoreVariableGraphMsg;
 import shared.AkkaMessages.SaveVariableGraphMsg;
 import shared.PropertyHandler;

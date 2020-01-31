@@ -1,7 +1,6 @@
 package master;
 
 import akka.actor.ActorRef;
-import akka.event.Logging;
 import akka.event.LoggingAdapter;
 
 import java.io.Serializable;

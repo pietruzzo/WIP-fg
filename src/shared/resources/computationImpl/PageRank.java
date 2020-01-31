@@ -86,9 +86,9 @@ public class PageRank extends Computation {
     @Override
     public void preStart() {
 
-        this.maxNumOfIterations = Integer.valueOf(computationParameters.getParameter("maxIterations"));
+        this.maxNumOfIterations = Integer.parseInt(computationParameters.getParameter("maxIterations"));
         String threshold = computationParameters.getParameter("threshold");
-        if (threshold.equals("null")){
+        if (threshold == null || threshold.equals("null")){
             this.threshold = null;
         } else {
             this.threshold = Double.parseDouble(threshold);

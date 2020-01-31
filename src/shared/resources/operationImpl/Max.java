@@ -1,18 +1,13 @@
 package shared.resources.operationImpl;
 
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.jetbrains.annotations.NotNull;
-import shared.selection.SelectionSolver;
 import shared.streamProcessing.ExtractedStream;
 import shared.streamProcessing.abstractOperators.CustomBinaryOperator;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Optional;
-import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
 

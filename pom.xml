@@ -100,7 +100,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>2.4.1</version>
+                <version>3.2.1</version>
                 <executions>
                     <!-- Run shade goal on package phase -->
                     <execution>
@@ -109,13 +109,13 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
-                            <minimizeJar>false</minimizeJar>
                             <transformers>
-                                <transformer
-                                        implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
-                                    <resource>reference.conf</resource>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>DebugMain</mainClass>
                                 </transformer>
                             </transformers>
+                            <shadedArtifactAttached>true</shadedArtifactAttached>
+                            <shadedClassifierName>launcher</shadedClassifierName>
                         </configuration>
                     </execution>
                 </executions>

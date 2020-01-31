@@ -1,9 +1,7 @@
 package shared.variables;
 
 import shared.data.MultiKeyMap;
-import shared.computation.Vertex;
 
-import java.util.ArrayList;
 import java.util.Map;
 
 public class VariablePartition extends Variable {

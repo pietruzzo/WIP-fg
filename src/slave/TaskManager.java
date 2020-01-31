@@ -14,7 +14,7 @@ public class TaskManager {
 	public static void main(String[] args) throws IOException {
 		final ParameterTool param = ParameterTool.fromArgs(args);
 		final String name = param.get("name", "slave");
-		final int numWorkers = param.getInt("numWorkers", 1);
+		final int numWorkers = param.getInt("numWorkers", Integer.parseInt(PropertyHandler.getProperty("numThreads")));
 		final String jobManagerAddr = PropertyHandler.getProperty("masterIp");
 		final int jobManagerPort = Integer.parseInt(PropertyHandler.getProperty("masterPort"));
 		final String configFile = param.get("config", "conf/taskmanager.conf");

@@ -2,10 +2,8 @@ package client;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
-import akka.actor.PoisonPill;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-
 import org.apache.flink.api.java.utils.ParameterTool;
 import shared.AkkaMessages.HelloClientMsg;
 import shared.AkkaMessages.LaunchMsg;
@@ -15,7 +13,7 @@ import shared.Utils;
 import shared.antlr4.InputParser;
 
 import java.io.*;
-import java.util.*;
+import java.util.Scanner;
 
 
 public class Client {

@@ -3,6 +3,7 @@ package shared.streamProcessing;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
+import shared.PropertyHandler;
 import shared.computation.ComputationRuntime;
 import shared.data.MultiKeyMap;
 import shared.exceptions.InvalidOperationChain;
@@ -78,6 +79,8 @@ public class PartitionStreamsHandler {
 
                 Operations.Emit opEmit = (Operations.Emit) operation;
 
+                PropertyHandler.writeSpacePerformanceLog("_BEFORE_EMISSION_MEM_");
+
                 //if variable node, edge -> put in variable solver,
                 // otherwise send to master variable and use ASK to get complete aggregate
                 Variable variable = this.emitVariable(opEmit.variableName, opEmit.persistence, partitions);
@@ -130,6 +133,8 @@ public class PartitionStreamsHandler {
 
                     }
                 }
+
+                PropertyHandler.writeSpacePerformanceLog("_AFTER_EMISSION_MEM_");
             }
             else if (operation instanceof Operations.Evaluate) {
 

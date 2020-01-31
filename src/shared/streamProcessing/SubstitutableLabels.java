@@ -1,7 +1,6 @@
 package shared.streamProcessing;
 
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.tuple.Tuple2;
 
 import java.io.Serializable;
 import java.util.List;

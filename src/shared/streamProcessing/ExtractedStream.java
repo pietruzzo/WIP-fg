@@ -4,7 +4,6 @@ import master.JobManagerActor;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.api.java.tuple.Tuple2;
 import shared.computation.ComputationRuntime;
 import shared.exceptions.InvalidOperationChain;
 import shared.streamProcessing.abstractOperators.CustomBinaryOperator;
@@ -19,8 +18,6 @@ import shared.variables.solver.VariableSolver;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 

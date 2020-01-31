@@ -4,12 +4,8 @@ import akka.actor.ActorSystem;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import org.apache.flink.api.java.utils.ParameterTool;
-import shared.PropertyHandler;
 
 import java.io.File;
-import java.io.IOException;
-import java.util.logging.FileHandler;
-import java.util.logging.Logger;
 
 public class JobManager {
 

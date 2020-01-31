@@ -1,7 +1,10 @@
 package shared.data;
 
 import java.io.Serializable;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 
 
 public class BoxMsg<TMsg> implements Serializable {

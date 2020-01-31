@@ -1,7 +1,7 @@
 package shared.patterns;
 
-import org.jetbrains.annotations.Nullable;
 import master.PatternCallback;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.Serializable;
 import java.util.HashSet;

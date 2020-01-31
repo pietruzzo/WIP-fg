@@ -1,27 +1,25 @@
 package shared.variables.solver;
 
-import com.intellij.codeInsight.template.impl.VariableNode;
-import org.jetbrains.annotations.Nullable;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.jetbrains.annotations.Nullable;
 import shared.Utils;
 import shared.computation.Vertex;
 import shared.data.CompositeKey;
 import shared.data.MultiKeyMap;
 import shared.exceptions.VariableNotDefined;
 import shared.exceptions.WrongTypeRuntimeException;
+import shared.selection.SelectionSolver.Operation.WindowType;
 import shared.streamProcessing.ExtractedIf;
 import shared.streamProcessing.ExtractedStream;
 import shared.variables.*;
-import shared.selection.SelectionSolver.Operation.WindowType;
 
 import javax.naming.OperationNotSupportedException;
 import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 

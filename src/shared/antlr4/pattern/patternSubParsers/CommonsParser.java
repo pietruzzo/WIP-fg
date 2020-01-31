@@ -1,8 +1,5 @@
 package shared.antlr4.pattern.patternSubParsers;
 
-import master.PatternCallback;
-import org.antlr.v4.runtime.ParserRuleContext;
-import org.antlr.v4.runtime.RuleContext;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.apache.flink.api.java.tuple.Tuple3;
 import shared.Utils;

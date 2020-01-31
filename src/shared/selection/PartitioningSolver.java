@@ -2,8 +2,8 @@ package shared.selection;
 
 
 import shared.VertexM;
-import shared.variables.solver.VariableSolver;
 import shared.selection.SelectionSolver.Operation;
+import shared.variables.solver.VariableSolver;
 
 import java.io.Serializable;
 import java.util.*;

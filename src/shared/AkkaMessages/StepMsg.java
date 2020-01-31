@@ -1,7 +1,6 @@
 package shared.AkkaMessages;
 
 import java.io.Serializable;
-import java.util.HashMap;
 
 /**
  * Message that slaves exchange to each other

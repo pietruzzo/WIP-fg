@@ -1,15 +1,18 @@
 package shared.selection;
 
 import akka.japi.Pair;
-import org.jetbrains.annotations.Nullable;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
+import org.jetbrains.annotations.Nullable;
 import shared.VertexM;
 import shared.exceptions.WrongTypeRuntimeException;
 import shared.variables.solver.VariableSolver;
 
 import java.io.Serializable;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 
 /**
  * At parse time no labels nor variables can be substituted

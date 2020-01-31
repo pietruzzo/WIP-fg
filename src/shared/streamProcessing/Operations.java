@@ -2,7 +2,6 @@ package shared.streamProcessing;
 
 
 import org.jetbrains.annotations.Nullable;
-import org.apache.flink.api.java.tuple.Tuple;
 import shared.selection.SelectionSolver;
 import shared.streamProcessing.abstractOperators.CustomBinaryOperator;
 import shared.streamProcessing.abstractOperators.CustomFlatMapper;
@@ -12,9 +11,6 @@ import shared.streamProcessing.abstractOperators.CustomPredicate;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.function.Function;
-import java.util.function.Predicate;
-import java.util.stream.Stream;
 
 public interface Operations extends Serializable {
 

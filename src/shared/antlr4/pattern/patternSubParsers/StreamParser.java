@@ -1,19 +1,17 @@
 package shared.antlr4.pattern.patternSubParsers;
 
-import shared.streamProcessing.OperationImplementations;
 import master.PatternCallback;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import shared.antlr4.pattern.PatternBaseListener;
 import shared.antlr4.pattern.PatternParser;
 import shared.patterns.Stream;
 import shared.patterns.Trigger;
 import shared.selection.SelectionSolver;
-import shared.streamProcessing.abstractOperators.CustomBinaryOperator;
+import shared.streamProcessing.OperationImplementations;
 import shared.streamProcessing.Operations;
+import shared.streamProcessing.abstractOperators.CustomBinaryOperator;
 import shared.streamProcessing.abstractOperators.CustomFlatMapper;
 import shared.streamProcessing.abstractOperators.CustomFunction;
 import shared.streamProcessing.abstractOperators.CustomPredicate;

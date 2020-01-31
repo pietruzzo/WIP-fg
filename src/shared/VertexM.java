@@ -3,7 +3,10 @@ package shared;
 import shared.computation.Vertex;
 
 import java.io.Serializable;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 
 
 public class VertexM implements Serializable, Vertex {

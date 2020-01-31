@@ -1,7 +1,5 @@
 package shared;
 
-import javafx.application.Platform;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
@@ -23,7 +21,7 @@ public class PropertyHandler {
     private ExecutorService writeExecutor;
 
 
-    public static String getProperty(String name) throws IOException {
+    public synchronized static String getProperty(String name) throws IOException {
 
         if (propertyHandler == null) {
             propertyHandler = new PropertyHandler();
@@ -40,7 +38,9 @@ public class PropertyHandler {
 
     public static void writeSpacePerformanceLog(String msg) {
         if ( Boolean.parseBoolean(propertyHandler.prop.getProperty("spaceLog")) ) {
-            writeAsyncOnLog(msg);
+            System.gc();
+            long memory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+            writeAsyncOnLog(msg + memory);
         }
     }
 
@@ -80,7 +80,7 @@ public class PropertyHandler {
         if (this.writeExecutor == null) {
             try {
                 Logger performance = Logger.getLogger(PropertyHandler.getProperty("performanceLogName"));
-                performance.addHandler(new FileHandler(PropertyHandler.getProperty("logPath") + PropertyHandler.getProperty("performanceLogName") + ".log", PropertyHandler.getProperty("appendLog").equals("true")));
+                performance.addHandler(new FileHandler(PropertyHandler.getProperty("logPath") + PropertyHandler.getProperty("performanceLogName") + Utils.getLocalIP().replaceAll("\\.", "_") + ".log", PropertyHandler.getProperty("appendLog").equals("true")));
                 performance.info("___OPENING_PEFORMANCE_LOG___");
                 writeExecutor = new ThreadPoolExecutor(1, 1, 5, TimeUnit.SECONDS, new ArrayBlockingQueue<>(100, true));
             } catch (IOException e) {

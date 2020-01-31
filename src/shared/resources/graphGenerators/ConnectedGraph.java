@@ -1,18 +1,13 @@
 package shared.resources.graphGenerators;
 
 import org.apache.commons.collections.list.TreeList;
-import org.apache.commons.lang3.Range;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.ParameterTool;
-import org.jetbrains.annotations.NotNull;
 import shared.Utils;
 
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 public class ConnectedGraph {
 
@@ -21,11 +16,11 @@ public class ConnectedGraph {
 
         final ParameterTool param = ParameterTool.fromArgs(args);
 
-        final int size = Integer.parseInt(param.get("size", "1000000"));
+        final int size = Integer.parseInt(param.get("size", "9000"));
 
-        final String outputPath = param.get("name", "./generatedGraph.txt");
+        final String outputPath = param.get("name", "./dataset9k.txt");
 
-        final double otherRandomEdges = param.getDouble("addedEdgesOnVerticesRatio", 0.0);
+        final double otherRandomEdges = param.getDouble("addedEdgesOnVerticesRatio", 1.0);
 
         final int updates = param.getInt("nUpdates", 100);
 

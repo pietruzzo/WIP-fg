@@ -1,14 +1,14 @@
 package master;
 
 import akka.actor.ActorRef;
-import org.jetbrains.annotations.Nullable;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.jetbrains.annotations.Nullable;
 import shared.AkkaMessages.AggregateMsg;
 import shared.data.MultiKeyMap;
-import shared.streamProcessing.abstractOperators.CustomBinaryOperator;
 import shared.streamProcessing.StreamProcessingCallback;
 import shared.streamProcessing.StreamProcessingCallback.Aggregate;
 import shared.streamProcessing.StreamProcessingCallback.AggregateType;
+import shared.streamProcessing.abstractOperators.CustomBinaryOperator;
 import shared.variables.VariableAggregate;
 
 import java.util.*;

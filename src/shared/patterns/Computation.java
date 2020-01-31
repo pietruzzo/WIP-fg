@@ -8,11 +8,8 @@ import shared.AkkaMessages.StartComputationStepMsg;
 import shared.PropertyHandler;
 import shared.computation.ComputationParameters;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
-import java.util.Properties;
-import java.util.logging.Logger;
 
 public class Computation extends Pattern {
 

@@ -1,14 +1,13 @@
 package shared.variables;
 
 
-import org.jetbrains.annotations.Nullable;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple1;
+import org.jetbrains.annotations.Nullable;
 import shared.exceptions.WrongTypeRuntimeException;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.stream.Collectors;
 
 public class VariableAggregate extends Variable {
 

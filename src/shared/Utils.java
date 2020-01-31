@@ -2,14 +2,20 @@ package shared;
 
 import org.jetbrains.annotations.NotNull;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.InetAddress;
-import java.net.UnknownHostException;
+import java.net.NetworkInterface;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
-import java.util.*;
+import java.util.Collection;
+import java.util.Enumeration;
+import java.util.LinkedList;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -109,12 +115,48 @@ public class Utils {
     }
 
     public static String getLocalIP() {
-        InetAddress inetAddress = null;
+
         try {
-            inetAddress = InetAddress.getLocalHost();
-        } catch (UnknownHostException e) {
-            e.printStackTrace();
+            InetAddress candidateAddress = null;
+            // Iterate all NICs (network interface cards)...
+            for (Enumeration ifaces = NetworkInterface.getNetworkInterfaces(); ifaces.hasMoreElements();) {
+                NetworkInterface iface = (NetworkInterface) ifaces.nextElement();
+                // Iterate all IP addresses assigned to each card...
+                for (Enumeration inetAddrs = iface.getInetAddresses(); inetAddrs.hasMoreElements();) {
+                    InetAddress inetAddr = (InetAddress) inetAddrs.nextElement();
+                    if (!inetAddr.isLoopbackAddress()) {
+
+                        if (inetAddr.isSiteLocalAddress()) {
+                            // Found non-loopback site-local address. Return it immediately...
+                            return inetAddr.getHostAddress();
+                        }
+                        else if (candidateAddress == null) {
+                            // Found non-loopback address, but not necessarily site-local.
+                            // Store it as a candidate to be returned if site-local address is not subsequently found...
+                            candidateAddress = inetAddr;
+                            // Note that we don't repeatedly assign non-loopback non-site-local addresses as candidates,
+                            // only the first. For subsequent iterations, candidate will be non-null.
+                        }
+                    }
+                }
+            }
+            if (candidateAddress != null) {
+                // We did not find a site-local address, but we found some other non-loopback address.
+                // Server might have a non-site-local address assigned to its NIC (or it might be running
+                // IPv6 which deprecates the "site-local" concept).
+                // Return this non-loopback candidate address...
+                return candidateAddress.getHostAddress();
+            }
+            // At this point, we did not find a non-loopback address.
+            // Fall back to returning whatever InetAddress.getLocalHost() returns...
+            InetAddress jdkSuppliedAddress = InetAddress.getLocalHost();
+            if (jdkSuppliedAddress == null) {
+                return null;
+            }
+            return jdkSuppliedAddress.getHostAddress();
         }
-        return inetAddress.getHostAddress();
+        catch (Exception e) {
+            return null;
+        }
     }
 }
