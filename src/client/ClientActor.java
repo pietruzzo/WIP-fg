@@ -74,9 +74,8 @@ class ClientActor extends AbstractActor {
 
 	@Override
 	public void postStop() throws Exception {
-		PropertyHandler.finalizeLog();
+		PropertyHandler.exit();
 		super.postStop();
-		System.exit(0);
 	}
 
 	static final Props props(String jobManagerAddr) {

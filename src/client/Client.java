@@ -92,15 +92,17 @@ public class Client {
 
 			for (int i = (int)(numTotalRecords-numRecords); i < numTotalRecords; i++) {
 				String line = lineReader.readLine();
-				Serializable parsedMessage = InputParser.parse(line);
-				if (parsedMessage == null) throw new NullPointerException();
-				clientActor.tell(parsedMessage, ActorRef.noSender());
+				if (line!=null && !line.trim().equals("")) {
+					Serializable parsedMessage = InputParser.parse(line);
+					if (parsedMessage == null) throw new NullPointerException(line);
+					clientActor.tell(parsedMessage, ActorRef.noSender());
+				}
 
 			}
 
 		} catch (Exception e) {
 			e.printStackTrace();
-			System.err.println("Parsing error, no message has been sent to Job Manager. Try again");
+			System.err.println("Parsing error, no other messages are sent to task manager");
 		}
 	}
 

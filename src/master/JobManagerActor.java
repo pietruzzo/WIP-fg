@@ -288,8 +288,8 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 			getContext().getSystem().stop(client);
 		}
 		getContext().getSystem().stop(self());
-		PropertyHandler.finalizeLog();
-		System.exit(0);
+		PropertyHandler.exit();
+
 	}
 
 	private final void onAckMsg(AckMsg msg){

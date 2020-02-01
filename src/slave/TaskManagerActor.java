@@ -912,9 +912,8 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 	@Override
 	public void postStop() {
 		this.executors.shutdown();
-		PropertyHandler.finalizeLog();
 		super.postStop();
-		System.exit(0);
+		PropertyHandler.exit();
 	}
 
 }

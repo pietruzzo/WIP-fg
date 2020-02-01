@@ -13,6 +13,7 @@ public class DebugMain {
         if (Utils.getLocalIP().equals(PropertyHandler.getProperty("masterIp")) || PropertyHandler.getProperty("masterIp").equals("127.0.0.1")) {
             JobManager.main(new String[0]);
             Client.main(new String[0]);
+            PropertyHandler.processes.set(3);
         }
 
         TaskManager.main(new String[0]);

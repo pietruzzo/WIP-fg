@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
+import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Paths;
@@ -158,5 +159,14 @@ public class Utils {
         catch (Exception e) {
             return null;
         }
+    }
+
+    public static String getJarFolder() {
+        try {
+            return new File(Utils.class.getProtectionDomain().getCodeSource().getLocation().toURI()).toPath().getParent().toString() + File.separator;
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 }
