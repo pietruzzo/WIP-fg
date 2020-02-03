@@ -4,6 +4,7 @@ import akka.actor.ActorSystem;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import org.apache.flink.api.java.utils.ParameterTool;
+import shared.Utils;
 
 import java.io.File;
 
@@ -11,7 +12,7 @@ public class JobManager {
 
 	public static void main(String[] args) {
 		final ParameterTool param = ParameterTool.fromArgs(args);
-		final String configFile = param.get("config", "conf/jobmanager.conf");
+		final String configFile = param.get("config", Utils.getAkkaConfPath("jobmanager.conf"));
 
 		final Config conf = ConfigFactory.parseFile(new File(configFile));
 		final ActorSystem sys = ActorSystem.create("JobManager", conf);

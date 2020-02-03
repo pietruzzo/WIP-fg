@@ -47,6 +47,8 @@ function oneDataset {
 
   for i in "${hosts[@]}"
   do
+    #rsync on entire flowgraph folder
+    rsync -ruPav -e "ssh ${sshOptions}" ${localFolder}* ${i}:${remoteFolder}*
     scp "$sshOptions" "${localFolder}config.properties" "${i}:${remoteFolder}"
     ssh  "$sshOptions" ${i} 'rm -r ${remoteFolder}log/*'
 

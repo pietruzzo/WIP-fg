@@ -1,6 +1,8 @@
 package shared;
 
+import client.Client;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -13,10 +15,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
-import java.util.Collection;
-import java.util.Enumeration;
-import java.util.LinkedList;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -168,5 +167,22 @@ public class Utils {
             e.printStackTrace();
         }
         return null;
+    }
+
+    /**
+     * look in resources or in folder containing jar
+     * @return
+     */
+    public static String getAkkaConfPath(String file) {
+
+        String protocol = Utils.class.getResource("").getProtocol();
+        if(Objects.equals(protocol, "jar")){
+            // run in jar
+            return Paths.get(getJarFolder(), file).toString();
+        } else if(Objects.equals(protocol, "file")) {
+            // run in ide
+            return Client.class.getResource("/" + file).getPath();
+        }
+        else throw new RuntimeException("not ide nor jar detected...");
     }
 }

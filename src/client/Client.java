@@ -21,7 +21,7 @@ public class Client {
 	public static void main(String[] args) throws IOException {
 		final ParameterTool param = ParameterTool.fromArgs(args);
 
-		final String configFile = param.get("config", "conf/client.conf");
+		final String configFile = param.get("config", Utils.getAkkaConfPath("client.conf"));
 		final String jobManagerAddr = PropertyHandler.getProperty("masterIp");
 		final int jobManagerPort = Integer.parseInt(PropertyHandler.getProperty("masterPort"));
 

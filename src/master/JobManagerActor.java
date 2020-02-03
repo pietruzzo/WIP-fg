@@ -109,6 +109,7 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 	@Override
 	public Receive createReceive() {
 
+		log.info("Creating JobMamager");
 		try {
 			directedEdges = PropertyHandler.getProperty("directedEdges").equals("true");
 

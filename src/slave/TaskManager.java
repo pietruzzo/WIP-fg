@@ -5,6 +5,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import org.apache.flink.api.java.utils.ParameterTool;
 import shared.PropertyHandler;
+import shared.Utils;
 
 import java.io.File;
 import java.io.IOException;
@@ -17,7 +18,7 @@ public class TaskManager {
 		final int numWorkers = param.getInt("numWorkers", Integer.parseInt(PropertyHandler.getProperty("numThreads")));
 		final String jobManagerAddr = PropertyHandler.getProperty("masterIp");
 		final int jobManagerPort = Integer.parseInt(PropertyHandler.getProperty("masterPort"));
-		final String configFile = param.get("config", "conf/taskmanager.conf");
+		final String configFile = param.get("config", Utils.getAkkaConfPath("taskmanager.conf"));
 
 		final String jobManager = "akka.tcp://JobManager@" + jobManagerAddr + ":" + jobManagerPort + "/user/JobManager";
 

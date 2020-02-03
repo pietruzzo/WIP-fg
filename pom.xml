@@ -82,6 +82,9 @@
             <resource>
                 <directory>src/shared/resources</directory>
             </resource>
+            <resource>
+                <directory>conf</directory>
+            </resource>
         </resources>
         <testSourceDirectory>JUnit5</testSourceDirectory>
         <plugins>
@@ -112,6 +115,10 @@
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                     <mainClass>DebugMain</mainClass>
+                                </transformer>
+                                <transformer
+                                        implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                    <resource>reference.conf</resource>
                                 </transformer>
                             </transformers>
                             <shadedArtifactAttached>true</shadedArtifactAttached>
