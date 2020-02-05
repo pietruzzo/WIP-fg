@@ -904,9 +904,11 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 	}
 
 	private void debugTaskManagerState() {
+		/*
 		for (VertexM vertex: this.vertices.values()) {
 			log.info(vertex.toString());
 		}
+		 */
 	}
 
 	@Override

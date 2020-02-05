@@ -5,10 +5,7 @@ import shared.patterns.Pattern;
 import shared.patterns.Trigger;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 public class PatternLogic {
 
@@ -37,6 +34,7 @@ public class PatternLogic {
         this.currentTimestamp = currentTimestamp;
         this.triggerEvent = triggerEvent;
         this.validVariable = validVariables;
+        this.currentElement = null;
 
         currentPattern = patternElements.iterator();
 
@@ -53,20 +51,28 @@ public class PatternLogic {
             //No installed pattern
             transportLayer.becomeReceiveChangeState();
             return;
-        }
-        if (currentElement == null) {
+        } else if (currentElement == null) {
             //First step
-            currentElement = currentPattern.next();
+            applyNext();
+
+        } else if (currentElement.processMessage(message)) {
+
+            applyNext();
         }
+    }
 
-        if (currentElement.processMessage(message)) {
-
-            if (currentPattern.hasNext()) {
-                currentElement = currentPattern.next();
-                currentElement.applyIfTriggered(currentTimestamp, triggerEvent, validVariable);
-            } else {
-                transportLayer.becomeReceiveChangeState();
+    private void applyNext() {
+        if (currentPattern.hasNext()) {
+            currentElement = currentPattern.next();
+            while (currentElement.applyIfTriggered(currentTimestamp, triggerEvent, validVariable)) {
+                if (currentPattern.hasNext()) {
+                    currentElement = currentPattern.next();
+                } else {
+                    transportLayer.becomeReceiveChangeState();
+                }
             }
+        } else {
+            transportLayer.becomeReceiveChangeState();
         }
     }
 

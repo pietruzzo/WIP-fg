@@ -4,14 +4,16 @@
 
 #first host is master
 declare -a hosts=(
-  "192.168.1.1"
-  "element2"
+  "ec2-18-191-233-219.us-east-2.compute.amazonaws.com"
+  "ec2-3-15-240-215.us-east-2.compute.amazonaws.com"
+  "ec2-3-137-41-31.us-east-2.compute.amazonaws.com"
+  "ec2-3-15-149-185.us-east-2.compute.amazonaws.com"
 )
 
-datasetName=dataset1M.txt
+datasetName="NULL"
 localFolder=/home/pietro/Desktop/flowgraph/
 remoteFolder=/home/ec2-user/flowgraph/
-sshOptions=" -oStrictHostKeyChecking=no -i \"/home/pietro/amazonKey.pem\" "
+sshOptions='-o StrictHostKeyChecking=no' #You need ssh-add /home/pietro/amazonKey.pem
 executableName="flowgraph-0.1-launcher.jar"
 
 
@@ -19,18 +21,16 @@ executableName="flowgraph-0.1-launcher.jar"
 
 function launchSimulationAndCollect {
 
-  command=""
   for i in "${hosts[@]}"
   do
-    command="${command}ssh ${sshOptions} ${i} 'java -jar ${remoteFolder}${executableName}' && "
+    command="ssh ${sshOptions} ec2-user@${i} java -jar ${remoteFolder}${executableName} &"
+    echo "${command}"
+    ${command}
   done
-
-  command="{command} echo \"launched all\""
-
-  echo "$command"
-
-  command
+  echo "Wait execution"
   wait
+  echo "Executed"
+
 
 for i in "${hosts[@]}"
   do
@@ -43,14 +43,14 @@ for i in "${hosts[@]}"
 
 function oneDataset {
 
-  sed -i -e "/datasetPath =/ s/= .*/= ${remoteFolder}datasets/${datasetName}/" ${localFolder}config.properties
+  sed -i -e "s:datasetPath =.*$:datasetPath = ${remoteFolder}datasets/${datasetName}:" ${localFolder}config.properties
 
   for i in "${hosts[@]}"
   do
     #rsync on entire flowgraph folder
-    rsync -ruPav -e "ssh ${sshOptions}" ${localFolder}* ${i}:${remoteFolder}*
-    scp "$sshOptions" "${localFolder}config.properties" "${i}:${remoteFolder}"
-    ssh  "$sshOptions" ${i} 'rm -r ${remoteFolder}log/*'
+    rsync -ruPav -e "ssh ${sshOptions}" ${localFolder} ec2-user@${i}:${remoteFolder}
+    #scp "$sshOptions" "${localFolder}config.properties" "ec2-user@${i}:${remoteFolder}"
+    ssh  "$sshOptions" ec2-user@"${i}" 'rm -r ${remoteFolder}log/*'
 
   done
 
@@ -60,9 +60,11 @@ function oneDataset {
 
 function allDatasets {
 
-  for i in "${localFolder}/datasets"/*
+  for i in "${localFolder}datasets"/*
   do
     datasetName=$i
+    datasetName=${datasetName##*/}
+    echo ${datasetName}
     oneDataset
   done
 }
