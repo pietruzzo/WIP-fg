@@ -259,5 +259,10 @@ public class ComputationRuntime {
                 }
             } catch (NoSuchElementException e) {/* END */}
         }
+
+        @Override
+        public Utils.DuplicableRunnable getCopy() {
+            return new ComputeResultsThread(super.computationRuntime, super.vertexIterator, super.ingoingMessages);
+        }
     }
 }
