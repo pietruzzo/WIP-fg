@@ -1,1 +1,1 @@
-.g().GroupV(label).extractV(label).emit($LAB);
+.g().GroupV(labelP).extractV(labelP).emit($LAB);

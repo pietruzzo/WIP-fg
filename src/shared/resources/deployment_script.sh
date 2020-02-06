@@ -3,13 +3,19 @@
 # Modify vars to fit test
 
 #first host is master
-declare -a hosts=(
-  "ec2-18-191-233-219.us-east-2.compute.amazonaws.com"
-  "ec2-3-15-240-215.us-east-2.compute.amazonaws.com"
-  "ec2-3-137-41-31.us-east-2.compute.amazonaws.com"
-  "ec2-3-15-149-185.us-east-2.compute.amazonaws.com"
-)
+declare -a hosts=()
 
+
+  #first host is master
+  declare -a localIPhosts=(
+    "172.31.6.122"
+    "172.31.6.197"
+    "172.31.8.217"
+    "172.31.0.197"
+  )
+
+entryIP="ec2-18-188-214-187.us-east-2.compute.amazonaws.com"
+numberOfMachines="4"
 datasetName="NULL"
 localFolder=/home/pietro/Desktop/flowgraph/
 remoteFolder=/home/ec2-user/flowgraph/
@@ -69,9 +75,27 @@ function allDatasets {
   done
 }
 
+  function getPublicIPs {
+
+  # Send public key
+  rsync -ruPav -e "ssh ${sshOptions}" ${localFolder}amazonKey.pem ec2-user@${entryIP}:${remoteFolder}
+
+
+  for ((i=1; i<=$numberOfMachines; i++)) ; do
+      currentHost="${localIPhosts[${i}]}"
+      insideCommand="ssh -i ${remoteFolder}amazonKey.pem ${sshOptions} ec2-user@${currentHost} 'dig +short myip.opendns.com @resolver1.opendns.com'"
+      result=$("ssh ${sshOptions} ec2-user@${entryIP} '"${insideCommand}"'")
+      hosts+=( "${result}" )
+  done
+
+  echo "${hosts[@]}"
+
+  }
+
 
 #endregion
 
+getPublicIPs
 
 if [ "$datasetName" = "NULL" ]; then
   echo "allDatasets"

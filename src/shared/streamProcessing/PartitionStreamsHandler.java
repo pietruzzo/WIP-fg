@@ -133,7 +133,6 @@ public class PartitionStreamsHandler {
 
                     }
                 }
-
                 PropertyHandler.writeSpacePerformanceLog("_AFTER_EMISSION_MEM_");
             }
             else if (operation instanceof Operations.Evaluate) {

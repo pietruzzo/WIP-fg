@@ -1,6 +1,7 @@
 package shared;
 
 import java.io.*;
+import java.nio.file.Path;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -14,6 +15,7 @@ public class PropertyHandler {
 
     private Properties prop;
     private StringBuilder performanceLog;
+    private int counterDumps;
 
 
     public static String getProperty(String name) throws IOException {
@@ -34,10 +36,20 @@ public class PropertyHandler {
     }
 
     public static void writeSpacePerformanceLog(String msg) {
-        if ( Boolean.parseBoolean(propertyHandler.prop.getProperty("spaceLog")) ) {
-            System.gc();
-            long memory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
-            writeOnLog(msg + memory);
+        long pid = ProcessHandle.current().pid();
+        Runtime runtime = Runtime.getRuntime();
+
+        try {
+            System.out.println("launching GC: " + msg);
+            Process pr1 = runtime.exec("jcmd " + pid + " GC.run");
+            pr1.waitFor();
+            System.out.println("finished GC: " + msg);
+
+            System.out.println(new String(pr1.getErrorStream().readAllBytes()));
+            System.out.println(new String(pr1.getInputStream().readAllBytes()));
+
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
         }
     }
 
@@ -49,6 +61,7 @@ public class PropertyHandler {
 
         prop = new Properties();
         InputStream inputStream = null;
+        counterDumps = 0;
 
         try{
             inputStream = new FileInputStream(Utils.getJarFolder()+DEFAULT_PROP_LOCATION1);
