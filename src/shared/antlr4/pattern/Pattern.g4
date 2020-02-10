@@ -41,8 +41,8 @@ partition
     ;
 
 extraction
-    :   '.extractV(' label (',' label)* ')'
-    |   '.extractE(' label (',' label)* ')'
+    :   '.extractV(' label? (',' label)* ')'
+    |   '.extractE(' label? (',' label)* ')'
     ;
 
 evaluation
@@ -187,9 +187,11 @@ OR : 'or' ;
 
 //UnaryBoolOperator: 'not' ;
 
-Timeunit : ([0-9]+ ('s' | 'm' | 'h'))+ ;
+Litterals : ( [a-z] | [A-Z] | Number | DOT )+ ;
 
-Litterals : ( [a-z] | [A-Z] | [0-9] | DOT )+ ;
+Timeunit : (Number+ ('s' | 'm' | 'h')?)+ ;
+
+Number : [0-9] ;
 
 DOT: '.';
 
