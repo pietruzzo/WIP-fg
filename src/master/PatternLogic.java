@@ -1,6 +1,7 @@
 package master;
 
 import org.jetbrains.annotations.Nullable;
+import shared.AkkaMessages.NewTimestampMsg;
 import shared.patterns.Pattern;
 import shared.patterns.Trigger;
 
@@ -35,6 +36,7 @@ public class PatternLogic {
         this.triggerEvent = triggerEvent;
         this.validVariable = validVariables;
         this.currentElement = null;
+        transportLayer.sendToAllSlaves(new NewTimestampMsg(currentTimestamp));
 
         currentPattern = patternElements.iterator();
 

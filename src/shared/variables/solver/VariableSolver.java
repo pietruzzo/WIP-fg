@@ -239,8 +239,7 @@ public class VariableSolver implements Serializable {
             List<Tuple2<Map<String, String>, Tuple>> collect = variableVersions.stream().map(variable -> { //FOR EACH VERSION
                 VariablePartition variablePartition = (VariablePartition) variable;
                 return variablePartition.getAllInsideVariables().getAllElements().entrySet().stream().map(entry -> {  //FOR EACH PARTITION
-                    Stream<Tuple2<Map<String, String>, Tuple>> t = getStreamFromVariable(entry.getValue(), entry.getKey().getKeysMapping(), selectedField);
-                    return t;
+                    return getStreamFromVariable(entry.getValue(), entry.getKey().getKeysMapping(), selectedField);
                 }); //RETURN THE LIST OF TUPLE2: partition, stream<Tuples>
             }).flatMap(stream->stream).flatMap(stream -> stream).collect(Collectors.toList());
 
@@ -301,13 +300,13 @@ public class VariableSolver implements Serializable {
         }
         else if (variable instanceof VariableVertex) {
             fields.add(ExtractedStream.NODELABEL);
-            fields.addAll(((VariableAggregate)variable).getTupleNames());
+            fields.addAll(((VariableVertex)variable).getTupleNames());
             streamType = ExtractedStream.StreamType.NODE;
         }
         else if (variable instanceof VariableEdge) {
             fields.add(ExtractedStream.NODELABEL);
             fields.add(ExtractedStream.EDGELABEL);
-            fields.addAll(((VariableAggregate)variable).getTupleNames());
+            fields.addAll(((VariableEdge)variable).getTupleNames());
             streamType = ExtractedStream.StreamType.EDGE;
         } else {
             throw new WrongTypeRuntimeException(Variable.class, variable.getClass());
@@ -482,14 +481,19 @@ public class VariableSolver implements Serializable {
 
         long timeSolved = this.currentTimestamp - timeWindow;
 
-        if (windowType == WindowType.WITHIN || windowType == WindowType.EVERYWITHIN) {
-            selectedVars.tailMap(selectedVars.floorKey(timeSolved), true).values().stream().forEach(variable -> {
-                result.add(variable);
-            });
-        } else {
-            result.add(selectedVars.floorEntry(timeSolved).getValue());
+
+        try {
+            if (windowType == WindowType.WITHIN || windowType == WindowType.EVERYWITHIN) {
+                result.addAll(selectedVars.tailMap(selectedVars.floorKey(timeSolved), true).values());
+            } else {
+                result.add(selectedVars.floorEntry(timeSolved).getValue());
+            }
+        } catch (NullPointerException e){
+            //result will be empty
         }
-        while(result.removeAll(null)){}
+
+
+        result.removeAll(Collections.singletonList(null));
 
         return result;
     }
@@ -562,7 +566,7 @@ public class VariableSolver implements Serializable {
     public long getCurrentTimestamp() { return this.currentTimestamp;}
 
     public Tuple2<String, String> solveFields(String variableName) {
-        String[] elements = variableName.split(".", 2);
+        String[] elements = variableName.split("\\.", 2);
         if (elements.length == 1) return new Tuple2<>(elements[0], null);
         else return new Tuple2<>(elements[0], elements[1]);
     }

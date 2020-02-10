@@ -15,7 +15,6 @@ public class PropertyHandler {
 
     private Properties prop;
     private StringBuilder performanceLog;
-    private int counterDumps;
 
 
     public static String getProperty(String name) throws IOException {
@@ -36,10 +35,14 @@ public class PropertyHandler {
     }
 
     public static void writeSpacePerformanceLog(String msg) {
-        long pid = ProcessHandle.current().pid();
-        Runtime runtime = Runtime.getRuntime();
 
         try {
+            if  (!Boolean.parseBoolean(getProperty("spaceLog"))){
+                return;
+            }
+            long pid = ProcessHandle.current().pid();
+            Runtime runtime = Runtime.getRuntime();
+
             System.out.println("launching GC: " + msg);
             Process pr1 = runtime.exec("jcmd " + pid + " GC.run");
             pr1.waitFor();
@@ -61,7 +64,6 @@ public class PropertyHandler {
 
         prop = new Properties();
         InputStream inputStream = null;
-        counterDumps = 0;
 
         try{
             inputStream = new FileInputStream(Utils.getJarFolder()+DEFAULT_PROP_LOCATION1);

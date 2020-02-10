@@ -92,10 +92,27 @@ function allDatasets {
 
   }
 
+  function setup {
+
+    # get public IPs
+    getPublicIPs
+
+    # install jdk
+    installCommand='sudo amazon-linux-extras enable java-openjdk11 && sudo yum install java-openjdk11 -y'
+
+    for i in "hosts[@]" ; do
+      ssh ${sshOptions} ec2-user@${i} "${installCommand}" &
+    done
+
+    wait
+
+  }
+
+
 
 #endregion
 
-getPublicIPs
+setup
 
 if [ "$datasetName" = "NULL" ]; then
   echo "allDatasets"

@@ -66,6 +66,10 @@ public class VariableEdge extends Variable {
         return edgesValues.get(vertexName).get(edgeName);
     }
 
+    public ArrayList<String> getTupleNames() {
+        return tupleNames;
+    }
+
     @Override
     public String toString() {
         return "VariableEdge{" +

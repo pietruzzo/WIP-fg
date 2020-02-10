@@ -1,4 +1,4 @@
-// Generated from /home/pietro/IdeaProjects/WIP-fg/src/shared/antlr4/pattern/Pattern.g4 by ANTLR 4.7.2
+// Generated from /home/pietro/IdeaProjects/WIP-fg/src/shared/antlr4/pattern/Pattern.g4 by ANTLR 4.8
 package shared.antlr4.pattern;
 
 import org.antlr.v4.runtime.ParserRuleContext;

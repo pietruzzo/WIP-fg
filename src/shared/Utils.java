@@ -25,7 +25,7 @@ public class Utils {
     /**
      * Support seconds (s), minutes (m), hours (h)
      */
-    public static final String TIME_DELIMETER_REGEX = "[smh]";
+    public static final String TIME_DELIMETER_REGEX = "([smh]|ms)";
 
     public static int getPartition(String name, int numPartitions) {
         return name.hashCode() % numPartitions;
@@ -53,7 +53,7 @@ public class Utils {
      * @return
      */
     public static long solveTime(String time){
-        String[] tokens = time.split(TIME_DELIMETER_REGEX);
+        String[] tokens = time.replace("-", "").split(TIME_DELIMETER_REGEX);
         int tokenIndex = 0;
         long result = 0;
 
