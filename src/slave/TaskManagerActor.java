@@ -481,7 +481,7 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 	 * @implNote Get runtimes and add messages, than decrease waiting, send back ack and if waiting is zero change state
 	 */
 	private final void onInboxMsg(BoxMsg incoming){
-		log.info(incoming.toString());
+		log.info("BoxMsg received from " + sender().path());
 
 		//Set message partition
 		Map<String, String> partition = incoming.getPartition();

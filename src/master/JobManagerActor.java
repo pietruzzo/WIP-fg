@@ -265,16 +265,16 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 			System.err.println("Unable to read file PATTERNPATH");
 		}
 
+		sendToAllSlaves(new DistributeHashMapMsg(hashMapping));
+		becomeAwaitAckFromAll();
 		patternLogic.startNewIteration(this.currentTimestamp, Trigger.TriggerEnum.ALL, validVariables);
 
 
-		//Send mapping to slaves and wait ack
-		waitingResponses.set(slaves.size());
-		for (ActorRef slave: slaves.keySet()) {
-			slave.tell(new DistributeHashMapMsg(hashMapping), self());
-		}
+		//Send mapping to slaves and wait corresponding number of acks
+
+
+
 		nextState = this::receiveChangeState;
-		getContext().become(waitAck());
 	}
 
 	private final void onTerminateMsg (TerminateMsg msg) {
@@ -365,7 +365,7 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 
 	@Override
 	public void becomeAwaitAckFromAll() {
-		this.waitingResponses.set(this.slaves.size());
+		this.waitingResponses.addAndGet(this.slaves.size());
 		getContext().become(waitAck());
 	}
 
@@ -409,7 +409,6 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 		this.currentTimestamp = timestamp;
 		this.validVariables.clear();
 		patternLogic.startNewIteration(currentTimestamp, trigger, this.validVariables);
-		getContext().become(waitAck(), true);
 	}
 	@FunctionalInterface
 	public interface State{

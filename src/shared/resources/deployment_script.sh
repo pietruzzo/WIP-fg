@@ -16,7 +16,7 @@ declare -a hosts=()
 
 entryIP="ec2-18-191-167-12.us-east-2.compute.amazonaws.com"
 numberOfMachines="4"
-datasetName="NULL"
+datasetName="dataset1k.txt"
 localFolder=/home/pietro/Desktop/flowgraph/
 localLogFolder=/home/pietro/Desktop/Logs/
 remoteFolder=/home/ec2-user/flowgraph/

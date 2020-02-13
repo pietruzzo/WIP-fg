@@ -36,9 +36,10 @@ public class PatternLogic {
         this.triggerEvent = triggerEvent;
         this.validVariable = validVariables;
         this.currentElement = null;
-        transportLayer.sendToAllSlaves(new NewTimestampMsg(currentTimestamp));
-
         currentPattern = patternElements.iterator();
+
+        transportLayer.sendToAllSlaves(new NewTimestampMsg(currentTimestamp));
+        transportLayer.becomeAwaitAckFromAll();
 
 
     }

@@ -28,7 +28,7 @@ public class Utils {
     public static final String TIME_DELIMETER_REGEX = "([smh]|ms)";
 
     public static int getPartition(String name, int numPartitions) {
-        return name.hashCode() % numPartitions;
+        return Math.abs(name.hashCode() % numPartitions);
     }
 
     public static void parallelizeAndWait (ThreadPoolExecutor executors, DuplicableRunnable task) throws ExecutionException, InterruptedException {
