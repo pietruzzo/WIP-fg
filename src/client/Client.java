@@ -4,6 +4,7 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 import org.apache.flink.api.java.utils.ParameterTool;
 import shared.AkkaMessages.HelloClientMsg;
 import shared.AkkaMessages.LaunchMsg;
@@ -27,9 +28,17 @@ public class Client {
 
 		final String jobManager = "akka.tcp://JobManager@" + jobManagerAddr + ":" + jobManagerPort + "/user/JobManager";
 
-		final Config conf = ConfigFactory.parseFile(new File(configFile));
+		Config conf = ConfigFactory.parseFile(new File(configFile));
+		conf = conf.withValue("akka.remote.netty.tcp.hostname", ConfigValueFactory.fromAnyRef(Utils.getLocalIP()));
 		final ActorSystem sys = ActorSystem.create("Client", conf);
-		final ActorRef clientActor = sys.actorOf(ClientActor.props(jobManager), "Client");
+		final ActorRef clientActor;
+
+		if (Utils.waitConnection(jobManagerAddr, jobManagerPort, null)) {
+			clientActor = sys.actorOf(ClientActor.props(jobManager), "Client");
+		} else {
+			throw new RuntimeException("Unable to reach Job manager @ " + jobManagerAddr +", " + jobManagerPort);
+		}
+
 		clientActor.tell(new HelloClientMsg(), ActorRef.noSender());
 
 		try {

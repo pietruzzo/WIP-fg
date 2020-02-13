@@ -3,6 +3,7 @@ package slave;
 import akka.actor.ActorSystem;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 import org.apache.flink.api.java.utils.ParameterTool;
 import shared.PropertyHandler;
 import shared.Utils;
@@ -22,8 +23,13 @@ public class TaskManager {
 
 		final String jobManager = "akka.tcp://JobManager@" + jobManagerAddr + ":" + jobManagerPort + "/user/JobManager";
 
-		final Config conf = ConfigFactory.parseFile(new File(configFile));
+		Config conf = ConfigFactory.parseFile(new File(configFile));
+		conf = conf.withValue("akka.remote.netty.tcp.hostname", ConfigValueFactory.fromAnyRef(Utils.getLocalIP()));
 		final ActorSystem sys = ActorSystem.create(name, conf);
-		sys.actorOf(TaskManagerActor.props(name, numWorkers, jobManager), name);
+		if (Utils.waitConnection(jobManagerAddr, jobManagerPort, null)) {
+			sys.actorOf(TaskManagerActor.props(name, numWorkers, jobManager), name);
+		} else {
+			throw new RuntimeException("Unable to reach Job manager @ " + jobManagerAddr +", " + jobManagerPort);
+		}
 	}
 }

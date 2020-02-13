@@ -572,7 +572,7 @@ public class VariableSolver implements Serializable {
     }
 
     public void printVariable(String name) {
-        System.out.println(this.varablesNew.get(name).lastEntry().getValue().toString());
+        //System.out.println(this.varablesNew.get(name).lastEntry().getValue().toString());
     }
 
     public void printAllVariables() {

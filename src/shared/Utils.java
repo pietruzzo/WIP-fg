@@ -57,14 +57,20 @@ public class Utils {
         int tokenIndex = 0;
         long result = 0;
 
-        for (char c: time.toCharArray()) {
-            if (c == 's'){
+        for (int i = 0; i < time.length(); i++) {
+            char c = time.toCharArray()[i];
+
+            if (c == 'm' && i < time.length()-1 && time.toCharArray()[i+1] == 's') {
+                result = result + (Long.parseLong(tokens[tokenIndex]));
+                tokenIndex = tokenIndex +1;
+                i++;
+            } else if (c == 's'){
                 result = result + (Long.parseLong(tokens[tokenIndex])*1000);
                 tokenIndex = tokenIndex +1;
-            }else if (c == 'm'){
+            } else if (c == 'm'){
                 result = result + (Long.parseLong(tokens[tokenIndex])*60000);
                 tokenIndex = tokenIndex +1;
-            }else if (c == 'h'){
+            } else if (c == 'h'){
                 result = result + (Long.parseLong(tokens[tokenIndex])*3600000);
                 tokenIndex = tokenIndex +1;
             }
@@ -184,5 +190,44 @@ public class Utils {
             return Client.class.getResource("/" + file).getPath();
         }
         else throw new RuntimeException("not ide nor jar detected...");
+    }
+
+    /**
+     *
+     * @param ipAddress
+     * @param port
+     * @param retrials
+     * @return true if collnection has been established
+     */
+    static synchronized public boolean waitConnection(String ipAddress, int port, @Nullable Integer retrials) {
+
+        if (retrials == null) {
+            retrials = 50;
+        }
+
+        for (int i = 0; i < retrials ; i++) {
+
+            try {
+                Runtime runtime = Runtime.getRuntime();
+                Process proc = runtime.exec("nc -vz "+ ipAddress + " " + port);
+
+                String result = new String(proc.getErrorStream().readAllBytes());
+                result = result + new String(proc.getInputStream().readAllBytes());
+
+                if (result.contains("succeeded") || result.contains("Connected")) {
+                    return true;
+                } else {
+                    Utils.class.wait(500);
+                }
+
+            } catch (IOException | InterruptedException e) {
+                e.printStackTrace();
+            }
+
+
+        }
+
+
+        return false;
     }
 }

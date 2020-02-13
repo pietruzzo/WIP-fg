@@ -29,6 +29,10 @@ class ClientActor extends AbstractActor {
 	public void preStart() throws Exception {
 		super.preStart();
 		jobManager = getContext().actorSelection(jobManagerAddr);
+
+		if (!Boolean.parseBoolean(PropertyHandler.getProperty("debugLog"))) {
+			getContext().getSystem().eventStream().setLogLevel(0);
+		}
 	}
 
 	@Override
