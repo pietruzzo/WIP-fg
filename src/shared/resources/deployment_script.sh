@@ -14,9 +14,9 @@ declare -a hosts=()
     "172.31.17.239"
   )
 
-entryIP="ec2-18-191-167-12.us-east-2.compute.amazonaws.com"
+entryIP="ec2-18-217-95-135.us-east-2.compute.amazonaws.com"
 numberOfMachines="4"
-datasetName="dataset1k.txt"
+datasetName="NULL"
 localFolder=/home/pietro/Desktop/flowgraph/
 localLogFolder=/home/pietro/Desktop/Logs/
 remoteFolder=/home/ec2-user/flowgraph/
@@ -28,8 +28,8 @@ executableName="flowgraph-0.1-launcher.jar"
 
 function launchSimulationAndCollect {
 
-#kill all java processes
-for i in "${hosts[@]}"
+  #kill all java processes on slaves
+  for i in "${hosts[@]}"
   do
     command="ssh ${sshOptions} ec2-user@${i} killall -9 java &"
     #echo "${command}"
@@ -38,21 +38,47 @@ for i in "${hosts[@]}"
 
   wait
 
+  # Execute
+
   for i in "${hosts[@]}"
   do
-    command="ssh ${sshOptions} ec2-user@${i} 'java -jar ${remoteFolder}${executableName}' &"
+    command="ssh ${sshOptions} ec2-user@${i} 'nohup java -Xms24g -Xmx24g -XX:+AggressiveHeap -XX:+UseParallelGC -jar ${remoteFolder}${executableName}' &"
     echo "${command}"
     eval "${command}"
   done
+
+
   echo "Wait execution"
-  wait
+
+  # Wait execution completion
+  sleep 10s
+  finished=false
+  while [[ $finished == *"false"* ]]; do
+      finished=true
+      for i in "${hosts[@]}"
+      do
+        command="ssh ${sshOptions} ec2-user@${i} 'pgrep java'"
+        eval "${command}"  >/dev/null
+        if [[ $? -ne 0 ]] ; then
+            echo "Finished"
+        else
+            finished=false
+        fi
+      done
+      sleep 2s
+  done
+
+  # Kill remaining background processes on client
+  eval "kill \$(jobs -p)"
+
   echo "Executed"
 
+  # Collect results
+  mkdir ${localLogFolder}${datasetName}
 
-for i in "${hosts[@]}"
+  for i in "${hosts[@]}"
   do
-    mkdir ${localFolder}log/${datasetName}
-    scp -r "${sshOptions}"  ec2-user@"${i}":"${remoteFolder}"log/* "${localLogFolder}""${datasetName}"
+    scp -r "${sshOptions}"  ec2-user@"${i}":"${remoteFolder}"log/* "${localLogFolder}""${datasetName}"/
   done
 
 
@@ -62,6 +88,13 @@ function oneDataset {
 
   # Set dataset on config.properties
   sed -i -e "s:datasetPath =.*$:datasetPath = ${remoteFolder}datasets/${datasetName}:" ${localFolder}config.properties
+
+  # If M order, try only 10 updates
+  if [[ $datasetName == *"M"* ]]; then
+    sed -i -e "s:numRecordsAsInput =.*$:numRecordsAsInput = 5:" ${localFolder}config.properties
+  else
+    sed -i -e "s:numRecordsAsInput =.*$:numRecordsAsInput = 100:" ${localFolder}config.properties
+  fi
 
   # Send local folder to coordinator and set 600 permissions for privateKey
   rsync -ruPav -e "ssh ${sshOptions}" ${localFolder} ec2-user@${entryIP}:${remoteFolder} --delete
@@ -114,32 +147,33 @@ function allDatasets {
   echo "GOT IPS"
   }
 
-  function setup {
+function setup {
 
-    # install jdk
-    installCommand='sudo amazon-linux-extras enable java-openjdk11 && sudo yum install java-11-openjdk -y'
+  # install jdk
+  installCommand='sudo amazon-linux-extras enable java-openjdk11 && sudo yum install java-11-openjdk -y'
 
-    for i in "${hosts[@]}" ; do
-      ssh ${sshOptions} ec2-user@"${i}" "${installCommand}" &
-    done
+  for i in "${hosts[@]}" ; do
+     ssh ${sshOptions} ec2-user@"${i}" "${installCommand}" &
+  done
 
   wait
 
-    # install nc
-    installCommand='sudo yum -y install nmap-ncat'
+  # install nc
+  installCommand='sudo yum -y install nmap-ncat'
 
-    for i in "${hosts[@]}" ; do
-      ssh ${sshOptions} ec2-user@"${i}" "${installCommand}" &
-    done
+  for i in "${hosts[@]}" ; do
+    ssh ${sshOptions} ec2-user@"${i}" "${installCommand}" &
+  done
 
-    wait
+  wait
 
-echo "END SETUP"
-  }
+  echo "END SETUP"
+}
 
 
 
 #endregion
+
 
 getPublicIPs
 #setup
