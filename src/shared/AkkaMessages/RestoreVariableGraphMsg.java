@@ -21,4 +21,12 @@ public class RestoreVariableGraphMsg implements Serializable {
     public String getTimeAgo() {
         return timeAgo;
     }
+
+    @Override
+    public String toString() {
+        return "RestoreVariableGraphMsg{" +
+                "variableName='" + variableName + '\'' +
+                ", timeAgo='" + timeAgo + '\'' +
+                '}';
+    }
 }

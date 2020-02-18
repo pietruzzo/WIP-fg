@@ -203,6 +203,17 @@ public class VariableSolver implements Serializable {
             }
         }
 
+        // vet variable inside if partition
+        if (variable instanceof VariablePartition){
+            VariablePartition varP = (VariablePartition) variable;
+            variable = varP.getInsideVariable(partition);
+
+            if (variable == null) {
+                //Create partition for partition variable
+                variable = new VariableVertex(variableName, varNamePersistence.f1, this.currentTimestamp, new HashMap<>(), variableName);
+                varP.getAllInsideVariables().putValue(new HashMap<>(partition), variable);
+            }
+        }
         // variable has been created -> now put values
         if (variable instanceof VariableVertex) {
 

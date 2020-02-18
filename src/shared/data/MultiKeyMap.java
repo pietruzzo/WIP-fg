@@ -5,6 +5,7 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
 
 public class MultiKeyMap<T> implements Serializable {
 
@@ -54,6 +55,10 @@ public class MultiKeyMap<T> implements Serializable {
 
     public synchronized void putIfAbsent(CompositeKey compositeKey, T value) {
         this.map.putIfAbsent(compositeKey, value);
+    }
+
+    public synchronized T computeIfAbsent(CompositeKey compositeKey, Function<? super CompositeKey,T> operation) {
+        return this.map.computeIfAbsent(compositeKey, operation);
     }
 
     public synchronized void putValue(CompositeKey compositeKey, T value) throws IllegalArgumentException{

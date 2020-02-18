@@ -16,4 +16,11 @@ public class NewPartitionMsg implements Serializable {
     public PartitioningSolver getPartitioningSolver() {
         return partitioningSolver;
     }
+
+    @Override
+    public String toString() {
+        return "NewPartitionMsg{" +
+                "partitioningSolver=" + partitioningSolver +
+                '}';
+    }
 }

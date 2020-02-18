@@ -16,7 +16,7 @@ declare -a hosts=()
 
 entryIP="ec2-18-217-95-135.us-east-2.compute.amazonaws.com"
 numberOfMachines="4"
-datasetName="NULL"
+datasetName="dataset1M.txt"
 localFolder=/home/pietro/Desktop/flowgraph/
 localLogFolder=/home/pietro/Desktop/Logs/
 remoteFolder=/home/ec2-user/flowgraph/
@@ -42,7 +42,7 @@ function launchSimulationAndCollect {
 
   for i in "${hosts[@]}"
   do
-    command="ssh ${sshOptions} ec2-user@${i} 'nohup java -Xms24g -Xmx24g -XX:+AggressiveHeap -XX:+UseParallelGC -jar ${remoteFolder}${executableName}' &"
+    command="ssh ${sshOptions} ec2-user@${i} 'nohup java -Xms24g -Xmx24g -XX:+AggressiveHeap -XX:+UseParallelGC -Xlog:gc*:file=/home/ec2-user/flowgraph/log/gc.txt -jar ${remoteFolder}${executableName}' &"
     echo "${command}"
     eval "${command}"
   done
@@ -89,6 +89,9 @@ function oneDataset {
   # Set dataset on config.properties
   sed -i -e "s:datasetPath =.*$:datasetPath = ${remoteFolder}datasets/${datasetName}:" ${localFolder}config.properties
 
+  # Set number of instances on config.properties
+  sed -i -e "s:numberOfSlaves =.*$:numberOfSlaves = "${numberOfMachines}":" ${localFolder}config.properties
+
   # If M order, try only 10 updates
   if [[ $datasetName == *"M"* ]]; then
     sed -i -e "s:numRecordsAsInput =.*$:numRecordsAsInput = 5:" ${localFolder}config.properties
@@ -108,7 +111,6 @@ function oneDataset {
     echo "${completeCommand}"
     result=$(eval "${completeCommand}")
     echo "${result}"
-    #ssh  "$sshOptions" ec2-user@"${i}" rm -r "${remoteFolder}"log/*
 
   done
 
@@ -150,19 +152,10 @@ function allDatasets {
 function setup {
 
   # install jdk
-  installCommand='sudo amazon-linux-extras enable java-openjdk11 && sudo yum install java-11-openjdk -y'
+  installCommand='sudo amazon-linux-extras enable java-openjdk11 && sudo yum install java-11-openjdk -y && sudo yum install java-1.8.0-openjdk-devel.x86_64 -y && sudo yum install java-1.8.0-openjdk-headless-debug.x86_64 -y && sudo yum -y install nmap-ncat && sudo update-alternatives --set java /usr/lib/jvm/java-11-openjdk-11.0.5.10-0.amzn2.x86_64/bin/java'
 
   for i in "${hosts[@]}" ; do
      ssh ${sshOptions} ec2-user@"${i}" "${installCommand}" &
-  done
-
-  wait
-
-  # install nc
-  installCommand='sudo yum -y install nmap-ncat'
-
-  for i in "${hosts[@]}" ; do
-    ssh ${sshOptions} ec2-user@"${i}" "${installCommand}" &
   done
 
   wait

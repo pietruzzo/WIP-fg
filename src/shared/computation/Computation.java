@@ -10,8 +10,10 @@ import java.util.stream.Collectors;
 
 /**
  * Datastructures shared between nodes must be threadsafe
+ * Class variables has the partition+group scope, hence you cannot retrieve values from different workers or groups
+ * Class variables must be initialized in PRESTART method
  */
-public abstract class Computation implements Serializable {
+public abstract class Computation implements Serializable, Cloneable {
 
     protected ComputationParameters computationParameters;
     private List<Tuple2<String, Long>> returnVarNames;
@@ -66,5 +68,8 @@ public abstract class Computation implements Serializable {
      */
     public abstract void preStart();
 
-
+    @Override
+    public Computation clone() throws CloneNotSupportedException {
+        return (Computation) super.clone();
+    }
 }

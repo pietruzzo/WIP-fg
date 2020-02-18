@@ -1,1 +1,2 @@
-.g().GroupV(labelP).extractV(labelP).emit($LAB);
+.g().extractV(labelP).emit($varNode);
+.collect($varNode 10-ms ago).emit($versionedVar);

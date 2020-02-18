@@ -48,9 +48,6 @@ public class PropertyHandler {
             pr1.waitFor();
             System.out.println("finished GC: " + msg);
 
-            System.out.println(new String(pr1.getErrorStream().readAllBytes()));
-            System.out.println(new String(pr1.getInputStream().readAllBytes()));
-
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }

@@ -227,7 +227,7 @@ public class LogToIndices {
                 statistics.forEach(statTuple -> {
                     try {
 
-                        List<String> strings = Arrays.asList(statTuple.f0.replaceAll(folder, "").split("/"));
+                        List<String> strings = new ArrayList<>(Arrays.asList(statTuple.f0.replaceAll(folder, "").split("/")));
                         strings.remove("");
                         String name = strings.get(0).replace("dataset", "").replace(".txt", "");
 

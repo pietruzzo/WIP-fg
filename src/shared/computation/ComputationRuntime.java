@@ -11,7 +11,6 @@ import shared.exceptions.ComputationFinishedException;
 
 import java.util.*;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.stream.Collectors;
 
@@ -27,20 +26,20 @@ public class ComputationRuntime {
     private BoxMsg inboxMessages;
 
 
-    public ComputationRuntime(ComputationCallback taskManager, @Nullable Computation computation, LinkedHashMap<String, String> freeVars, Map<String, Vertex> vertices) {
+    public ComputationRuntime(ComputationCallback taskManager, LinkedHashMap<String, String> freeVars, Map<String, Vertex> vertices) {
         this.taskManager = taskManager;
-        this.computation = computation;
+        this.computation = null;
         this.freeVars = freeVars;
         this.vertices = vertices;
         this.inboxMessages = new BoxMsg(0);
     }
 
-    public ComputationRuntime(ComputationCallback taskManager, @Nullable Computation computation, LinkedHashMap<String, String> freeVars) {
+    public ComputationRuntime(ComputationCallback taskManager, LinkedHashMap<String, String> freeVars) {
         this.taskManager = taskManager;
-        this.computation = computation;
+        this.computation = null;
         this.freeVars = freeVars;
         this.vertices = new HashMap<>();
-        this.inboxMessages = null;
+        this.inboxMessages = new BoxMsg(0);
     }
 
 
@@ -56,22 +55,6 @@ public class ComputationRuntime {
 
 
         if (stepNumber == 0) { //First superstep -> substitute aggregate variables and prestartMethod
-            /*
-            computation.computationParameters.values().stream().forEach(parameter -> {
-                if (!parameter.isLabel() && !parameter.isValue()) {
-                    try {
-                        List<String[]> aggregateRaw = taskManager.getVariableSolver().getAggregate(parameter.getParameter()[0], this.getPartition(), parameter.getTimeAgo(), parameter.getwType());
-                        List<String> aggregate = aggregateRaw.stream().flatMap(agg -> Arrays.asList(agg).stream()).collect(Collectors.toList());
-                        parameter.setLabel(false);
-                        parameter.setValue(true);
-                        parameter.setParameter(aggregate.toArray(String[]::new));
-                    } catch (VariableNotDefined e) {
-                        //Skip
-                    }
-
-                }
-            });
-         */
 
             //Set partition for NODE/EDGE variables solvers
             computation.computationParameters.setPartition(this.getPartition());
@@ -89,15 +72,10 @@ public class ComputationRuntime {
     }
 
     public void computeResults(ThreadPoolExecutor executors) throws ExecutionException, InterruptedException {
-        Collection<Future> executions = new LinkedList<>();
 
         //Launch executors
         Utils.parallelizeAndWait(executors, new ComputeResultsThread(this, new SynchronizedIterator<>(vertices.values().iterator()), null));
 
-        //Wait executors end
-        for (Future<?> future: executions) {
-            future.get();
-        }
     }
 
     public Computation getComputation() {
@@ -105,7 +83,11 @@ public class ComputationRuntime {
     }
 
     public void setComputation(Computation computation) {
-        this.computation = computation;
+        try {
+            this.computation = computation.clone();
+        } catch (CloneNotSupportedException e) {
+            e.printStackTrace();
+        }
     }
 
     public void setVertices(Map<String, Vertex> vertices) { this.vertices = vertices; }
@@ -120,6 +102,12 @@ public class ComputationRuntime {
 
     public Map<String, Vertex> getVertices() {
         return vertices;
+    }
+
+    public void putIntoVertices(String vertexName, Vertex vertex){
+        synchronized (this.vertices){
+            this.vertices.put(vertexName, vertex);
+        }
     }
 
     /**
@@ -211,6 +199,9 @@ public class ComputationRuntime {
             while (true) {
                 Map.Entry<String, List<ArrayList<StepMsg>>> next = ingoingMessages.next();
                 Vertex vertex = computationRuntime.vertices.get(next.getKey());
+                if (vertex == null) {
+                    System.err.println(next.getKey());
+                }
                 List<ArrayList<StepMsg>> messages = next.getValue();
                 List<StepMsg> flattered = messages.stream().flatMap(arraylist -> arraylist.stream()).collect(Collectors.toList());
                 int stepNumber = computationRuntime.stepNumber;

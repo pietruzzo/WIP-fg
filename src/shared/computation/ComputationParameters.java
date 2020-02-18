@@ -177,6 +177,7 @@ public class ComputationParameters implements Serializable {
 
         public Parameter(String parameter, boolean isValue, boolean isLabel, @Nullable String timeAgo, @Nullable SelectionSolver.Operation.WindowType wType) {
             this.isValue = isValue;
+            this.isLabel= isLabel;
             this.parameter = new String[]{parameter};
             this.timeAgo = timeAgo;
             this.wType = wType;
