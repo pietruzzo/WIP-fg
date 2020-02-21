@@ -95,11 +95,11 @@ public class Client {
 
 			BufferedReader lineReader = new BufferedReader(new FileReader(PropertyHandler.getProperty("datasetPath")));
 
-			for (int i = 0; i < (numTotalRecords-numRecords); i++) {
+			for (int i = 0; i < (numTotalRecords-numRecords-1); i++) {
 				lineReader.readLine();
 			}
 
-			for (int i = (int)(numTotalRecords-numRecords); i < numTotalRecords; i++) {
+			for (int i = (int)(numTotalRecords-numRecords-1); i < numTotalRecords; i++) {
 				String line = lineReader.readLine();
 				if (line!=null && !line.trim().equals("")) {
 					Serializable parsedMessage = InputParser.parse(line);

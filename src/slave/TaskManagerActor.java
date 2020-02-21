@@ -762,10 +762,16 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 		if (solved == null)
 			return elencatePartitionsRecursion(compressed, new HashMap<>());
 		else
-			return elencatePartitionsRecursion(compressed, solved);
+			return elencatePartitionsRecursion(compressed, (HashMap<String, String>)solved.clone());
 
 	}
 
+	/**
+	 *
+	 * @param compressed
+	 * @param solved will be modified!!
+	 * @return
+	 */
 	private ArrayList<HashMap<String, String>> elencatePartitionsRecursion(HashMap<String, String[]> compressed, HashMap<String, String> solved){
 		ArrayList<HashMap<String, String>> results = new ArrayList<>();
 		//Basecase
