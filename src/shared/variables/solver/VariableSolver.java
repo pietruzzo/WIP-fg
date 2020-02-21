@@ -439,7 +439,7 @@ public class VariableSolver implements Serializable {
      * @return Can return empty set
      */
     private List<Variable> getSelectedVariable (String variableName, @Nullable Map<String, String> partition, @Nullable String timeWindow, WindowType windowType) throws VariableNotDefined {
-        Long timeWindowL = null;
+        Long timeWindowL;
         if (timeWindow != null) {
             timeWindowL = Utils.solveTime(timeWindow);
         } else {
@@ -536,33 +536,21 @@ public class VariableSolver implements Serializable {
     }
 
     public void removeOldVersions() {
-        //long keepTimestamp;
-        //int versionsToDelete;
-        /*
-        for (LinkedList<Variable> list: this.variables.values()) {
-            versionsToDelete = 0;
-            keepTimestamp = this.currentTimestamp - list.peekLast().getPersistence();
-            Variable current = null, next = null;
-            Iterator<Variable> iterator = list.iterator();
-            while (iterator.hasNext()){
-                current = next;
-                next = iterator.next();
-                if (current!=null && next.getTimestamp() < keepTimestamp) {
-                    versionsToDelete = versionsToDelete + 1;
-                }
-                if (next.getTimestamp() > keepTimestamp) break;
-            }
-            for (int i = 0; i < versionsToDelete; i++) {
-                list.removeFirst();
-            }
-        }
-         */
         this.varablesNew.entrySet().parallelStream().forEach(entry -> {
             NavigableMap<Long, Variable> versions = entry.getValue();
             long keepTimestamp = this.currentTimestamp - versions.get(versions.lastKey()).getPersistence();
             long lastToKeep = versions.floorKey(keepTimestamp);
-            versions = versions.tailMap(lastToKeep, true);
-            entry.setValue(versions);
+            Iterator<Long> iterator = versions.keySet().iterator();
+
+            while (iterator.hasNext()){
+                long current = iterator.next();
+
+                if (current < lastToKeep){
+                    iterator.remove();
+                } else {
+                    break;
+                }
+            }
         });
     }
 
