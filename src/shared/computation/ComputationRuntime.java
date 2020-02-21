@@ -199,9 +199,6 @@ public class ComputationRuntime {
             while (true) {
                 Map.Entry<String, List<ArrayList<StepMsg>>> next = ingoingMessages.next();
                 Vertex vertex = computationRuntime.vertices.get(next.getKey());
-                if (vertex == null) {
-                    System.err.println(next.getKey());
-                }
                 List<ArrayList<StepMsg>> messages = next.getValue();
                 List<StepMsg> flattered = messages.stream().flatMap(arraylist -> arraylist.stream()).collect(Collectors.toList());
                 int stepNumber = computationRuntime.stepNumber;
