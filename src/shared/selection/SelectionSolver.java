@@ -172,16 +172,16 @@ public class SelectionSolver implements Cloneable, Selection{
         //4-clone this for each edge
         //5-call method solveEdge on ech edge
         //6-collect selected edges
-        VertexM vertexResult = new VertexM(vertex.getNodeId(), vertex.getState());
+        List<String> edgesToKeep = new ArrayList<>();
         for (String edge: vertex.getEdges()) {
             boolean selected = this.clone().selectEdge(vertex, variableSolver, edge);
             if (selected)
-                vertexResult.addEdge(edge, vertex.getEdgeState(edge));
+                edgesToKeep.add(edge);
         }
 
         //7-return Vertex with selected edges
+        return vertex.getVertexView(edgesToKeep, true);
 
-        return vertexResult;
     }
 
     /**

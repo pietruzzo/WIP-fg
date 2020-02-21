@@ -3,10 +3,7 @@ package shared;
 import shared.computation.Vertex;
 
 import java.io.Serializable;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 
 public class VertexM implements Serializable, Vertex {
@@ -15,12 +12,18 @@ public class VertexM implements Serializable, Vertex {
 
     private final String nodeId;
     private final State state;
-    private final Map<String, State> edges;
+    private final HashMap<String, State> edges;
 
     public VertexM(String nodeId, State state) {
         this.nodeId = nodeId;
         this.state = state;
         this.edges = new HashMap<>();
+    }
+
+    private VertexM(String nodeId, State state, HashMap<String, State> edges) {
+        this.nodeId = nodeId;
+        this.state = state;
+        this.edges = edges;
     }
 
     public String getNodeId(){
@@ -73,6 +76,26 @@ public class VertexM implements Serializable, Vertex {
     public synchronized void setLabelEdge (String edge, String labelName, String[] values){
         this.edges.get(edge).remove(labelName);
         this.edges.get(edge).put(labelName, values);
+    }
+
+    public VertexM getVertexView (List<String> edges, boolean tolistEdgesKeep) {
+
+        HashMap<String, State> newEdges;
+
+        if (tolistEdgesKeep) {
+            newEdges = new HashMap<>();
+            for (String edge: edges) {
+                newEdges.putIfAbsent(edge, this.edges.get(edge));
+            }
+        } else {
+             newEdges = (HashMap<String, State>) this.edges.clone();
+
+            for (String edge: edges) {
+                newEdges.remove(edge);
+            }
+        }
+
+        return new VertexM(this.nodeId, this.state, newEdges);
     }
 
 
