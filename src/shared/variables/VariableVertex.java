@@ -61,7 +61,7 @@ public class VariableVertex extends Variable {
      * @param vertexName
      * @param values
      */
-    public synchronized void addValuesToOneField (String vertexName, List<String> values) {
+    public void addValuesToOneField (String vertexName, List<String> values) {
 
         if (tupleNames.size() != 1)
             throw new RuntimeException("Expecting 1 field Variable, size = " + tupleNames.size());

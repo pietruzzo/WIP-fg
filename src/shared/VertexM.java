@@ -30,50 +30,50 @@ public class VertexM implements Serializable, Vertex {
         return this.nodeId;
     }
 
-    public synchronized State getState() {
+    public  State getState() {
         return state;
     }
 
-    public synchronized State getEdgeState(String edgeName){
+    public  State getEdgeState(String edgeName){
         return edges.get(edgeName);
     }
 
-    public synchronized void setLabelVartex(String labelName, String[] values) {
+    public  void setLabelVartex(String labelName, String[] values) {
         this.state.remove(labelName);
         this.state.put(labelName, values);
     }
-    public synchronized String[] getLabelVertex(String labelName){
+    public  String[] getLabelVertex(String labelName){
         return state.get(labelName);
     }
 
-    public synchronized String[] getEdges(){
+    public String[] getEdges(){
         return this.edges.keySet().toArray(String[]::new);
     }
 
-    public synchronized void addEdge(String edgeName){
+    public void addEdge(String edgeName){
         this.edges.put(edgeName, new State());
     }
 
-    public synchronized void addEdge(String edgeName, State edgeState){
+    public void addEdge(String edgeName, State edgeState){
         if (edgeName == null) addEdge(edgeName);
         else this.edges.put(edgeName, edgeState);
     }
 
-    public synchronized void deleteEdge(String edge){
+    public void deleteEdge(String edge){
         this.edges.remove(edge);
     }
 
-    public synchronized void deleteEdges(Collection<String> edges){
+    public void deleteEdges(Collection<String> edges){
         for (String edge: edges) {
             this.edges.remove(edge);
         }
     }
 
-    public synchronized String[] getLabelEdge (String edge, String labelName){
+    public String[] getLabelEdge (String edge, String labelName){
         return this.edges.get(edge).get(labelName);
     }
 
-    public synchronized void setLabelEdge (String edge, String labelName, String[] values){
+    public void setLabelEdge (String edge, String labelName, String[] values){
         this.edges.get(edge).remove(labelName);
         this.edges.get(edge).put(labelName, values);
     }

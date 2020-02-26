@@ -59,7 +59,6 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 
 
 	private final String name;
-	private final int numWorkers;
 	private final String masterAddress;
 
 	private ActorSelection master;
@@ -70,13 +69,11 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 	private MultiKeyMap<ComputationRuntime> partitionComputations;
 	private VariableSolver variables;
 
-	private ThreadPoolExecutor executors;
 	private final AtomicInteger waitingResponses = new AtomicInteger(0);
 	private Boolean computationResponse;
 
-	private TaskManagerActor(String name, int numWorkers, String masterAddress) {
+	private TaskManagerActor(String name, String masterAddress) {
 		this.name = name;
-		this.numWorkers = numWorkers;
 		this.masterAddress = masterAddress;
 		this.computations = new HashMap<>();
 		this.partitionComputations = null;
@@ -156,8 +153,6 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 		log.info(initMsg.toString());
 		slaves = initMsg.getHashMapping();
 
-
-		executors = new ThreadPoolExecutor(numWorkers, numWorkers, 0, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
 
 		//region: Initialize Graph
 		vertices = new HashMap<>();
@@ -302,12 +297,12 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 	private final void onValidateNodesMsg(ValidateNodesMsg msg) {
 		log.info(msg.toString());
 		MultiKeyMap<Set<String>> invalidNodesPartitions = new MultiKeyMap<>(msg.nodesToValidate.getKeys());
-		msg.nodesToValidate.getAllElements().entrySet().parallelStream().forEach(group -> {
+		msg.nodesToValidate.getAllElements().entrySet().stream().forEach(group -> {
 
 			Set<String> invalidNodes = Collections.synchronizedSet(new HashSet<>());
 			Map<String, Vertex> vertices = this.partitionComputations.getValue(group.getKey()).getVertices();
 
-			group.getValue().parallelStream().forEach(vertexId -> {
+			group.getValue().stream().forEach(vertexId -> {
 				if (!vertices.containsKey(vertexId)){
 					invalidNodes.add(vertexId);
 				}
@@ -326,9 +321,9 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 
 	private final void onInvalidNodesMsg(InvalidNodesMsg msg) {
 		log.info(msg.toString());
-		msg.invalidNodes.getAllElements().entrySet().parallelStream().forEach(group -> {
+		msg.invalidNodes.getAllElements().entrySet().stream().forEach(group -> {
 			HashSet<String> deleteEdges = new HashSet<>(group.getValue());
-			 Stream<Vertex> partitionVertices = this.partitionComputations.getValue(group.getKey()).getVertices().values().parallelStream();
+			 Stream<Vertex> partitionVertices = this.partitionComputations.getValue(group.getKey()).getVertices().values().stream();
 			partitionVertices.forEach(vertex -> {
 				VertexM vertexM = (VertexM) vertex;
 				ArrayList<String> toRemove = new ArrayList<>();
@@ -351,7 +346,7 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 
 		MultiKeyMap<Map<String, Vertex>> savedPartitions = new MultiKeyMap<>(this.partitionComputations.getKeys());
 
-		this.partitionComputations.getAllElements().entrySet().parallelStream().forEach(entryPartition -> {
+		this.partitionComputations.getAllElements().entrySet().stream().forEach(entryPartition -> {
 			savedPartitions.putValue(entryPartition.getKey(), entryPartition.getValue().getVertices());
 		});
 
@@ -379,7 +374,7 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 
 			newPartitions.getAllElements().entrySet().forEach(entryP -> {
 
-				entryP.getValue().values().parallelStream()
+				entryP.getValue().values().stream()
 						.filter(vertex -> this.vertices.get(vertex.getNodeId()) != null)
 						.forEach(vertex -> {
 							Arrays.asList(vertex.getEdges()).stream().forEach(edge -> {
@@ -413,7 +408,7 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 			int numCompleted = 0;
 			for (ComputationRuntime computationRuntime: partitionComputations.getAllElements().values()) {
 				try {
-					computationRuntime.compute(msg.getStepNumber(), this.executors);
+					computationRuntime.compute(msg.getStepNumber());
 				} catch (ComputationFinishedException e) {
 					numCompleted = numCompleted + 1;
 				}
@@ -428,7 +423,7 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 			//get and run the specific runtime and send messages
 			ComputationRuntime computationRuntime = partitionComputations.getValue(msg.getFreeVars());
 			try {
-				computationRuntime.compute(msg.getStepNumber(), this.executors);
+				computationRuntime.compute(msg.getStepNumber());
 			} catch (ComputationFinishedException e) {
 				computationResponse = true;
 			}
@@ -450,14 +445,14 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 			for (ComputationRuntime computationRuntime: partitionComputations.getAllElements().values()) {
 				Computation currentComputation = computationRuntime.getComputation();
 				currentComputation.setReturnVarNames(msg.getReturnVarNames());
-				computationRuntime.computeResults(this.executors);
+				computationRuntime.computeResults();
 			}
 		} else {
 			//get and run the specific runtime and send messages
 			ComputationRuntime computationRuntime = partitionComputations.getValue(msg.getFreeVars());
 			Computation currentComputation = computationRuntime.getComputation();
 			currentComputation.setReturnVarNames(msg.getReturnVarNames());
-			computationRuntime.computeResults(this.executors);
+			computationRuntime.computeResults();
 		}
 
 		master.tell(new AckMsg(), self());
@@ -549,7 +544,7 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 			}
 			//endregion
 
-			Partition partition = new Partition(computationRuntime, msg.getPartitioningSolver(), this.variables, this.executors);
+			Partition partition = new Partition(computationRuntime, msg.getPartitioningSolver(), this.variables);
 			partition.computeSubpartitions();
 
 
@@ -558,18 +553,18 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 				List<Tuple3<String, String, HashMap<String, String[]>>> collected = partition.getCollectedResultsEdges();
 
 				//Flat collected partitioning
-				ConcurrentMap<HashMap<String, String>, List<Tuple2<String, String>>> collectedPartitions = collected.parallelStream().map(tuple3 -> new Tuple3<>(tuple3.f0, tuple3.f1, elencatePartitions(tuple3.f2, beforePartition)))
+				ConcurrentMap<HashMap<String, String>, List<Tuple2<String, String>>> collectedPartitions = collected.stream().map(tuple3 -> new Tuple3<>(tuple3.f0, tuple3.f1, elencatePartitions(tuple3.f2, beforePartition)))
 						.map(tuple -> {
 							ArrayList<Tuple3<String, String, HashMap<String, String>>> returnTuple = new ArrayList<>();
 							for (HashMap<String, String> singlePartition : tuple.f2) {
 								returnTuple.add(new Tuple3<>(tuple.f0, tuple.f1, singlePartition));
 							}
 							return returnTuple;
-						}).flatMap(Collection::parallelStream)
+						}).flatMap(Collection::stream)
 						.collect(Collectors.groupingByConcurrent(tuple3 -> (HashMap<String, String>)tuple3.f2.clone(), Collectors.mapping(tuple3 -> new Tuple2<>(tuple3.f0, tuple3.f1), Collectors.toList())));
 
 				ConcurrentMap<HashMap<String, String>, HashMap<Tuple2<String, String>, Tuple2<VertexM, String>>> collect = collectedPartitions.entrySet().stream().map(p -> {
-					ConcurrentMap<Tuple2<String, String>, Tuple2<VertexM, String>> map = p.getValue().parallelStream()
+					ConcurrentMap<Tuple2<String, String>, Tuple2<VertexM, String>> map = p.getValue().stream()
 							.collect(Collectors.toConcurrentMap(entry -> entry, entry -> new Tuple2<>(this.vertices.get(entry.f0), entry.f1)));
 					return new Tuple2<>(p.getKey(), new HashMap<>(map));
 				}).collect(Collectors.toConcurrentMap(t -> t.f0, t -> t.f1));
@@ -577,9 +572,9 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 				collect.forEach((key, value) -> {
 					newRuntimes.putValue(key, new ComputationRuntime(this, new LinkedHashMap<>(key)));
 
-					ConcurrentMap<VertexM, List<Tuple2<VertexM, String>>> vertexAndList = value.values().parallelStream().collect(Collectors.groupingByConcurrent(entry -> entry.f0, Collectors.toList()));
+					ConcurrentMap<VertexM, List<Tuple2<VertexM, String>>> vertexAndList = value.values().stream().collect(Collectors.groupingByConcurrent(entry -> entry.f0, Collectors.toList()));
 
-					Map<String, Vertex> newVertices = vertexAndList.entrySet().parallelStream().map(vertex -> {
+					Map<String, Vertex> newVertices = vertexAndList.entrySet().stream().map(vertex -> {
 
 						List<String> listOfEdges = vertex.getValue().stream().map(e -> e.f1).collect(Collectors.toList());
 
@@ -597,7 +592,7 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 				List<Pair<String, HashMap<String, String[]>>> collected = partition.getCollectedResultsVertices();
 
 				//Flat collected partitioning -> using parallel streams degrades performances
-				Map<HashMap<String, String>, List<String>> collectedPartitions = collected.parallelStream()
+				Map<HashMap<String, String>, List<String>> collectedPartitions = collected.stream()
 						.map(tuple2 -> new Tuple2<>(tuple2.first(), elencatePartitions(tuple2.second(), beforePartition)))
 						.map(tuple -> {
 							ArrayList<Tuple2<String, HashMap<String, String>>> returnTuple = new ArrayList<>();
@@ -609,9 +604,9 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 						.flatMap(Collection::stream)
 						.collect(Collectors.groupingByConcurrent(tuple2 -> (HashMap<String, String>)tuple2.f1.clone(), Collectors.mapping(tuple2 -> tuple2.f0, Collectors.toList())));
 
-				ConcurrentMap<HashMap<String, String>, HashMap<String, Vertex>> collect = collectedPartitions.entrySet().parallelStream()
+				ConcurrentMap<HashMap<String, String>, HashMap<String, Vertex>> collect = collectedPartitions.entrySet().stream()
 						.map(p -> {
-							ConcurrentMap<String, Vertex> map = p.getValue().parallelStream().collect(Collectors.toConcurrentMap(entry -> entry, entry -> computationRuntime.getVertices().get(entry)));
+							ConcurrentMap<String, Vertex> map = p.getValue().stream().collect(Collectors.toConcurrentMap(entry -> entry, entry -> computationRuntime.getVertices().get(entry)));
 							return new Tuple2<>(p.getKey(), new HashMap<>(map));
 						}).collect(Collectors.toConcurrentMap(t -> t.f0, t -> t.f1));
 
@@ -660,7 +655,7 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 					computationRuntime
 							.getVertices()
 							.values()
-							.parallelStream()
+							.stream()
 							.map(vertex -> (VertexM)vertex)
 							.collect(Collectors.toList());
 
@@ -669,7 +664,7 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 				newPartition = new HashMap<>(computationRuntime.getPartition());
 			}
 
-			Select select = new Select(msg.operations, verticesM.iterator(), this.variables, executors, newPartition);
+			Select select = new Select(msg.operations, verticesM, this.variables, newPartition);
 
 			try {
 				Map<String, Vertex> selected = select.performSelection();
@@ -691,8 +686,8 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 	/**
 	 * Props for this actor
 	 */
-	public static final Props props(String name, int numMyWorkers, String jobManagerAddr) {
-		return Props.create(TaskManagerActor.class, name, numMyWorkers, jobManagerAddr);
+	public static final Props props(String name, String jobManagerAddr) {
+		return Props.create(TaskManagerActor.class, name, jobManagerAddr);
 	}
 
 	private Map<String, Vertex> getAllReadOnlyVertices(){
@@ -712,15 +707,23 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 			outboxes.put(destinations, box);
 		}
 		//For each vertex destination retrieve the actor and populate its box
-		SynchronizedIterator<Map.Entry<String, ArrayList>> destIterator = outgoingBox.getSyncIterator();
-		Utils.parallelizeAndWait(executors, new PopulateOutbox(this, destIterator, outboxes));
-			//Increase waiting response and send also if empty
+
+		for (Map.Entry<String, ArrayList> vertex: (Set<Map.Entry<String, ArrayList>>)outgoingBox.getData().entrySet()) {
+
+			//From outgoingBox <destination,Messages> -> <Actor, <destination, Messages>>
+			ActorRef destActor = getActor(vertex.getKey());
+			outboxes.get(destActor).put(vertex.getKey(), vertex.getValue());
+
+		}
+
+
+		//Increase waiting response and send also if empty
 		this.waitingResponses.addAndGet(outboxes.size());
-			for (Map.Entry<ActorRef, BoxMsg> destOutbox: outboxes.entrySet()) {
+		for (Map.Entry<ActorRef, BoxMsg> destOutbox: outboxes.entrySet()) {
 
-					destOutbox.getKey().tell(destOutbox.getValue(), self());
+			destOutbox.getKey().tell(destOutbox.getValue(), self());
 
-			}
+		}
 
 		//Switch to waiting response state
 		getContext().become(waitingResponseState());
@@ -815,14 +818,14 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 			destinations.add(new MultiKeyMap<>(this.partitionComputations.getKeys()));
 		}
 
-		this.partitionComputations.getAllElements().entrySet().parallelStream()
+		this.partitionComputations.getAllElements().entrySet().stream()
 				.forEach(computationRuntime -> {
 
 					for (MultiKeyMap<Set<String>> taskManager : destinations) {
 						taskManager.putValue(computationRuntime.getKey().getKeysMapping(), Collections.synchronizedSet(new HashSet<>()));
 					}
 
-					computationRuntime.getValue().getVertices().values().parallelStream().map(vertex -> {
+					computationRuntime.getValue().getVertices().values().stream().map(vertex -> {
 						VertexM vertexM = (VertexM) vertex;
 						return (Arrays.asList(vertexM.getEdges()));
 					}).flatMap(list -> list.stream()).forEach(edge -> {
@@ -924,7 +927,6 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 
 	@Override
 	public void postStop() {
-		this.executors.shutdown();
 		super.postStop();
 		PropertyHandler.exit();
 	}

@@ -103,21 +103,18 @@ public class OngoingAggregate {
 
         MultiKeyMap<ArrayList<Tuple>> collected = new MultiKeyMap<>(aggregates.get(0).getPartitionsVariableAggregate().getKeys());
 
-        aggregates.parallelStream().forEach(aggregate -> {
+        aggregates.stream().forEach(aggregate -> {
 
             aggregate.getPartitionsVariableAggregate().getAllElements().entrySet().stream().forEach(partition -> {
 
                 //Create partition in result if absent, made atomic
-                synchronized (collected) {
+
                     if (collected.getValue(partition.getKey()) == null) {
                         collected.putValue(partition.getKey(), new ArrayList<>());
                     }
-                }
 
                 //Add Tuples
-                synchronized (collected) {
                     collected.getValue(partition.getKey()).addAll(Arrays.asList(partition.getValue().getValue()));
-                }
 
             });
 
@@ -129,7 +126,7 @@ public class OngoingAggregate {
 
         collected.getAllElements()
                 .entrySet()
-                .parallelStream()
+                .stream()
                 .forEach(entry ->
                         result.putValue(entry.getKey(), new VariableAggregate(old.getName(), old.getPersistence(), old.getTimestamp(), (Tuple[])entry.getValue().toArray(Tuple[]::new) , old.getTupleNames()))
                 );

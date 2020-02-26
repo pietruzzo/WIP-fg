@@ -1,10 +1,7 @@
 package shared.data;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 
 public class BoxMsg<TMsg> implements Serializable {
@@ -42,7 +39,7 @@ public class BoxMsg<TMsg> implements Serializable {
         return this.partition;
     }
 
-    public synchronized void put(String destination, TMsg message){
+    public void put(String destination, TMsg message){
         ArrayList<TMsg> messages = data.computeIfAbsent(destination, k -> new ArrayList<>());
 
         messages.add(message);
@@ -51,18 +48,26 @@ public class BoxMsg<TMsg> implements Serializable {
     /**
      * @return null if element is not present
      */
-    public synchronized ArrayList<TMsg> get (String destination){
+    public ArrayList<TMsg> get (String destination){
         return data.get(destination);
     }
 
-    public synchronized boolean isEmpty(){
+    public boolean isEmpty(){
         return this.data.isEmpty();
     }
 
-    public synchronized Set<String> keySet (){ return data.keySet();}
+    public Set<String> keySet (){ return data.keySet();}
 
     public SynchronizedIterator<Map.Entry<String, ArrayList<TMsg>>> getSyncIterator(){
         return new SynchronizedIterator<>(this.data.entrySet().iterator());
+    }
+
+    public Iterator<Map.Entry<String, ArrayList<TMsg>>> getIterator(){
+        return this.data.entrySet().iterator();
+    }
+
+    public HashMap<String, ArrayList<TMsg>> getData(){
+        return this.data;
     }
 
     @Override

@@ -53,7 +53,7 @@ public class PartitionStreamsHandler {
 
                 Operations.Extract extractOperator = (Operations.Extract) operationsList.get(0);
 
-                runtimes.getAllElements().entrySet().parallelStream()
+                runtimes.getAllElements().entrySet().stream()
                         .forEach(entry -> {
                             fPartitions.putValue(entry.getKey(), new ExtractedStream(entry.getValue().getPartition(), Arrays.asList(extractOperator.labels), extractOperator.edges, entry.getValue()));
                         });
@@ -292,7 +292,7 @@ public class PartitionStreamsHandler {
 
         Stream<Tuple> collectedStream = partitions.getAllElements()
                 .entrySet()
-                .parallelStream()
+                .stream()
                 .map(entryPartition -> {
 
                     ArrayList<String> partitionFieldsValues = new ArrayList();
@@ -350,7 +350,7 @@ public class PartitionStreamsHandler {
 
         MultiKeyMap<Variable> newPartitions = new MultiKeyMap<>(partitions.getKeys());
 
-        partitions.getAllElements().values().parallelStream().forEach(extractedIf -> {
+        partitions.getAllElements().values().stream().forEach(extractedIf -> {
             ExtractedStream extractedStream = (ExtractedStream) extractedIf;
             newPartitions.putValue(new HashMap(extractedStream.getPartition()), extractedStream.emit(variableSolver, variableName, persistence));
         });

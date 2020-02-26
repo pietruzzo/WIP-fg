@@ -48,20 +48,20 @@ public class MultiKeyMap<T> implements Serializable {
         return this.map;
     }
 
-    public synchronized void putValue(HashMap<String, String> compositeKey, T value) throws IllegalArgumentException{
+    public void putValue(HashMap<String, String> compositeKey, T value) throws IllegalArgumentException{
         if( !validateKey(compositeKey) ) throw new IllegalArgumentException("Composite key have different simple keys set: " + compositeKey + ", " + Arrays.toString(this.keys));
         map.put(new CompositeKey(compositeKey), value);
     }
 
-    public synchronized void putIfAbsent(CompositeKey compositeKey, T value) {
+    public void putIfAbsent(CompositeKey compositeKey, T value) {
         this.map.putIfAbsent(compositeKey, value);
     }
 
-    public synchronized T computeIfAbsent(CompositeKey compositeKey, Function<? super CompositeKey,T> operation) {
+    public T computeIfAbsent(CompositeKey compositeKey, Function<? super CompositeKey,T> operation) {
         return this.map.computeIfAbsent(compositeKey, operation);
     }
 
-    public synchronized void putValue(CompositeKey compositeKey, T value) throws IllegalArgumentException{
+    public void putValue(CompositeKey compositeKey, T value) throws IllegalArgumentException{
         if( !validateKey(compositeKey.getKeysMapping()) ) throw new IllegalArgumentException("Composite key have different simple keys set: " + compositeKey + ", " + Arrays.toString(this.keys));
         map.put(compositeKey, value);
     }

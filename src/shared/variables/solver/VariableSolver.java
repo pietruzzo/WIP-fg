@@ -163,7 +163,6 @@ public class VariableSolver implements Serializable {
         String variableName = varNamePersistence.f0;
 
         //Get variable
-        synchronized (this) { //todo: WARNING, long synchronized
 
             //Create variable/partition if not present
             this.varablesNew.putIfAbsent(variableName, new TreeMap<>());
@@ -200,7 +199,6 @@ public class VariableSolver implements Serializable {
                     );
 
                 }
-            }
         }
 
         // vet variable inside if partition
@@ -254,17 +252,17 @@ public class VariableSolver implements Serializable {
                 }); //RETURN THE LIST OF TUPLE2: partition, stream<Tuples>
             }).flatMap(stream->stream).flatMap(stream -> stream).collect(Collectors.toList());
 
-            ConcurrentMap<Map<String, String>, List<Tuple2<Map<String, String>, Tuple>>> byPartition = collect.parallelStream().collect(Collectors.groupingByConcurrent(tuple2 -> tuple2.f0, Collectors.toList()));
-            byPartition.entrySet().parallelStream().map(entry -> {
+            ConcurrentMap<Map<String, String>, List<Tuple2<Map<String, String>, Tuple>>> byPartition = collect.stream().collect(Collectors.groupingByConcurrent(tuple2 -> tuple2.f0, Collectors.toList()));
+            byPartition.entrySet().stream().map(entry -> {
                 if (variableVersions.get(0) instanceof VariableAggregate){
                     //Group all fields
-                    return new Tuple2<>(entry.getKey(), groupFields(entry.getValue().parallelStream().map(partitionTuple-> partitionTuple.f1), 0));
+                    return new Tuple2<>(entry.getKey(), groupFields(entry.getValue().stream().map(partitionTuple-> partitionTuple.f1), 0));
                 } else if (variableVersions.get(0) instanceof VariableVertex){
                     //Group by 0 and group other fields
-                    return new Tuple2<>(entry.getKey(), groupFields(entry.getValue().parallelStream().map(partitionTuple-> partitionTuple.f1), 1));
+                    return new Tuple2<>(entry.getKey(), groupFields(entry.getValue().stream().map(partitionTuple-> partitionTuple.f1), 1));
                 } else {
                     //Group by 0, 1 and group other fields
-                    return new Tuple2<>(entry.getKey(), groupFields(entry.getValue().parallelStream().map(partitionTuple-> partitionTuple.f1), 2));
+                    return new Tuple2<>(entry.getKey(), groupFields(entry.getValue().stream().map(partitionTuple-> partitionTuple.f1), 2));
                 }
             }).forEach(tuple -> {
                 result.putValue(new HashMap<>(tuple.f0), tuple.f1);
@@ -327,7 +325,7 @@ public class VariableSolver implements Serializable {
 
         MultiKeyMap<ExtractedIf> extractedStream = new MultiKeyMap<>(result.getKeys());
 
-        result.getAllElements().entrySet().parallelStream().forEach(element -> {
+        result.getAllElements().entrySet().stream().forEach(element -> {
             if (variableVersions.get(0) instanceof VariablePartition) {
                 extractedStream.putValue(element.getKey().getKeysMapping(), new ExtractedStream(element.getKey().getKeysMapping(), fields, streamType, element.getValue()));
             } else {
@@ -353,8 +351,8 @@ public class VariableSolver implements Serializable {
             return new CompositeKey(key);
         }, Collectors.toList()));
 
-        return grouped.entrySet().parallelStream().map(entryList ->
-                entryList.getValue().parallelStream().reduce((tuple1, tuple2)-> {
+        return grouped.entrySet().stream().map(entryList ->
+                entryList.getValue().stream().reduce((tuple1, tuple2)-> {
                     for (int i = 0; i < tuple1.getArity(); i++) {
                         tuple1.getField(i);
                         tuple2.getField(i);
@@ -368,11 +366,11 @@ public class VariableSolver implements Serializable {
 
     private Stream<Tuple2<Map<String, String>, Tuple>> getStreamFromVariable(Variable insideVariable, HashMap<String, String> partition, @Nullable String field){
         if (insideVariable instanceof VariableVertex) {
-            List<Tuple2<String, Tuple>> groupedByVertex = ((VariableVertex) insideVariable).getVerticesValues().entrySet().parallelStream()
+            List<Tuple2<String, Tuple>> groupedByVertex = ((VariableVertex) insideVariable).getVerticesValues().entrySet().stream()
                     .map(vertex -> new Tuple2<>(vertex.getKey(), vertex.getValue()))
                     .collect(Collectors.toList());
 
-            return groupedByVertex.parallelStream().map(t2 -> {
+            return groupedByVertex.stream().map(t2 -> {
                 Tuple result;
                 if (field == null) { //Get all fields
                     result = Tuple.newInstance(t2.f1.getArity() + 1);
@@ -390,12 +388,12 @@ public class VariableSolver implements Serializable {
 
         }
         else if (insideVariable instanceof VariableEdge) {
-            List<Tuple3<String, String, Tuple>> groupedByEdge = ((VariableEdge) insideVariable).getEdgesValues().entrySet().parallelStream().map(vertex -> {
+            List<Tuple3<String, String, Tuple>> groupedByEdge = ((VariableEdge) insideVariable).getEdgesValues().entrySet().stream().map(vertex -> {
                 //For each vertex -> list of edge, tuple
                 return vertex.getValue().entrySet().stream().map(v -> new Tuple3<>(vertex.getKey(), v.getKey(), v.getValue())).collect(Collectors.toList());
-            }).flatMap(list -> list.parallelStream()).collect(Collectors.toList());
+            }).flatMap(list -> list.stream()).collect(Collectors.toList());
 
-            return groupedByEdge.parallelStream().map(t3 -> {
+            return groupedByEdge.stream().map(t3 -> {
                 Tuple result;
                 if(field == null) {
                     result = Tuple.newInstance(t3.f2.getArity() + 2);
@@ -536,7 +534,7 @@ public class VariableSolver implements Serializable {
     }
 
     public void removeOldVersions() {
-        this.varablesNew.entrySet().parallelStream().forEach(entry -> {
+        this.varablesNew.entrySet().stream().forEach(entry -> {
             NavigableMap<Long, Variable> versions = entry.getValue();
             long keepTimestamp = this.currentTimestamp - versions.get(versions.lastKey()).getPersistence();
             long lastToKeep = versions.floorKey(keepTimestamp);

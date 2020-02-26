@@ -55,7 +55,7 @@ public class ExtractedStream implements ExtractedIf{
 
         //Create parallel stream
         if (!isEdgeExtraction) {
-            this.stream = computationRuntime.getVertices().values().parallelStream().map(value -> {
+            this.stream = computationRuntime.getVertices().values().stream().map(value -> {
                 Tuple t = Tuple.newInstance(this.tupleFields.size());
                 t.setField(new String[]{value.getNodeId()}, 0);
                 for (int i = 1; i < t.getArity(); i++) {
@@ -64,7 +64,7 @@ public class ExtractedStream implements ExtractedIf{
                 return t;
             });
         } else {
-            this.stream = computationRuntime.getVertices().values().parallelStream().map(value -> {
+            this.stream = computationRuntime.getVertices().values().stream().map(value -> {
                 ArrayList<Tuple> returnTuples = new ArrayList<>();
                 for (String edgeLink: value.getEdges()) {
                     //Add edges only from source
@@ -79,7 +79,7 @@ public class ExtractedStream implements ExtractedIf{
                     }
                 }
                 return returnTuples;
-            }).flatMap(list -> list.parallelStream());
+            }).flatMap(list -> list.stream());
         }
     }
 
@@ -160,7 +160,7 @@ public class ExtractedStream implements ExtractedIf{
     }
 
     public ExtractedStream flatternMultivalue(String key){
-        Stream<Tuple> newStream = this.stream.map(tuple -> flattern(tuple, key)).flatMap(list -> list.parallelStream());
+        Stream<Tuple> newStream = this.stream.map(tuple -> flattern(tuple, key)).flatMap(list -> list.stream());
         return getExtractedStream(newStream, this.tupleFields, this.streamType);
     }
 
@@ -280,12 +280,12 @@ public class ExtractedStream implements ExtractedIf{
 
         //Unify in one tuple each group
 
-        List<Tuple> result = groups.values().parallelStream().map(list -> {
+        List<Tuple> result = groups.values().stream().map(list -> {
             Tuple identity = Tuple.newInstance(list.get(0).getArity());
             for (int i = 0; i < identity.getArity(); i++) {
                 identity.setField(new String[0], i);
             }
-            return list.parallelStream().reduce(identity, (tuple, tuple2) -> {
+            return list.stream().reduce(identity, (tuple, tuple2) -> {
                 Tuple reduced = Tuple.newInstance(tuple.getArity());
                 for (int i = 0; i < tuple.getArity(); i++) {
                     HashSet<String> values = new HashSet<>();

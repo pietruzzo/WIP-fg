@@ -59,7 +59,7 @@ public class Stream extends Pattern{
         //Put new OngoingAggregates on JobManager
 
         operationsList
-                .parallelStream()
+                .stream()
                 .forEach(operation -> {
 
                     if ( operation instanceof Operations.Evaluate ) {

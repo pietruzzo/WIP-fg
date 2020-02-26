@@ -29,7 +29,7 @@ public class ExtractedGroupedStream implements ExtractedIf {
         this.groupedStreams = new HashMap<>();
 
         for (Map.Entry<Tuple, List<Tuple>> entry: groupedStreams.entrySet()) {
-            this.groupedStreams.put(entry.getKey(), entry.getValue().parallelStream());
+            this.groupedStreams.put(entry.getKey(), entry.getValue().stream());
         }
     }
 

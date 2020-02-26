@@ -11,7 +11,6 @@ import shared.exceptions.ComputationFinishedException;
 
 import java.util.*;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.stream.Collectors;
 
 public class ComputationRuntime {
@@ -43,7 +42,7 @@ public class ComputationRuntime {
     }
 
 
-    public void compute (int stepNumber, ThreadPoolExecutor executors) throws ExecutionException, InterruptedException {
+    public void compute (int stepNumber) throws ExecutionException, InterruptedException {
 
         this.stepNumber = stepNumber;
         outgoingMessages = new BoxMsg(stepNumber);
@@ -64,17 +63,41 @@ public class ComputationRuntime {
         }
 
         //Launch executors
-        Utils.parallelizeAndWait(executors, new ComputationThread(this, new SynchronizedIterator<>(vertices.values().iterator()), this.inboxMessages.getSyncIterator()));
+        //Utils.parallelizeAndWait(executors, new ComputationThread(this, new SynchronizedIterator<>(vertices.values().iterator()), this.inboxMessages.getSyncIterator()));
+        if (this.stepNumber == 0){
+            for (Vertex vertex: vertices.values()) {
+                registerOutgoingMsg(this.computation.firstIterate(vertex));
+            }
+        } else {
+            for (Map.Entry<String, List<ArrayList<StepMsg>>> next:  ((Set<Map.Entry<String, List<ArrayList<StepMsg>>>>)inboxMessages.getData().entrySet())) {
+                Vertex vertex = this.vertices.get(next.getKey());
+                List<ArrayList<StepMsg>> messages = next.getValue();
+                List<StepMsg> flattered = messages.stream().flatMap(arraylist -> arraylist.stream()).collect(Collectors.toList());
+                registerOutgoingMsg(this.computation.iterate(vertex, flattered, stepNumber));
+            }
+        }
 
         //Reset Inbox
         this.inboxMessages = null;
 
     }
 
-    public void computeResults(ThreadPoolExecutor executors) throws ExecutionException, InterruptedException {
+    public void computeResults()  {
 
         //Launch executors
-        Utils.parallelizeAndWait(executors, new ComputeResultsThread(this, new SynchronizedIterator<>(vertices.values().iterator()), null));
+        //Utils.parallelizeAndWait(executors, new ComputeResultsThread(this, new SynchronizedIterator<>(vertices.values().iterator()), null));
+        Iterator<Vertex> vertexIterator = vertices.values().iterator();
+        for (Vertex vertex: vertices.values()) {
+            List<Pair<String, String[]>> results = this.computation.computeResults(vertex);
+            for (Pair<String, String[]> e: results) {
+                for (Tuple2<String, Long> returnVar : this.computation.getVarsTemporalWindow()) {
+                    if (returnVar.f0.equals(e.first())) {
+                        this.registerResult(vertex.getNodeId(), returnVar, e.second());
+                        break;
+                    }
+                }
+            }
+        }
 
     }
 
@@ -83,11 +106,7 @@ public class ComputationRuntime {
     }
 
     public void setComputation(Computation computation) {
-        try {
-            this.computation = computation.clone();
-        } catch (CloneNotSupportedException e) {
-            e.printStackTrace();
-        }
+            this.computation = computation;
     }
 
     public void setVertices(Map<String, Vertex> vertices) { this.vertices = vertices; }
@@ -105,9 +124,7 @@ public class ComputationRuntime {
     }
 
     public void putIntoVertices(String vertexName, Vertex vertex){
-        synchronized (this.vertices){
             this.vertices.put(vertexName, vertex);
-        }
     }
 
     /**
@@ -156,101 +173,14 @@ public class ComputationRuntime {
         } catch (NoSuchElementException e) {/*End*/}
     }
 
+    private void registerOutgoingMsg (List<StepMsg> outbox) {
 
-    static class ComputationThread implements Utils.DuplicableRunnable {
+        if (outbox == null || outbox.isEmpty())
+            return;
 
-        private final ComputationRuntime computationRuntime;
-        private final SynchronizedIterator<Vertex> vertexIterator;
-        private final SynchronizedIterator<Map.Entry<String, List<ArrayList<StepMsg>>>> ingoingMessages;
-
-        ComputationThread(ComputationRuntime computationRuntime, @Nullable SynchronizedIterator<Vertex> vertexIterator, @Nullable SynchronizedIterator<Map.Entry<String, List<ArrayList<StepMsg>>>> ingoingMessages){
-            this.computationRuntime = computationRuntime;
-            this.vertexIterator = vertexIterator;
-            this.ingoingMessages = ingoingMessages;
-        }
-
-        private ComputationThread(ComputationThread computationThread){
-            this.computationRuntime = computationThread.computationRuntime;
-            this.vertexIterator = computationThread.vertexIterator;
-            this.ingoingMessages = computationThread.ingoingMessages;
-        }
-
-        @Override
-        public void run() {
-            try {
-                if (computationRuntime.stepNumber == 0){
-                    firstStep();
-                } else {
-                    step();
-                }
-            } catch (NoSuchElementException e) {
-                //No more Elements -> End of Execution
-            }
-        }
-
-        private void firstStep(){
-            while (true) {
-                Vertex vertex = vertexIterator.next();
-                registerOutgoingMsg(computationRuntime.computation.firstIterate(vertex));
-            }
-        }
-
-        private void step(){
-            while (true) {
-                Map.Entry<String, List<ArrayList<StepMsg>>> next = ingoingMessages.next();
-                Vertex vertex = computationRuntime.vertices.get(next.getKey());
-                List<ArrayList<StepMsg>> messages = next.getValue();
-                List<StepMsg> flattered = messages.stream().flatMap(arraylist -> arraylist.stream()).collect(Collectors.toList());
-                int stepNumber = computationRuntime.stepNumber;
-                registerOutgoingMsg(computationRuntime.computation.iterate(vertex, flattered, stepNumber));
-            }
-        }
-
-        private void registerOutgoingMsg (List<StepMsg> outbox) {
-
-            if (outbox == null || outbox.isEmpty())
-                return;
-
-            for (StepMsg sm : outbox) {
-                computationRuntime.outgoingMessages.put(sm.destinationVertex, sm);
-            }
-        }
-
-        @Override
-        public Utils.DuplicableRunnable getCopy() {
-            return new ComputationThread(this);
+        for (StepMsg sm : outbox) {
+            this.outgoingMessages.put(sm.destinationVertex, sm);
         }
     }
 
-    static class ComputeResultsThread extends ComputationThread {
-
-
-        ComputeResultsThread(ComputationRuntime computationRuntime, @Nullable SynchronizedIterator<Vertex> vertexIterator, @Nullable SynchronizedIterator<Map.Entry<String, List<ArrayList<StepMsg>>>> ingoingMessages) {
-            super(computationRuntime, vertexIterator, ingoingMessages);
-        }
-
-        @Override
-        public void run() {
-            try {
-                while (true) {
-                    Vertex vertex = super.vertexIterator.next();
-                    List<Pair<String, String[]>> results = super.computationRuntime.computation.computeResults(vertex);
-                    for (Pair<String, String[]> e: results) {
-                        for (Tuple2<String, Long> returnVar : super.computationRuntime.computation.getVarsTemporalWindow()) {
-                            if (returnVar.f0.equals(e.first())) {
-                                super.computationRuntime.registerResult(vertex.getNodeId(), returnVar, e.second());
-                                break;
-                            }
-                        }
-
-                    }
-                }
-            } catch (NoSuchElementException e) {/* END */}
-        }
-
-        @Override
-        public Utils.DuplicableRunnable getCopy() {
-            return new ComputeResultsThread(super.computationRuntime, super.vertexIterator, super.ingoingMessages);
-        }
-    }
 }
