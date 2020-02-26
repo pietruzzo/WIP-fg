@@ -353,18 +353,17 @@ public class VariableSolver implements Serializable {
             return new CompositeKey(key);
         }, Collectors.toList()));
 
-        return grouped.entrySet().parallelStream().map(entryList -> {
-            return entryList.getValue().parallelStream().reduce((tuple1, tuple2)-> {
-                for (int i = 0; i < tuple1.getArity(); i++) {
-                    tuple1.getField(i);
-                    tuple2.getField(i);
-                    String[] concatenated = Arrays.copyOf((String[]) tuple1.getField(i), ((String[]) tuple1.getField(i)).length + ((String[]) tuple2.getField(i)).length);
-                    System.arraycopy(tuple2.getField(i), 0, concatenated, ((String[]) tuple1.getField(i)).length, ((String[]) tuple2.getField(i)).length);
-                    tuple1.setField(concatenated, i);
-                }
-                return tuple1;
-            }).get();
-        });
+        return grouped.entrySet().parallelStream().map(entryList ->
+                entryList.getValue().parallelStream().reduce((tuple1, tuple2)-> {
+                    for (int i = 0; i < tuple1.getArity(); i++) {
+                        tuple1.getField(i);
+                        tuple2.getField(i);
+                        String[] concatenated = Arrays.copyOf((String[]) tuple1.getField(i), ((String[]) tuple1.getField(i)).length + ((String[]) tuple2.getField(i)).length);
+                        System.arraycopy(tuple2.getField(i), 0, concatenated, ((String[]) tuple1.getField(i)).length, ((String[]) tuple2.getField(i)).length);
+                        tuple1.setField(concatenated, i);
+                    }
+                    return tuple1;
+                }).get());
     }
 
     private Stream<Tuple2<Map<String, String>, Tuple>> getStreamFromVariable(Variable insideVariable, HashMap<String, String> partition, @Nullable String field){
@@ -484,7 +483,7 @@ public class VariableSolver implements Serializable {
         return result;
     }
 
-    private ArrayList<Variable>extractWindow(NavigableMap<Long, Variable> selectedVars, Long timeWindow, WindowType windowType){
+    private ArrayList<Variable> extractWindow(NavigableMap<Long, Variable> selectedVars, Long timeWindow, WindowType windowType){
 
         ArrayList<Variable> result = new ArrayList<>();
         if (timeWindow == null) timeWindow = 0L;
@@ -497,6 +496,7 @@ public class VariableSolver implements Serializable {
             if (windowType == WindowType.WITHIN || windowType == WindowType.EVERYWITHIN) {
                 result.addAll(selectedVars.tailMap(selectedVars.floorKey(timeSolved), true).values());
             } else {
+                if  (timeSolved < 0) return result;
                 result.add(selectedVars.floorEntry(timeSolved).getValue());
             }
         } catch (NullPointerException e){

@@ -231,7 +231,8 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 		log.info(msg.toString());
 		slaves.put(getSender(), msg.numThreads);
 		try {
-			if (slaves.size() == Integer.parseInt(PropertyHandler.getProperty("numberOfSlaves"))) {
+			int maxSize = Integer.parseInt(PropertyHandler.getProperty("numberOfSlaves")) * Integer.parseInt(PropertyHandler.getProperty("numOfWorkers"));
+			if (slaves.size() == maxSize) {
 				this.onLaunchMsg(new LaunchMsg());
 			}
 		} catch (IOException e) {
@@ -294,7 +295,7 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 	}
 
 	private final void onAckMsg(AckMsg msg){
-		log.info(msg.toString() + "| Waiting " + (waitingResponses.get()-1) + " responses");
+		log.info(msg.toString() + " from " + sender() + "| Waiting " + (waitingResponses.get()-1) + " responses");
 
 		if(waitingResponses.decrementAndGet() == 0)
 			this.patternLogic.runElement(null);
@@ -302,7 +303,7 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 	}
 
 	private final void onAckMsg(AckMsgComputationTerminated msg) {
-		log.info(msg.toString());
+		log.info(msg.toString()+ " from " + sender());
 
 		this.patternLogic.runElement(msg);
 

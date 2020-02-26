@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class PropertyHandler {
 
     static private PropertyHandler propertyHandler;
-    static public AtomicInteger processes = new AtomicInteger(1);
+    static public AtomicInteger processes = new AtomicInteger(0);
 
     private final String DEFAULT_PROP_LOCATION1 = "config.properties";
     private final String DEFAULT_PROP_LOCATION2 = "src/shared/resources/config.properties";

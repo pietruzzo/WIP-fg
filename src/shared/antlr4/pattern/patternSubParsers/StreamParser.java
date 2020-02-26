@@ -202,7 +202,7 @@ public class StreamParser extends PatternBaseListener {
             root = root.getParent();
         }
         long persistence= CommonsParser.getMaxTemporalWindow((PatternParser.PatternEntryContext) root, varName);
-        this.operations.add(new Operations.Emit(varName, persistence+1, transactionId));
+        this.operations.add(new Operations.Emit(varName, persistence, transactionId));
 
     }
 

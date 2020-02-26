@@ -14,10 +14,10 @@ declare -a hosts=()
     "172.31.17.239"
   )
 
-entryIP="ec2-18-217-95-135.us-east-2.compute.amazonaws.com"
+entryIP="ec2-18-218-5-63.us-east-2.compute.amazonaws.com"
 numberOfMachines="4"
 datasetName="dataset1M.txt"
-localFolder=/home/pietro/Desktop/flowgraph/
+localFolder=/home/pietro/flowgraph/
 localLogFolder=/home/pietro/Desktop/Logs/
 remoteFolder=/home/ec2-user/flowgraph/
 sshOptions='-o StrictHostKeyChecking=no' #You need ssh-add /home/pietro/amazonKey.pem
@@ -42,7 +42,7 @@ function launchSimulationAndCollect {
 
   for i in "${hosts[@]}"
   do
-    command="ssh ${sshOptions} ec2-user@${i} 'nohup java -Xms24g -Xmx24g -XX:+AggressiveHeap -XX:+UseParallelGC -Xlog:gc*:file=/home/ec2-user/flowgraph/log/gc.txt -jar ${remoteFolder}${executableName}' &"
+    command="ssh ${sshOptions} ec2-user@${i} 'nohup java -Xms24g -Xmx24g -XX:+AggressiveHeap -XX:+UseParallelGC -Xlog:gc*:file=/home/ec2-user/flowgraph/log/gc${i}.txt -jar ${remoteFolder}${executableName}' &"
     echo "${command}"
     eval "${command}"
   done
@@ -65,7 +65,6 @@ function launchSimulationAndCollect {
             finished=false
         fi
       done
-      sleep 2s
   done
 
   # Kill remaining background processes on client
@@ -78,9 +77,10 @@ function launchSimulationAndCollect {
 
   for i in "${hosts[@]}"
   do
-    scp -r "${sshOptions}"  ec2-user@"${i}":"${remoteFolder}"log/* "${localLogFolder}""${datasetName}"/
+    scp -r "${sshOptions}"  ec2-user@"${i}":"${remoteFolder}"log/* "${localLogFolder}""${datasetName}"/ &
   done
 
+  wait
 
 }
 
@@ -94,7 +94,7 @@ function oneDataset {
 
   # If M order, try only 10 updates
   if [[ $datasetName == *"M"* ]]; then
-    sed -i -e "s:numRecordsAsInput =.*$:numRecordsAsInput = 5:" ${localFolder}config.properties
+    sed -i -e "s:numRecordsAsInput =.*$:numRecordsAsInput = 20:" ${localFolder}config.properties
   else
     sed -i -e "s:numRecordsAsInput =.*$:numRecordsAsInput = 100:" ${localFolder}config.properties
   fi
@@ -103,16 +103,22 @@ function oneDataset {
   rsync -ruPav -e "ssh ${sshOptions}" ${localFolder} ec2-user@${entryIP}:${remoteFolder} --delete
   ssh ${sshOptions} ec2-user@${entryIP} 'sudo chmod 600 '${remoteFolder}'amazonPoli.pem'
 
+  allCommands=""
   for i in "${hosts[@]}"
   do
     #rsync on entire flowgraph folder and delete old logs
     insideCommand="rsync -ruPav -e \"ssh ${sshOptions} -i ${remoteFolder}amazonPoli.pem\" ${remoteFolder} ec2-user@'${i}':'${remoteFolder}' --delete"
-    completeCommand="ssh ${sshOptions} ec2-user@${entryIP} '${insideCommand}'"
-    echo "${completeCommand}"
-    result=$(eval "${completeCommand}")
-    echo "${result}"
+    completeCommand="ssh ${sshOptions} ec2-user@${entryIP} '${insideCommand}' & "
+    allCommands="${allCommands}${completeCommand}"
 
   done
+
+  allCommands="${allCommands} ssh ${sshOptions} ec2-user@${entryIP} 'wait'"
+  echo "${allCommands}"
+  result=$(eval "${allCommands}")
+  echo "${result}"
+
+  wait
 
   launchSimulationAndCollect
 
@@ -180,5 +186,6 @@ else
         oneDataset
 fi
 
+aplay ${localFolder}finish.WAV
 echo "finish"
 

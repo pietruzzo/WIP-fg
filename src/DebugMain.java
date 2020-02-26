@@ -19,16 +19,21 @@ public class DebugMain {
 
             System.setOut(o);
 
-            System.out.println("This will be written on the console!");
         }
 
         if (Utils.getLocalIP().equals(PropertyHandler.getProperty("masterIp")) || PropertyHandler.getProperty("masterIp").equals("127.0.0.1")) {
             JobManager.main(new String[0]);
             Client.main(new String[0]);
-            PropertyHandler.processes.set(3);
+            PropertyHandler.processes.set(2);
         }
 
-        TaskManager.main(new String[0]);
+        int numOfWorkers = Integer.parseInt(PropertyHandler.getProperty("numOfWorkers"));
+        PropertyHandler.processes.set(PropertyHandler.processes.intValue() + numOfWorkers);
+        for (int i = 0; i < numOfWorkers; i++) {
+            TaskManager.main(new String[0]);
+        }
+
+
 
     }
 }
