@@ -26,9 +26,7 @@ import shared.computation.ComputationCallback;
 import shared.computation.ComputationRuntime;
 import shared.computation.Vertex;
 import shared.data.BoxMsg;
-import shared.data.CompositeKey;
 import shared.data.MultiKeyMap;
-import shared.data.SynchronizedIterator;
 import shared.exceptions.ComputationFinishedException;
 import shared.resources.computationImpl.IngoingEdges;
 import shared.resources.computationImpl.OutgoingEdges;
@@ -47,7 +45,8 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -698,28 +697,11 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 	 * Sent ougoing messages to other actors
 	 * @param outgoingBox
 	 */
-	private void sendOutBox(BoxMsg outgoingBox) throws ExecutionException, InterruptedException {
-		//Create an outbox for each ActorRef
-		Map<ActorRef, BoxMsg> outboxes = new HashMap();
-		for (ActorRef destinations: this.slaves.values()) {
-			BoxMsg box = new BoxMsg(outgoingBox.getStepNumber());
-			box.setPartition(outgoingBox.getPartition());
-			outboxes.put(destinations, box);
-		}
-		//For each vertex destination retrieve the actor and populate its box
-
-		for (Map.Entry<String, ArrayList> vertex: (Set<Map.Entry<String, ArrayList>>)outgoingBox.getData().entrySet()) {
-
-			//From outgoingBox <destination,Messages> -> <Actor, <destination, Messages>>
-			ActorRef destActor = getActor(vertex.getKey());
-			outboxes.get(destActor).put(vertex.getKey(), vertex.getValue());
-
-		}
-
+	private void sendOutBox(Map<ActorRef, BoxMsg> outgoingBox){
 
 		//Increase waiting response and send also if empty
-		this.waitingResponses.addAndGet(outboxes.size());
-		for (Map.Entry<ActorRef, BoxMsg> destOutbox: outboxes.entrySet()) {
+		this.waitingResponses.addAndGet(outgoingBox.size());
+		for (Map.Entry<ActorRef, BoxMsg> destOutbox: outgoingBox.entrySet()) {
 
 			destOutbox.getKey().tell(destOutbox.getValue(), self());
 
@@ -756,7 +738,8 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 	}
 
 
-	private ActorRef getActor(String vertex) {
+	@Override
+	public ActorRef getActor(String vertex) {
 		return this.slaves.get(Utils.getPartition(vertex, this.slaves.size()));
 	}
 
@@ -870,36 +853,7 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 	}
 
 
-	private static class PopulateOutbox implements Utils.DuplicableRunnable {
 
-		private final TaskManagerActor taskManagerActor;
-		private final SynchronizedIterator<Map.Entry<String, ArrayList>> destIterator;
-		private final Map<ActorRef, BoxMsg> outboxes;
-
-		public PopulateOutbox(TaskManagerActor taskManagerActor, SynchronizedIterator<Map.Entry<String, ArrayList>> destIterator, Map<ActorRef, BoxMsg> outboxes) {
-			this.taskManagerActor = taskManagerActor;
-			this.destIterator = destIterator;
-			this.outboxes = outboxes;
-		}
-
-		@Override
-		public Utils.DuplicableRunnable getCopy() {
-			return new PopulateOutbox(this.taskManagerActor, this.destIterator, this.outboxes);
-		}
-
-		@Override
-		public void run() {
-
-			try {
-				while (true) {
-					//From outgoingBox <destination,Messages> -> <Actor, <destination, Messages>>
-					Map.Entry<String, ArrayList> vertex = destIterator.next();
-					ActorRef destActor = taskManagerActor.getActor(vertex.getKey());
-					outboxes.get(destActor).put(vertex.getKey(), vertex.getValue());
-				}
-			} catch (NoSuchElementException e){ /* END */}
-		}
-	}
 
 	@Override
 	public void registerComputationResult(String vertexName, Tuple2<String, Long> variableName, String[] values, @Nullable Map<String, String> partition) { //Update
@@ -913,9 +867,10 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 	}
 
 	@Override
-	public VariableSolver getVariableSolver() {
-		return this.variables;
+	public Map<Integer, ActorRef> getActors() {
+		return slaves;
 	}
+
 
 	private void debugTaskManagerState() {
 		/*

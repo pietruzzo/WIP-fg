@@ -1,14 +1,11 @@
 package shared.selection;
 
-import shared.Utils;
 import shared.VertexM;
 import shared.computation.Vertex;
-import shared.data.SynchronizedIterator;
 import shared.variables.solver.VariableSolver;
 
 import java.util.*;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.stream.Collectors;
 
 

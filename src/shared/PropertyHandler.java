@@ -1,7 +1,6 @@
 package shared;
 
 import java.io.*;
-import java.nio.file.Path;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -81,6 +80,7 @@ public class PropertyHandler {
 
         prop.load(inputStream);
         inputStream.close();
+        Utils.disableWarning();
         performanceLog = new StringBuilder(50000);
         performanceLog.append("___OPENING_PEFORMANCE_LOG___\n");
 

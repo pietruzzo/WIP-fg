@@ -1,12 +1,10 @@
 package shared.computation;
 
+import akka.actor.ActorRef;
 import akka.japi.Pair;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.jetbrains.annotations.Nullable;
 import shared.AkkaMessages.StepMsg;
-import shared.Utils;
 import shared.data.BoxMsg;
-import shared.data.SynchronizedIterator;
 import shared.exceptions.ComputationFinishedException;
 
 import java.util.*;
@@ -21,7 +19,7 @@ public class ComputationRuntime {
     private Map<String, Vertex> vertices; //con gli edges modificati
 
     private int stepNumber;
-    private BoxMsg outgoingMessages;
+    private Map<ActorRef, BoxMsg> outgoingMessages;
     private BoxMsg inboxMessages;
 
 
@@ -45,7 +43,15 @@ public class ComputationRuntime {
     public void compute (int stepNumber) throws ExecutionException, InterruptedException {
 
         this.stepNumber = stepNumber;
-        outgoingMessages = new BoxMsg(stepNumber);
+
+        //Initialize outbox
+        //Create an outbox for each ActorRef
+        outgoingMessages = new HashMap();
+        for (ActorRef destinations: taskManager.getActors().values()) {
+            BoxMsg box = new BoxMsg(stepNumber);
+            box.setPartition(getPartition());
+            outgoingMessages.put(destinations, box);
+        }
 
         //If inbox is empty -> Computation finished, empty outboxes
         if (stepNumber > 0 && (inboxMessages == null || inboxMessages.isEmpty()) ) {
@@ -69,11 +75,10 @@ public class ComputationRuntime {
                 registerOutgoingMsg(this.computation.firstIterate(vertex));
             }
         } else {
-            for (Map.Entry<String, List<ArrayList<StepMsg>>> next:  ((Set<Map.Entry<String, List<ArrayList<StepMsg>>>>)inboxMessages.getData().entrySet())) {
+            for (Map.Entry<String, ArrayList<StepMsg>> next:  ((Set<Map.Entry<String, ArrayList<StepMsg>>>)inboxMessages.getData().entrySet())) {
                 Vertex vertex = this.vertices.get(next.getKey());
-                List<ArrayList<StepMsg>> messages = next.getValue();
-                List<StepMsg> flattered = messages.stream().flatMap(arraylist -> arraylist.stream()).collect(Collectors.toList());
-                registerOutgoingMsg(this.computation.iterate(vertex, flattered, stepNumber));
+                ArrayList<StepMsg> messages = next.getValue();
+                registerOutgoingMsg(this.computation.iterate(vertex, messages, stepNumber));
             }
         }
 
@@ -86,7 +91,6 @@ public class ComputationRuntime {
 
         //Launch executors
         //Utils.parallelizeAndWait(executors, new ComputeResultsThread(this, new SynchronizedIterator<>(vertices.values().iterator()), null));
-        Iterator<Vertex> vertexIterator = vertices.values().iterator();
         for (Vertex vertex: vertices.values()) {
             List<Pair<String, String[]>> results = this.computation.computeResults(vertex);
             for (Pair<String, String[]> e: results) {
@@ -131,8 +135,7 @@ public class ComputationRuntime {
      * Attach partition and return
      * @return
      */
-    public BoxMsg getOutgoingMessages() {
-        this.outgoingMessages.setPartition(this.freeVars);
+    public Map<ActorRef, BoxMsg> getOutgoingMessages() {
         return outgoingMessages;
     }
 
@@ -158,19 +161,19 @@ public class ComputationRuntime {
             this.inboxMessages = new BoxMsg(ingoingMessages.getStepNumber());
         }
 
-        SynchronizedIterator<Map.Entry<String, ArrayList<TMes>>> entry = ingoingMessages.getSyncIterator();
+        Set<Map.Entry<String, ArrayList<TMes>>> entrySet = ingoingMessages.getData().entrySet();
 
-        try{
-            while(true){
-                Map.Entry<String, ArrayList<TMes>> e = entry.next();
+        for (Map.Entry<String, ArrayList<TMes>> entry : entrySet) {
 
-                for (TMes message: e.getValue()) {
+            Object o = this.inboxMessages.getData().computeIfAbsent(entry.getKey(), k -> entry.getValue());
 
-                    this.inboxMessages.put(e.getKey(), message);
+            if (o != entry.getValue()) { //It was already present
+                for (TMes message : entry.getValue()) {
+                    this.inboxMessages.put(entry.getKey(), message);
 
                 }
             }
-        } catch (NoSuchElementException e) {/*End*/}
+        }
     }
 
     private void registerOutgoingMsg (List<StepMsg> outbox) {
@@ -179,7 +182,14 @@ public class ComputationRuntime {
             return;
 
         for (StepMsg sm : outbox) {
-            this.outgoingMessages.put(sm.destinationVertex, sm);
+
+            //Get right outbox based on destinationVertex
+            ActorRef actor = taskManager.getActor(sm.destinationVertex);
+            BoxMsg actorBox = outgoingMessages.get(actor);
+
+            actorBox.getData().computeIfAbsent(sm.destinationVertex, k-> new ArrayList<>());
+            actorBox.put(sm.destinationVertex, sm);
+
         }
     }
 

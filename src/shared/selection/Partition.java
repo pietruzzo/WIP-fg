@@ -2,16 +2,16 @@ package shared.selection;
 
 import akka.japi.Pair;
 import org.apache.flink.api.java.tuple.Tuple3;
-import shared.Utils;
 import shared.VertexM;
 import shared.computation.ComputationRuntime;
 import shared.computation.Vertex;
-import shared.data.SynchronizedIterator;
 import shared.variables.solver.VariableSolver;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ThreadPoolExecutor;
 
 public class Partition {
 
