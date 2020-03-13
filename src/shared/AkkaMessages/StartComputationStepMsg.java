@@ -22,7 +22,11 @@ public class StartComputationStepMsg implements Serializable {
         this.freeVars = freeVars;
         this.stepNumber = stepNumber;
         this.timestamp = timestamp;
-        this.computationParameters = computationParameters;
+        if (computationParameters != null) {
+            this.computationParameters = computationParameters;
+        } else {
+            this.computationParameters = new ComputationParameters();
+        }
     }
 
     public String getComputationId() {

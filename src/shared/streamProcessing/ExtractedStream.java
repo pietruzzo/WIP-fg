@@ -4,6 +4,9 @@ import master.JobManagerActor;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.jetbrains.annotations.Nullable;
+import shared.Utils;
 import shared.computation.ComputationRuntime;
 import shared.exceptions.InvalidOperationChain;
 import shared.streamProcessing.abstractOperators.CustomBinaryOperator;
@@ -37,7 +40,7 @@ public class ExtractedStream implements ExtractedIf{
     private Stream<Tuple> stream;
 
     public ExtractedStream(Map<String, String> partition, List<String> tupleFields, boolean isEdgeExtraction, ComputationRuntime computationRuntime) {
-        this.partition = partition;
+        this.partition = ExtractedIf.initializePartitionIfNull(partition);
 
         //Tuple field handling
         this.tupleFields = new ArrayList<>();
@@ -83,8 +86,8 @@ public class ExtractedStream implements ExtractedIf{
         }
     }
 
-    public ExtractedStream(Map<String, String> partition, ArrayList<String> tupleFields, StreamType streamType, Stream<Tuple> stream) {
-        this.partition = partition;
+    public ExtractedStream(@Nullable Map<String, String> partition, ArrayList<String> tupleFields, StreamType streamType, Stream<Tuple> stream) {
+        this.partition = ExtractedIf.initializePartitionIfNull(partition);
         this.tupleFields = tupleFields;
         this.streamType = streamType;
         this.stream = stream;
@@ -147,7 +150,7 @@ public class ExtractedStream implements ExtractedIf{
     public ExtractedStream map(CustomFunction function, ArrayList<String> args){
         function.setLabels(this);
         arguments = ExtractedStream.solveArguments(tupleFields, args);
-        Stream<Tuple> newStream = stream.map(function);
+        Stream<Tuple> newStream = stream.map(function).filter(Objects::nonNull);
         return this.getExtractedStream(newStream, function.getNewFieldNames(this.streamType), this.streamType);
     }
 
@@ -155,7 +158,7 @@ public class ExtractedStream implements ExtractedIf{
         accumulator.setLabels(this);
         arguments = ExtractedStream.solveArguments(tupleFields, args);
         Map<Tuple, Object> map = new HashMap<>();
-        map.put(new Tuple0(), new Tuple1<Tuple>((Tuple) stream.reduce(accumulator.getIdentity(), accumulator, accumulator.getBinaryOperator())));
+        map.put(new Tuple0(), (Tuple) stream.reduce(accumulator.getIdentity(), accumulator, accumulator.getBinaryOperator()));
         return map;
     }
 
@@ -167,7 +170,7 @@ public class ExtractedStream implements ExtractedIf{
     public ExtractedStream flatmap(CustomFlatMapper mapper, ArrayList<String> args){
         mapper.setLabels(this);
         arguments = ExtractedStream.solveArguments(tupleFields, args);
-        Stream<Tuple> newStream = this.stream.flatMap(mapper);
+        Stream<Tuple> newStream = this.stream.flatMap(mapper).filter(Objects::nonNull);;
         return getExtractedStream(newStream, mapper.getNewFieldNames(this.streamType), this.streamType);
     }
 
@@ -186,18 +189,122 @@ public class ExtractedStream implements ExtractedIf{
         ArrayList<String> newTupleFields = this.newTupleFields(this.tupleFields, otherStream.tupleFields, this.streamType, otherStream.streamType);
 
         if (this.streamType == StreamType.NODE && otherStream.streamType == StreamType.NODE){
-            ExtractedStream firstStream = this.relocateFields(StreamType.NODE, newTupleFields, false);
-            ExtractedStream secondStream = this.relocateFields(StreamType.NODE, newTupleFields, true);
-            ExtractedStream e = new ExtractedStream(this.partition, newTupleFields, StreamType.NODE, Stream.concat(firstStream.stream, secondStream.stream));
-            return e.merge(new String[]{NODELABEL});
+            Stream<Tuple> firstStream = this.flatternMultivalue(NODELABEL).stream;
+            Stream<Tuple> secondStream = otherStream.flatternMultivalue(NODELABEL).stream;
+
+            final int positionNodeThis = this.tupleFields.indexOf(NODELABEL);
+            final int positionNodeOther = otherStream.tupleFields.indexOf(NODELABEL);
+
+            Map<String, List<Tuple>> secondAsMap = secondStream.collect(Collectors.groupingBy(e -> ((String[]) e.getField(positionNodeOther))[0]));
+
+            final Stream<Tuple> joinedStream = firstStream.map(tupleFirst -> {
+                ArrayList<Tuple> joined = new ArrayList<>();
+                List<Tuple> tuples = secondAsMap.get(tupleFirst.getField(positionNodeThis));
+                if (tuples == null) return joined;
+                for (Tuple other : tuples) {
+                    Tuple newTuple = Tuple.newInstance(tupleFirst.getArity() + other.getArity() - 1);
+                    int j;
+                    for (j = 0; j < tupleFirst.getArity(); j++) {
+                        newTuple.setField(tupleFirst.getField(j), j);
+                    }
+                    for (int i = j; i < newTuple.getArity(); i++) {
+                        if (!(i == tupleFirst.getArity() + positionNodeOther)) {
+
+                            newTuple.setField(other.getField(i - tupleFirst.getArity()), j);
+                            j = j + 1;
+                        }
+                    }
+                    joined.add(newTuple);
+                }
+                return joined;
+            }).flatMap(Collection::stream);
+
+            return new ExtractedStream(this.partition, newTupleFields, StreamType.NODE, joinedStream);
 
         } else if (this.streamType == StreamType.EDGE && otherStream.streamType == StreamType.EDGE){
-            ExtractedStream firstStream = this.relocateFields(StreamType.EDGE, newTupleFields, false);
-            ExtractedStream secondStream = this.relocateFields(StreamType.EDGE, newTupleFields, true);
-            ExtractedStream e = new ExtractedStream(this.partition, newTupleFields, StreamType.EDGE, Stream.concat(firstStream.stream, secondStream.stream));
-            return e.merge(new String[]{NODELABEL, EDGELABEL});
 
-        } else if (this.streamType == StreamType.AGGREGATE && !(otherStream.streamType == StreamType.AGGREGATE)){
+            Stream<Tuple> firstStream = this.flatternMultivalue(NODELABEL).flatternMultivalue(EDGELABEL).stream;
+            Stream<Tuple> secondStream = otherStream.flatternMultivalue(NODELABEL).flatternMultivalue(EDGELABEL).stream;
+
+            final int positionNodeThis = this.tupleFields.indexOf(NODELABEL);
+            final int positionNodeOther = otherStream.tupleFields.indexOf(NODELABEL);
+
+            final int positionEdgeThis = this.tupleFields.indexOf(EDGELABEL);
+            final int positionEdgeOther = otherStream.tupleFields.indexOf(EDGELABEL);
+
+
+            Map<Tuple2<String, String>, List<Tuple>> secondAsMap =
+                    secondStream
+                            .collect(Collectors
+                                    .groupingBy(e -> new Tuple2<>(
+                                            ((String[]) e.getField(positionNodeOther))[0],
+                                            ((String[]) e.getField(positionEdgeOther))[0])));
+
+            final Stream<Tuple> joinedStream = firstStream.map(tupleFirst -> {
+                ArrayList<Tuple> joined = new ArrayList<>();
+                List<Tuple> tuples = secondAsMap.get(new Tuple2<>(tupleFirst.getField(positionNodeThis), tupleFirst.getField(positionEdgeThis)));
+                if (tuples == null) return joined;
+                for (Tuple other : tuples) {
+                    Tuple newTuple = Tuple.newInstance(tupleFirst.getArity() + other.getArity() - 2);
+                    int j;
+                    for (j = 0; j < tupleFirst.getArity(); j++) {
+                        newTuple.setField(tupleFirst.getField(j), j);
+                    }
+                    for (int i = j; i < newTuple.getArity(); i++) {
+                        if (!(i == tupleFirst.getArity() + positionNodeOther) && !(i == tupleFirst.getArity() + positionEdgeOther)) {
+                            newTuple.setField(other.getField(i - tupleFirst.getArity()), j);
+                            j = j + 1;
+                        }
+                    }
+                    joined.add(newTuple);
+                }
+                return joined;
+            }).flatMap(Collection::stream);
+
+            return new ExtractedStream(this.partition, newTupleFields, StreamType.EDGE, joinedStream);
+
+
+        } else if (this.streamType == StreamType.AGGREGATE && otherStream.streamType != StreamType.AGGREGATE){
+
+            return otherStream.joinStream(this);
+
+        }else if (otherStream.streamType == StreamType.AGGREGATE) { //both aggregate or first not aggregate ans second aggregate
+
+            List<Tuple> otherCollected = otherStream.stream.collect(Collectors.toList());
+
+            Stream<Tuple> newStream = this.stream.map(thisTuple ->
+                    otherCollected.stream()
+                            .map(otherTuple -> {
+                                Tuple result = Tuple.newInstance(thisTuple.getArity() + otherTuple.getArity());
+                                for (int i = 0; i < thisTuple.getArity(); i++) {
+                                    result.setField(thisTuple.getField(i), i);
+                                }
+                                for (int i = thisTuple.getArity(); i < result.getArity(); i++) {
+                                    result.setField(otherTuple.getField(i-thisTuple.getArity()), i);
+                                }
+                                return result;
+                            }))
+                    .flatMap(stream -> stream);
+
+            return new ExtractedStream(this.partition, newTupleFields, this.streamType, newStream);
+            /*
+                Stream<Tuple> newStream = otherStream.stream.map(
+                        otherTuple -> this.stream.map(thisTuple -> {
+
+                    Tuple newTuple = Tuple.newInstance(this.tupleFields.size() + otherStream.tupleFields.size());
+                    for (int i = 0; i < this.tupleFields.size(); i++) {
+                        newTuple.setField(thisTuple.getField(i), i);
+                    }
+                    for (int i = thisTuple.getArity(); i < newTuple.getArity(); i++) {
+                        newTuple.setField(otherTuple.getField(i - thisTuple.getArity()), i);
+                    }
+                    return newTuple;
+
+                })).flatMap(str -> str);
+
+                return new ExtractedStream(this.partition, newTupleFields, this.streamType, newStream);
+             */
+        }/*else if (this.streamType == StreamType.AGGREGATE && !(otherStream.streamType == StreamType.AGGREGATE)){
 
                 Stream<Tuple> newStream = otherStream.stream.map(otherTuple-> this.stream.map(thisTuple -> {
 
@@ -214,24 +321,7 @@ public class ExtractedStream implements ExtractedIf{
 
                 return new ExtractedStream(this.partition, newTupleFields, otherStream.streamType, newStream);
 
-        } else if (otherStream.streamType == StreamType.AGGREGATE){ //This is not aggregate, 'other' is
-
-            Stream<Tuple> newStream = otherStream.stream.map(otherTuple-> this.stream.map(thisTuple -> {
-
-                Tuple newTuple = Tuple.newInstance(this.tupleFields.size() + otherStream.tupleFields.size());
-                for (int i = 0; i < this.tupleFields.size(); i++) {
-                    newTuple.setField(thisTuple.getField(i), i);
-                }
-                for (int i = thisTuple.getArity(); i < newTuple.getArity(); i++) {
-                    newTuple.setField(otherTuple.getField(i - thisTuple.getArity()), i);
-                }
-                return newTuple;
-
-            })).flatMap(str -> str);
-
-            return new ExtractedStream(this.partition, newTupleFields, this.streamType, newStream);
-
-        } else {
+        }*/   else {
             throw new InvalidOperationChain("ERROR STATE ");
         }
     }
@@ -262,12 +352,11 @@ public class ExtractedStream implements ExtractedIf{
     public ExtractedStream merge (String[] groupingLabels) {
 
         //Flattern
-        ExtractedStream extractedStream = this;
         for (String key: groupingLabels) {
-            extractedStream = flatternMultivalue(key);
+            this.stream = flatternMultivalue(key).stream;
         }
 
-        Map<Tuple, List<Tuple>> groups = this.stream.collect(Collectors.groupingByConcurrent(tuple -> {
+        Map<Tuple, List<Tuple>> groups = this.stream.collect(Collectors.groupingBy(tuple -> {
             Tuple key = Tuple.newInstance(groupingLabels.length);
             for (int i = 0; i < groupingLabels.length; i++) {
                 String label = groupingLabels[i];
@@ -427,80 +516,24 @@ public class ExtractedStream implements ExtractedIf{
         return results;
     }
 
+    /**
+     * Ne tuple field for join
+     * @param tupleFields1
+     * @param tupleFields2
+     * @param first
+     * @param second
+     * @return
+     */
     private ArrayList<String> newTupleFields(ArrayList<String> tupleFields1, ArrayList<String> tupleFields2, StreamType first, StreamType second){
 
-        ArrayList<String> newTupleFields = new ArrayList<>();
+        ArrayList<String> fieldsSecond = (ArrayList<String>) tupleFields2.clone();
 
-        if (first == StreamType.AGGREGATE && second == StreamType.AGGREGATE){
+        ArrayList<String> newTupleFields = new ArrayList<>(tupleFields1.stream().map(field -> JOIN_FIRST + field).collect(Collectors.toList()));
 
-            for (String s: tupleFields1) {
-                newTupleFields.add(JOIN_FIRST + s);
-            }
+        if (second == StreamType.NODE || second == StreamType.EDGE) fieldsSecond.remove(NODELABEL);
+        if (second == StreamType.EDGE) fieldsSecond.remove(EDGELABEL);
 
-            for (String s: tupleFields2) {
-                newTupleFields.add(JOIN_SECOND + s);
-            }
-        }
-        else if (first == StreamType.AGGREGATE && second == StreamType.EDGE) {
-
-            newTupleFields.add(tupleFields2.get(0));
-            newTupleFields.add(tupleFields2.get(1));
-
-            for (int i = 2; i < tupleFields2.size(); i++) {
-                String s = tupleFields2.get(i);
-                newTupleFields.add(JOIN_SECOND + s);
-            }
-
-            for (String s: tupleFields1) {
-                newTupleFields.add(JOIN_FIRST + s);
-            }
-        }
-        else if (first == StreamType.AGGREGATE && second == StreamType.NODE) {
-
-            newTupleFields.add(tupleFields2.get(0));
-
-            for (int i = 1; i < tupleFields2.size(); i++) {
-                String s = tupleFields2.get(i);
-                newTupleFields.add(JOIN_SECOND + s);
-            }
-
-            for (String s: tupleFields1) {
-                newTupleFields.add(JOIN_FIRST + s);
-            }
-
-        }
-        else if (first == StreamType.NODE && (second == StreamType.AGGREGATE || second == StreamType.NODE)) {
-
-            newTupleFields.add(tupleFields1.get(0));
-
-            for (int i = 1; i < tupleFields1.size(); i++) {
-                String s = tupleFields1.get(i);
-                newTupleFields.add(JOIN_FIRST + s);
-            }
-
-            for (String s: tupleFields2) {
-                newTupleFields.add(JOIN_SECOND + s);
-            }
-
-        }
-        else if (first == StreamType.EDGE && (second == StreamType.AGGREGATE || second == StreamType.EDGE)){
-
-            newTupleFields.add(tupleFields1.get(0));
-            newTupleFields.add(tupleFields1.get(1));
-
-            for (int i = 2; i < tupleFields1.size(); i++) {
-                String s = tupleFields1.get(i);
-                newTupleFields.add(JOIN_FIRST + s);
-            }
-
-            for (String s: tupleFields2) {
-                newTupleFields.add(JOIN_SECOND + s);
-            }
-
-        }
-        else {
-            throw new InvalidOperationChain("Join of NODE-EDGE and EDGE-NODE are not allowed");
-        }
+        newTupleFields.addAll(fieldsSecond.stream().map(field -> JOIN_SECOND + field).collect(Collectors.toList()));
 
         return newTupleFields;
     }
@@ -545,6 +578,8 @@ public class ExtractedStream implements ExtractedIf{
         int[] result = new int[argsNames.size()];
         for (int i = 0; i < argsNames.size(); i++) {
             result[i] = fieldNames.indexOf(argsNames.get(i));
+            if (result[i] == -1)
+                throw new RuntimeException("ExtractedStream.solveArguments: mapping "+ fieldNames.toString() + " to " + argsNames.toString() + " failed");
         }
         return result;
     }

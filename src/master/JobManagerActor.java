@@ -52,7 +52,7 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 
 	private final AtomicInteger waitingResponses = new AtomicInteger(0);
 
-	private final ConcurrentHashMap<String, OngoingAggregate> aggregates = new ConcurrentHashMap<>();
+	private final ConcurrentHashMap<Integer, OngoingAggregate> aggregates = new ConcurrentHashMap<>();
 
 	private long currentTimestamp;
 
@@ -86,7 +86,7 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 		return waitingResponses;
 	}
 
-	public ConcurrentHashMap<String, OngoingAggregate> getAggregates() {
+	public ConcurrentHashMap<Integer, OngoingAggregate> getAggregates() {
 		return aggregates;
 	}
 
@@ -114,7 +114,7 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 			directedEdges = PropertyHandler.getProperty("directedEdges").equals("true");
 
 			if (!Boolean.parseBoolean(PropertyHandler.getProperty("debugLog"))) {
-				getContext().getSystem().eventStream().setLogLevel(0);
+				getContext().getSystem().eventStream().setLogLevel(Logging.ErrorLevel());
 			}
 
 		} catch (IOException e) {
@@ -320,7 +320,7 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 		ongoing.collectedActors.add(sender());
 
 		//If finished -> remove aggregate and fire event
-		if (ongoing.performOperatorIfCollectedAll()){
+		if (ongoing.performOperatorIfCollectedAll(this.validVariables)){
 
 			String event = ongoing.getEvaluation();
 			if ( event != null ){
@@ -377,7 +377,7 @@ public class JobManagerActor extends AbstractActorWithStash implements PatternCa
 
 	@Override
 	public void putInOngoingAggregateList(int identifier, OngoingAggregate ongoingAggregate) {
-		this.aggregates.put(String.valueOf(identifier), ongoingAggregate);
+		this.aggregates.put(identifier, ongoingAggregate);
 	}
 
 	@Override

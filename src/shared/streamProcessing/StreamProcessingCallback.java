@@ -14,14 +14,14 @@ public interface StreamProcessingCallback {
 
     abstract class Aggregate implements Serializable {
 
-        private Long transactionId;
+        private int transactionId;
 
-        Aggregate(Long transactionId) {
+        Aggregate(int transactionId) {
             this.transactionId = transactionId;
         }
 
 
-        public Long getTransactionId() {
+        public int getTransactionId() {
             return transactionId;
         }
     }
@@ -31,7 +31,7 @@ public interface StreamProcessingCallback {
         //For each partition, the aggregate
         private MultiKeyMap<VariableAggregate> variableAggregate = null;
 
-        public VariableAggregateAggregate(Long transactionId, MultiKeyMap<VariableAggregate> variableAggregate) {
+        public VariableAggregateAggregate(int transactionId, MultiKeyMap<VariableAggregate> variableAggregate) {
             super(transactionId);
             this.variableAggregate = variableAggregate;
         }
@@ -47,7 +47,7 @@ public interface StreamProcessingCallback {
         //For each partition, for each group, tre reduced tuple
         private MultiKeyMap<Map<Tuple, Object>> reducedPartitions;
 
-        public ReduceAggregate(Long transactionId, MultiKeyMap<Map<Tuple, Object>> reducedPartitions) {
+        public ReduceAggregate(int transactionId, MultiKeyMap<Map<Tuple, Object>> reducedPartitions) {
             super(transactionId);
             this.reducedPartitions = reducedPartitions;
         }
@@ -62,7 +62,7 @@ public interface StreamProcessingCallback {
 
         private boolean resultEvaluation;
 
-        public EvaluationAggregate(Long transactionId, boolean resultEvaluation) {
+        public EvaluationAggregate(int transactionId, boolean resultEvaluation) {
             super(transactionId);
             this.resultEvaluation = resultEvaluation;
         }

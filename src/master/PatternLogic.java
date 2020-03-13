@@ -75,6 +75,7 @@ public class PatternLogic {
                     currentElement = currentPattern.next();
                 } else {
                     transportLayer.becomeReceiveChangeState();
+                    break;
                 }
             }
         } else {

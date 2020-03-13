@@ -4,6 +4,7 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import shared.PropertyHandler;
+import shared.Utils;
 import shared.computation.ComputationRuntime;
 import shared.data.MultiKeyMap;
 import shared.exceptions.InvalidOperationChain;
@@ -38,6 +39,11 @@ public class PartitionStreamsHandler {
         this.callback = callback;
     }
 
+    /**
+     *
+     * @return 0 if completed, 1 if stopped for empty stream
+     * @throws Exception
+     */
     public void solveOperationChain () throws Exception {
 
         MultiKeyMap<ExtractedIf> partitions = null;
@@ -70,14 +76,18 @@ public class PartitionStreamsHandler {
                 }
                 //If partition is already defined -> stream and  JOIN
                 else {
+
                     MultiKeyMap<ExtractedIf> secondStreams = variableSolver.getStream(opStream.VariableName, opStream.wType, opStream.timeAgo);
-                    partitions.getAllElements().values().forEach(partition -> {
-                        partition.set(((ExtractedStream) partition).joinStream((ExtractedStream) secondStreams.getValue(((ExtractedStream) partition).getPartition())));
-                    });
+
+                    partitions.getAllElements().values().forEach(partition ->
+                            partition.set(((ExtractedStream) partition)
+                                            .joinStream((ExtractedStream) secondStreams.getValue(((ExtractedStream) partition).getPartition()))));
                 }
-            } else if (partitions == null || partitions.getAllElements().isEmpty()) {
-                //No elements -> skip
-                return;
+
+                if (partitions == null || partitions.getAllElements().isEmpty()) {
+                    return;
+                }
+
             } else {
 
                 if (operation instanceof Operations.Map) {
@@ -232,7 +242,7 @@ public class PartitionStreamsHandler {
 
                     MultiKeyMap<Map<Tuple, Object>> returned = ((StreamProcessingCallback.ReduceAggregate)
                             callback.getAggregatedResult(
-                                    new StreamProcessingCallback.ReduceAggregate(opReduce.transaction_Id, reduced)))
+                                    new StreamProcessingCallback.ReduceAggregate(opReduce.getTransaction_id(), reduced)))
                             .getReducedPartitions();
 
                     //For each returned partition restore -> ExtractedStream or ExtractedGroupedStream

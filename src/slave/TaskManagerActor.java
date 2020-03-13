@@ -87,7 +87,7 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 		master.tell(new SlaveAnnounceMsg(name, 1), self());
 
 		if (!Boolean.parseBoolean(PropertyHandler.getProperty("debugLog"))) {
-			getContext().getSystem().eventStream().setLogLevel(0);
+			getContext().getSystem().eventStream().setLogLevel(Logging.ErrorLevel());
 		}
 	}
 
@@ -320,18 +320,20 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 
 	private final void onInvalidNodesMsg(InvalidNodesMsg msg) {
 		log.info(msg.toString());
-		msg.invalidNodes.getAllElements().entrySet().stream().forEach(group -> {
-			HashSet<String> deleteEdges = new HashSet<>(group.getValue());
-			 Stream<Vertex> partitionVertices = this.partitionComputations.getValue(group.getKey()).getVertices().values().stream();
-			partitionVertices.forEach(vertex -> {
-				VertexM vertexM = (VertexM) vertex;
-				ArrayList<String> toRemove = new ArrayList<>();
-				for (String edge: vertexM.getEdges()) {
-					if (deleteEdges.contains(edge)) toRemove.add(edge);
-				}
-				vertexM.deleteEdges(deleteEdges);
-			});
-		});
+		msg.invalidNodes.getAllElements().entrySet()
+				.forEach(group -> {
+
+					HashSet<String> deleteEdges = new HashSet<>(group.getValue());
+
+					for (Vertex vertex: this.partitionComputations.getValue(group.getKey()).getVertices().values()) {
+						for (String oldEdge: vertex.getEdges()) {
+							if (deleteEdges.contains(oldEdge)) {
+								((VertexM)vertex).deleteEdge(oldEdge);
+							}
+						}
+					}
+				});
+
 		if(this.waitingResponses.decrementAndGet() == 0){
 			getContext().become(initializedState());
 			master.tell(new AckMsg(), self());
@@ -455,11 +457,6 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 		}
 
 		master.tell(new AckMsg(), self());
-
-		//debug only
-		for (Tuple2<String, Long> name: msg.getReturnVarNames()) {
-			variables.printVariable(name.f0);
-		}
 
 	}
 
@@ -634,8 +631,6 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 				.solveOperationChain();
 
 		master.tell(new AckMsg(), self());
-
-		//variables.printAllVariables();
 	}
 
 	private final void onSelectMsg (SelectMsg msg) {
@@ -841,9 +836,9 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 	@Override
 	public Aggregate getAggregatedResult(Aggregate aggregate) throws Exception {
 		final Aggregate response;
-		Timeout timeout = new Timeout(Duration.create(5, "seconds"));
+		Timeout timeout = new Timeout(Duration.create(20, "seconds"));
 		scala.concurrent.Future<Object> future = Patterns.ask(master, new AggregateMsg(aggregate), timeout);
-		response = (Aggregate) Await.result(future, timeout.duration());
+		response = ((AggregateMsg) Await.result(future, timeout.duration())).aggregate;
 		return response;
 	}
 

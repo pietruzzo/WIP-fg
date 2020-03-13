@@ -6,10 +6,7 @@ import shared.streamProcessing.abstractOperators.CustomFlatMapper;
 import shared.streamProcessing.abstractOperators.CustomFunction;
 import shared.streamProcessing.abstractOperators.CustomPredicate;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Stream;
 
 import static shared.streamProcessing.ExtractedStream.*;
@@ -23,7 +20,7 @@ public class ExtractedGroupedStream implements ExtractedIf {
     private Map<Tuple, Stream<Tuple>> groupedStreams;
 
     public ExtractedGroupedStream(Map<String, String> partition, ArrayList<String> tupleFields, ExtractedStream.StreamType streamType, Map<Tuple, List<Tuple>> groupedStreams) {
-        this.partition = partition;
+        this.partition = ExtractedIf.initializePartitionIfNull(partition);
         this.tupleFields = tupleFields;
         this.streamType = streamType;
         this.groupedStreams = new HashMap<>();
@@ -34,7 +31,7 @@ public class ExtractedGroupedStream implements ExtractedIf {
     }
 
     public ExtractedGroupedStream(Map<String, String> partition, ArrayList<String> tupleFields, Map<Tuple, Stream<Tuple>> groupedStreams, ExtractedStream.StreamType streamType) {
-        this.partition = partition;
+        this.partition = ExtractedIf.initializePartitionIfNull(partition);
         this.tupleFields = tupleFields;
         this.streamType = streamType;
         this.groupedStreams = groupedStreams;
@@ -99,7 +96,7 @@ public class ExtractedGroupedStream implements ExtractedIf {
         arguments = ExtractedStream.solveArguments(tupleFields, args);
         Map<Tuple, Stream<Tuple>> newGroupedStreams  = new HashMap<>();
         for (Map.Entry<Tuple, Stream<Tuple>> stream: groupedStreams.entrySet()) {
-            Stream<Tuple> newStream = stream.getValue().map(function);
+            Stream<Tuple> newStream = stream.getValue().map(function).filter(Objects::nonNull);;
             newGroupedStreams.put(stream.getKey(), newStream);
         }
         return this.getExtractedStream(newGroupedStreams, function.getNewFieldNames(this.streamType), this.streamType);
@@ -124,7 +121,7 @@ public class ExtractedGroupedStream implements ExtractedIf {
         arguments = ExtractedStream.solveArguments(tupleFields, args);
         Map<Tuple, Stream<Tuple>> newGroupedStreams  = new HashMap<>();
         for (Map.Entry<Tuple, Stream<Tuple>> stream: groupedStreams.entrySet()) {
-            Stream<Tuple> newStream = stream.getValue().flatMap(mapper);
+            Stream<Tuple> newStream = stream.getValue().flatMap(mapper).filter(Objects::nonNull);;
             newGroupedStreams.put(stream.getKey(), newStream);
         }
         return this.getExtractedStream(newGroupedStreams, mapper.getNewFieldNames(this.streamType), this.streamType);

@@ -231,7 +231,7 @@ public class VariableSolver implements Serializable {
      * @param timestamp
      * @return NULL if Empty
      */
-    public MultiKeyMap<ExtractedIf>getStream(String variableName, WindowType windowType, String timestamp) {
+    public MultiKeyMap<ExtractedIf>getStream(String variableName, WindowType windowType, long timestamp) {
 
         MultiKeyMap<Stream<Tuple>> result;
 
@@ -239,7 +239,7 @@ public class VariableSolver implements Serializable {
         String selectedField = variableField.f1;
         String variableNameSolved = variableField.f0;
 
-        ArrayList<Variable> variableVersions = this.extractWindow(this.varablesNew.get(variableNameSolved), Utils.solveTime(timestamp), windowType);
+        ArrayList<Variable> variableVersions = this.extractWindow(this.varablesNew.get(variableNameSolved), timestamp, windowType);
         if (variableVersions.isEmpty()) return null;
 
         if (variableVersions.get(0) instanceof VariablePartition) {
@@ -254,10 +254,10 @@ public class VariableSolver implements Serializable {
 
             ConcurrentMap<Map<String, String>, List<Tuple2<Map<String, String>, Tuple>>> byPartition = collect.stream().collect(Collectors.groupingByConcurrent(tuple2 -> tuple2.f0, Collectors.toList()));
             byPartition.entrySet().stream().map(entry -> {
-                if (variableVersions.get(0) instanceof VariableAggregate){
+                if (((VariablePartition) variableVersions.get(0)).getAllInsideVariables().getAllElements().values().iterator().next() instanceof VariableAggregate){
                     //Group all fields
                     return new Tuple2<>(entry.getKey(), groupFields(entry.getValue().stream().map(partitionTuple-> partitionTuple.f1), 0));
-                } else if (variableVersions.get(0) instanceof VariableVertex){
+                } else if (((VariablePartition) variableVersions.get(0)).getAllInsideVariables().getAllElements().values().iterator().next() instanceof VariableVertex){
                     //Group by 0 and group other fields
                     return new Tuple2<>(entry.getKey(), groupFields(entry.getValue().stream().map(partitionTuple-> partitionTuple.f1), 1));
                 } else {
@@ -351,8 +351,8 @@ public class VariableSolver implements Serializable {
             return new CompositeKey(key);
         }, Collectors.toList()));
 
-        return grouped.entrySet().stream().map(entryList ->
-                entryList.getValue().stream().reduce((tuple1, tuple2)-> {
+        return grouped.values().stream()
+                .map(tuples -> tuples.stream().reduce((tuple1, tuple2) -> {
                     for (int i = 0; i < tuple1.getArity(); i++) {
                         tuple1.getField(i);
                         tuple2.getField(i);
@@ -526,9 +526,6 @@ public class VariableSolver implements Serializable {
      * @param variable
      */
     public void addVariable(Variable variable) {
-        //this.variables.computeIfAbsent(variable.getName(), k -> new LinkedList<>());
-        //this.variables.get(variable.getName()).add(variable);
-
         this.varablesNew.computeIfAbsent(variable.getName(), k -> new TreeMap<>());
         this.varablesNew.get(variable.getName()).put(variable.getTimestamp(), variable);
     }
@@ -537,7 +534,15 @@ public class VariableSolver implements Serializable {
         this.varablesNew.entrySet().stream().forEach(entry -> {
             NavigableMap<Long, Variable> versions = entry.getValue();
             long keepTimestamp = this.currentTimestamp - versions.get(versions.lastKey()).getPersistence();
-            long lastToKeep = versions.floorKey(keepTimestamp);
+            long lastToKeep;
+
+            try {
+                lastToKeep = versions.floorKey(keepTimestamp);
+            } catch (NullPointerException e) {
+                //No old elements to remove -> skip retuning lambda
+                return;
+            }
+
             Iterator<Long> iterator = versions.keySet().iterator();
 
             while (iterator.hasNext()){
@@ -569,7 +574,9 @@ public class VariableSolver implements Serializable {
     }
 
     public void printVariable(String name) {
-        //System.out.println(this.varablesNew.get(name).lastEntry().getValue().toString());
+        try {
+            System.out.println(this.varablesNew.get(name).lastEntry().getValue().toString());
+        } catch (Exception e) {}
     }
 
     public void printAllVariables() {

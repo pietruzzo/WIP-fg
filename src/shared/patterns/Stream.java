@@ -9,17 +9,14 @@ import shared.streamProcessing.StreamProcessingCallback;
 
 import java.io.Serializable;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class Stream extends Pattern{
 
     private List<Operations> operationsList;
-    private String fireNotif;
 
-    public Stream(Trigger trigger, String variablesToBeGenerated, PatternCallback transportLayer, List<Operations> operationsList, String fireNotif) {
+    public Stream(Trigger trigger, String variablesToBeGenerated, PatternCallback transportLayer, List<Operations> operationsList) {
         super(trigger, variablesToBeGenerated, transportLayer);
         this.operationsList = operationsList;
-        this.fireNotif = fireNotif;
     }
 
 
@@ -51,15 +48,12 @@ public class Stream extends Pattern{
 
     private void setReduceCollectAggregates () {
 
-        AtomicInteger identifier = new AtomicInteger(0);
-
         //Flush OngoingAggregates
 
 
         //Put new OngoingAggregates on JobManager
 
         operationsList
-                .stream()
                 .forEach(operation -> {
 
                     if ( operation instanceof Operations.Evaluate ) {
@@ -76,7 +70,7 @@ public class Stream extends Pattern{
                         );
 
                         // Put in a concurrent datastructure
-                        transportLayer.putInOngoingAggregateList(identifier.getAndIncrement(), oa);
+                        transportLayer.putInOngoingAggregateList(((Operations.Evaluate) operation).getTransaction_id(), oa);
 
 
                     } else if ( operation instanceof Operations.Emit ) {
@@ -91,7 +85,7 @@ public class Stream extends Pattern{
                         );
 
                         // Put in a concurrent datastructure
-                        transportLayer.putInOngoingAggregateList(identifier.getAndIncrement(), oa);
+                        transportLayer.putInOngoingAggregateList(((Operations.Emit) operation).getTransaction_id(), oa);
 
 
                     } else if ( operation instanceof  Operations.Reduce ) {
@@ -108,7 +102,7 @@ public class Stream extends Pattern{
                         );
 
                         // Put in a concurrent datastructure
-                        transportLayer.putInOngoingAggregateList(identifier.getAndIncrement(), oa);
+                        transportLayer.putInOngoingAggregateList(((Operations.Reduce) operation).getTransaction_id(), oa);
 
                     }
 

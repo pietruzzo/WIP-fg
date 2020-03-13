@@ -14,11 +14,11 @@ declare -a hosts=()
     "172.31.17.239"
   )
 
-entryIP="ec2-18-220-245-154.us-east-2.compute.amazonaws.com"
+entryIP="ec2-3-21-127-60.us-east-2.compute.amazonaws.com"
 numberOfMachines="4"
-datasetName="dataset1M.txt"
+datasetName="dataset1M299.txt"
 localFolder=/home/pietro/flowgraph/
-localLogFolder=/home/pietro/Desktop/Logs/
+localLogFolder=/home/pietro/Logs/
 logFolderName=NULL  #NULL to avoid subfolder
 remoteFolder=/home/ec2-user/flowgraph/
 amazonKey=amazonPoli.pem
@@ -96,14 +96,14 @@ fi
 function oneDataset {
 
   # Set dataset on config.properties
-  sed -i -e "s:datasetPath =.*$:datasetPath = ${remoteFolder}datasets/${datasetName}:" ${localFolder}config.properties
+  sed -i -e "s:datasetPath =.*$:datasetPath = ${remoteFolder}specialDatasets/${datasetName}:" ${localFolder}config.properties
 
   # Set number of instances on config.properties
   sed -i -e "s:numberOfSlaves =.*$:numberOfSlaves = "${numberOfMachines}":" ${localFolder}config.properties
 
   # If M order, try only 10 updates
   if [[ $datasetName == *"M"* ]]; then
-    sed -i -e "s:numRecordsAsInput =.*$:numRecordsAsInput = 4:" ${localFolder}config.properties
+    sed -i -e "s:numRecordsAsInput =.*$:numRecordsAsInput = 299:" ${localFolder}config.properties
   else
     sed -i -e "s:numRecordsAsInput =.*$:numRecordsAsInput = 99:" ${localFolder}config.properties
   fi
@@ -219,7 +219,8 @@ if [ "$datasetName" = "NULL" ]; then
         allDatasets
 else
   echo "oneDataset"
-        allThreads
+        #allThreads
+        oneDataset
 fi
 
 aplay ${localFolder}finish.WAV

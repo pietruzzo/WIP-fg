@@ -53,7 +53,7 @@ public class Trigger {
             case VERTEX_ADDITION:
                 return isTriggered_VERTEX_ADDITION(triggerEvent);
             case VERTEX_DELETION:
-                return isTriggered_EDGE_DELETION(triggerEvent);
+                return isTriggered_VERTEX_DELETION(triggerEvent);
             case VERTEX_UPDATE:
                 return isTriggered_VERTEX_UPDATE(triggerEvent);
             case EDGE_ADDITION:

@@ -3,6 +3,7 @@ package shared;
 import java.io.*;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 
 public class PropertyHandler {
 
@@ -42,10 +43,11 @@ public class PropertyHandler {
             long pid = ProcessHandle.current().pid();
             Runtime runtime = Runtime.getRuntime();
 
-            System.out.println("launching GC: " + msg);
+
+            System.out.println("launching GC: " + msg + " " + Utils.getUsedMemoryMB());
             Process pr1 = runtime.exec("jcmd " + pid + " GC.run");
             pr1.waitFor();
-            System.out.println("finished GC: " + msg);
+            System.out.println("finished GC: " + msg + " " + Utils.getUsedMemoryMB());
 
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();

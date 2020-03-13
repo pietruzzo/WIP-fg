@@ -4,6 +4,7 @@ import master.PatternCallback;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.apache.flink.api.java.tuple.Tuple3;
+import shared.Utils;
 import shared.antlr4.pattern.PatternBaseListener;
 import shared.antlr4.pattern.PatternParser;
 import shared.patterns.Stream;
@@ -25,18 +26,16 @@ import java.util.stream.Collectors;
 public class StreamParser extends PatternBaseListener {
 
     private List<Operations> operations;
-    private String fireNotification;
     private AtomicInteger transactionId;
     private String genVar = null;
 
-    public StreamParser() {
+    public StreamParser(AtomicInteger transactionId) {
         this.operations = new ArrayList<>();
-        this.fireNotification = null;
-        this.transactionId = new AtomicInteger(new Random().nextInt());
+        this.transactionId = transactionId;
     }
 
-    public static Stream getStream (shared.antlr4.pattern.PatternParser.ExtractStreamProcessingContext ctx, Trigger trigger, PatternCallback callback) {
-        StreamParser streamParser = new StreamParser();
+    public static Stream getStream (shared.antlr4.pattern.PatternParser.ExtractStreamProcessingContext ctx, Trigger trigger, PatternCallback callback, AtomicInteger transactionId) {
+        StreamParser streamParser = new StreamParser(transactionId);
         ParseTreeWalker walker = new ParseTreeWalker();
         walker.walk(streamParser, ctx);
 
@@ -44,15 +43,14 @@ public class StreamParser extends PatternBaseListener {
                 trigger,
                 streamParser.genVar,
                 callback,
-                streamParser.operations,
-                streamParser.fireNotification
+                streamParser.operations
         );
 
         return stream;
     }
 
-    public static Stream getStream (shared.antlr4.pattern.PatternParser.CollectStreamProcessingContext ctx, Trigger trigger, PatternCallback callback) {
-        StreamParser streamParser = new StreamParser();
+    public static Stream getStream (shared.antlr4.pattern.PatternParser.CollectStreamProcessingContext ctx, Trigger trigger, PatternCallback callback, AtomicInteger transactionId) {
+        StreamParser streamParser = new StreamParser(transactionId);
         ParseTreeWalker walker = new ParseTreeWalker();
         walker.walk(streamParser, ctx);
 
@@ -60,8 +58,7 @@ public class StreamParser extends PatternBaseListener {
                 trigger,
                 streamParser.genVar,
                 callback,
-                streamParser.operations,
-                streamParser.fireNotification
+                streamParser.operations
         );
 
         return stream;
@@ -75,7 +72,7 @@ public class StreamParser extends PatternBaseListener {
                 .forEach(tctx -> {
                     Tuple3<String, String, SelectionSolver.Operation.WindowType> temporalVar =
                             CommonsParser.getTemporalVar(tctx);
-                    this.operations.add(new Operations.StreamVariable(temporalVar.f0, temporalVar.f1, temporalVar.f2));
+                    this.operations.add(new Operations.StreamVariable(temporalVar.f0, Utils.solveTime(temporalVar.f1), temporalVar.f2));
                 });
     }
 
@@ -112,7 +109,7 @@ public class StreamParser extends PatternBaseListener {
 
         String fireEvent = ctx.fireEvent().Litterals().getText();
 
-        Long transactionId = Long.valueOf(this.transactionId.getAndIncrement());
+        int transactionId = this.transactionId.getAndIncrement();
 
         this.operations.add(new Operations.Evaluate(operator, transactionId, value, fireEvent));
 
@@ -136,49 +133,49 @@ public class StreamParser extends PatternBaseListener {
         }
 
         //Get Registerd Operation
-        if (ctx.getText().startsWith("map(")){
+        if (ctx.getText().startsWith(".map(")){
             CustomFunction map = OperationImplementations.getMap(ctx.functionName().getText());
             this.operations.add(new Operations.Map(map, fields));
-        } else if (ctx.getText().startsWith("flatmap(")){
+        } else if (ctx.getText().startsWith(".flatmap(")){
             CustomFlatMapper map = OperationImplementations.getFlatMap(ctx.functionName().getText());
             this.operations.add(new Operations.FlatMap(map, fields));
-        } else if (ctx.getText().startsWith("reduce(")){
+        } else if (ctx.getText().startsWith(".reduce(")){
             CustomBinaryOperator reduce = OperationImplementations.getReduce(ctx.functionName().getText());
-            this.operations.add(new Operations.Reduce(reduce, Long.valueOf(this.transactionId.getAndIncrement()), fields));
-        } else if (ctx.getText().startsWith("filter(")) {
+            this.operations.add(new Operations.Reduce(reduce, this.transactionId.getAndIncrement(), fields));
+        } else if (ctx.getText().startsWith(".filter(")) {
             CustomPredicate filter = OperationImplementations.getFilter(ctx.functionName().getText());
             this.operations.add(new Operations.Filter(filter, fields));
         } else if (ctx.oneFieldOperationAlias() != null) {
             //Aliasing function
-            if (ctx.oneFieldOperationAlias().getText().contains("avg")) {
+            if (ctx.oneFieldOperationAlias().getText().contains(".avg")) {
                 CustomBinaryOperator reduce = OperationImplementations.getReduce("avg");
-                this.operations.add(new Operations.Reduce(reduce, Long.valueOf(this.transactionId.getAndIncrement()), fields));
+                this.operations.add(new Operations.Reduce(reduce, this.transactionId.getAndIncrement(), fields));
 
             }
             else if (ctx.oneFieldOperationAlias().getText().contains("max")) {
                 CustomBinaryOperator reduce = OperationImplementations.getReduce("max");
-                this.operations.add(new Operations.Reduce(reduce, Long.valueOf(this.transactionId.getAndIncrement()), fields));
+                this.operations.add(new Operations.Reduce(reduce, this.transactionId.getAndIncrement(), fields));
 
             }
             else if (ctx.oneFieldOperationAlias().getText().contains("min")) {
                 CustomBinaryOperator reduce = OperationImplementations.getReduce("min");
-                this.operations.add(new Operations.Reduce(reduce, Long.valueOf(this.transactionId.getAndIncrement()), fields));
+                this.operations.add(new Operations.Reduce(reduce, this.transactionId.getAndIncrement(), fields));
 
             }
             else if (ctx.oneFieldOperationAlias().getText().contains("count")) {
                 CustomBinaryOperator reduce = OperationImplementations.getReduce("count");
-                this.operations.add(new Operations.Reduce(reduce, Long.valueOf(this.transactionId.getAndIncrement()), fields));
+                this.operations.add(new Operations.Reduce(reduce, this.transactionId.getAndIncrement(), fields));
 
             }
             else if (ctx.oneFieldOperationAlias().getText().contains("select")) {
                 CustomFunction map = OperationImplementations.getMap("select");
                 this.operations.add(new Operations.Map(map, fields));
             }
-        } else if (ctx.getText().startsWith("groupby")) {
+        } else if (ctx.getText().startsWith(".groupby")) {
             this.operations.add(new Operations.GroupBy(fields));
-        } else if (ctx.getText().startsWith("Merge")) {
+        } else if (ctx.getText().startsWith(".Merge")) {
             this.operations.add(new Operations.Merge(fields));
-        } else if (ctx.getText().startsWith("collect")) {
+        } else if (ctx.getText().startsWith(".collect")) {
             this.operations.add(new Operations.Collect());
         }
     }
@@ -190,7 +187,7 @@ public class StreamParser extends PatternBaseListener {
      */
     @Override public void enterEmission(shared.antlr4.pattern.PatternParser.EmissionContext ctx) {
 
-        Long transactionId = Long.valueOf(this.transactionId.getAndIncrement());
+        int transactionId = this.transactionId.getAndIncrement();
 
         String varName = CommonsParser.getVarName(ctx.variable());
 

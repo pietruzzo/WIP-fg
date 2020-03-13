@@ -21,6 +21,8 @@ import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 public class Utils {
 
@@ -233,6 +235,12 @@ public class Utils {
         return false;
     }
 
+    public static int getUsedMemoryMB(){
+        long total = Runtime.getRuntime().totalMemory();
+        long free = Runtime.getRuntime().freeMemory();
+        return (int) ((total - free) / (1024*1024));
+    }
+
     public static void disableWarning() {
         try {
             Field theUnsafe = Unsafe.class.getDeclaredField("theUnsafe");
@@ -245,6 +253,25 @@ public class Utils {
         } catch (Exception e) {
             // ignore
         }
+    }
+
+    /**
+     * For debug check if a stream has been consumed
+     */
+
+    public static <T> Optional<Stream<T>> isConsumed(Stream<T> stream) {
+
+        Spliterator<T> spliterator;
+        try {
+            spliterator = stream.spliterator();
+        } catch (IllegalStateException ise) {
+            return Optional.empty();
+        }
+
+        return Optional.of(StreamSupport.stream(
+                () -> spliterator,
+                spliterator.characteristics(),
+                stream.isParallel()));
     }
 
 }

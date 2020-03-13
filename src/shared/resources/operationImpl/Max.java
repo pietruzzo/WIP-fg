@@ -57,11 +57,9 @@ public class Max extends CustomBinaryOperator<Tuple3<String[], String[], Long>> 
 
     @Override
     public ArrayList<String> getNewFieldNames(ExtractedStream.StreamType streamType) {
-        ArrayList<String> result = new ArrayList<>();
-        result.add(ExtractedStream.NODELABEL);
-        result.add(ExtractedStream.EDGELABEL);
-        result.add("value");
-        return result;
+        ArrayList<String> newFields = new ArrayList<>();
+        newFields.add("value");
+        return newFieldsKeepingStreamType(streamType, newFields);
     }
 
 }

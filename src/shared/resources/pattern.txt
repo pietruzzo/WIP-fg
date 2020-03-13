@@ -1,2 +1,7 @@
-.g().extractV(labelP).emit($varNode);
-.collect($varNode 10-ms ago).emit($versionedVar);
+ .g().compute(OutgoingEdges, $outDegree).emit($graph);
+    .collect($outDegree).reduce(count).emit($totalEdges);
+    .collect($totalEdges 10-ms ago, $totalEdges).map(diff f.value, s.value).emit($delta);
+    .collect($delta).filter(greaterThan10 value).emit($triggerVar);
+
+
+    .trigger($triggerVar).g().compute(PageRank, $rank, [maxIterations = '10']);

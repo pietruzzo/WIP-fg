@@ -2,6 +2,7 @@ package master;
 
 import akka.actor.ActorRef;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple0;
 import org.jetbrains.annotations.Nullable;
 import shared.AkkaMessages.AggregateMsg;
 import shared.data.MultiKeyMap;
@@ -22,7 +23,7 @@ public class OngoingAggregate {
     final List<Aggregate> aggregates;
     final int expectedNumberOfSlaves;
     final ActorRef self;
-    private Boolean evaluation = null;
+    private Boolean evaluation = false;
     private final String toFire;
 
     public OngoingAggregate(int expectedNumberOfSlaves, AggregateType type, @Nullable CustomBinaryOperator operator, ActorRef self, @Nullable String toFire) {
@@ -39,12 +40,12 @@ public class OngoingAggregate {
      *
      * @return true if collected all
      */
-    public boolean performOperatorIfCollectedAll(){
+    public boolean performOperatorIfCollectedAll(HashSet<String> validVariables){
 
         if (collectedActors.size() < expectedNumberOfSlaves) return false;
 
         else if (type.equals(AggregateType.VARIABLE_AGGREGATE)) {
-            performVariableAggregate();
+            performVariableAggregate(validVariables);
             return true;
         }
 
@@ -93,7 +94,7 @@ public class OngoingAggregate {
 
     }
 
-    private void performVariableAggregate (){
+    private void performVariableAggregate (HashSet<String> validVariables){
 
         List<StreamProcessingCallback.VariableAggregateAggregate> aggregates =
                 this.aggregates
@@ -107,26 +108,54 @@ public class OngoingAggregate {
 
             aggregate.getPartitionsVariableAggregate().getAllElements().entrySet().stream().forEach(partition -> {
 
-                //Create partition in result if absent, made atomic
-
-                    if (collected.getValue(partition.getKey()) == null) {
-                        collected.putValue(partition.getKey(), new ArrayList<>());
-                    }
+                //Create partition in result if absent
+                collected.putIfAbsent(partition.getKey(), new ArrayList<>());
 
                 //Add Tuples
                     collected.getValue(partition.getKey()).addAll(Arrays.asList(partition.getValue().getValue()));
 
+
             });
 
+        });
+
+        //Remove duplicates from different workers
+        collected.getAllElements().entrySet().stream().forEach(entry -> {
+            ArrayList<Tuple> values = entry.getValue();
+            Set<Tuple> toRemove = new HashSet<>();
+            for (int i = 0; i < values.size(); i++) {
+                for (int j = i+1; j < values.size(); j++) {
+                    boolean deleteI = false;
+                        if (values.get(i).getArity() == values.get(j).getArity()) {
+                            for (int k = 0; k < values.get(i).getArity(); k++) {
+                                boolean allFieldsEqual = true;
+                                String[] a = values.get(i).getField(k);
+                                String[] b = values.get(j).getField(k);
+                                if (a.length == b.length){
+                                    for (int l = 0; l < a.length; l++) {
+                                        if (!(a[l].equals(b[l]))){
+                                            allFieldsEqual = false;
+                                            break;
+                                        }
+                                    }
+                                    if (allFieldsEqual) deleteI = true;
+                                }
+                            }
+                        }
+                    if (deleteI) toRemove.add(values.get(i));
+                }
+            }
+            values.removeAll(toRemove);
+            entry.setValue(values);
         });
 
         //Compute result partitions
         MultiKeyMap<VariableAggregate> result = new MultiKeyMap<>(aggregates.get(0).getPartitionsVariableAggregate().getKeys());
         VariableAggregate old = aggregates.get(0).getPartitionsVariableAggregate().getAllElements().values().iterator().next();
 
+
         collected.getAllElements()
                 .entrySet()
-                .stream()
                 .forEach(entry ->
                         result.putValue(entry.getKey(), new VariableAggregate(old.getName(), old.getPersistence(), old.getTimestamp(), (Tuple[])entry.getValue().toArray(Tuple[]::new) , old.getTupleNames()))
                 );
@@ -136,6 +165,16 @@ public class OngoingAggregate {
         //new aggregate
         Aggregate oldAggregate = aggregates.get(0);
         Aggregate newAggregate = new StreamProcessingCallback.VariableAggregateAggregate(oldAggregate.getTransactionId(), result);
+
+        //Update validVariables
+        for (VariableAggregate varAgg : result.getAllElements().values()) {
+            Tuple[] value = varAgg.getValue();
+            if (value != null && (value.length>1 || value.length==1 && !(value[0] instanceof Tuple0))){
+                validVariables.add(old.getName());
+                break;
+            }
+        }
+
         //response method
         answerToAll(newAggregate);
     }

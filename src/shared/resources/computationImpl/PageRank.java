@@ -6,6 +6,7 @@ import shared.computation.Computation;
 import shared.computation.Vertex;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -24,7 +25,7 @@ public class PageRank extends Computation {
     private int maxNumOfIterations;
     private Double threshold;
 
-    private ConcurrentHashMap<String, Double> weights;
+    private HashMap<String, Double> weights;
 
     @Override
     public List<StepMsg> iterate(Vertex vertex, List<StepMsg> incoming, int iterationStep) {
@@ -61,7 +62,6 @@ public class PageRank extends Computation {
 
         List<StepMsg> outbox = new ArrayList<>();
         double weightToSend =  1.0 / vertex.getEdges().length;
-
         this.weights.put(vertex.getNodeId(), 1.0);
 
         for (String dest: vertex.getEdges()) {
@@ -94,7 +94,7 @@ public class PageRank extends Computation {
             this.threshold = Double.parseDouble(threshold);
         }
 
-        this.weights = new ConcurrentHashMap<>();
+        this.weights = new HashMap<>();
 
     }
 }

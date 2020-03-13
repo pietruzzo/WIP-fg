@@ -30,9 +30,9 @@ public class DebugMain {
         int numOfWorkers = Integer.parseInt(PropertyHandler.getProperty("numOfWorkers"));
         PropertyHandler.processes.set(PropertyHandler.processes.intValue() + numOfWorkers);
         for (int i = 0; i < numOfWorkers; i++) {
+            //Process pr1 = Runtime.getRuntime().exec("java -jar /home/pietro/Desktop/slave.jar ");
             TaskManager.main(new String[0]);
         }
-
 
 
     }

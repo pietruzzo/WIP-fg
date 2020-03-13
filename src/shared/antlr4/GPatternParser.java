@@ -16,6 +16,8 @@ import shared.selection.SelectionSolver;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 public class GPatternParser extends PatternBaseListener {
@@ -25,10 +27,12 @@ public class GPatternParser extends PatternBaseListener {
 
     private Trigger trigger;
     private List<String> sensitivityList;
+    private AtomicInteger transactionId;
 
     public GPatternParser(PatternCallback callback) {
         this.callback = callback;
         this.patternElements = new ArrayList<>();
+        this.transactionId = new AtomicInteger(new Random().nextInt());
     }
 
     static public ArrayList<Pattern> parse(String inputString, PatternCallback callback) {
@@ -138,7 +142,7 @@ public class GPatternParser extends PatternBaseListener {
             List<String> sensibleVars =
                     ctx.triggerSensitivity().variable()
                             .stream()
-                            .map(var -> CommonsParser.getVarName(var))
+                            .map(CommonsParser::getVarName)
                             .collect(Collectors.toList());
 
             this.sensitivityList.addAll(sensibleVars);
@@ -169,12 +173,12 @@ public class GPatternParser extends PatternBaseListener {
 
     @Override
     public void enterExtractStreamProcessing(shared.antlr4.pattern.PatternParser.ExtractStreamProcessingContext ctx) {
-        this.patternElements.add(StreamParser.getStream(ctx, this.trigger, this.callback));
+        this.patternElements.add(StreamParser.getStream(ctx, this.trigger, this.callback, transactionId));
     }
 
     @Override
     public void enterCollectStreamProcessing(shared.antlr4.pattern.PatternParser.CollectStreamProcessingContext ctx) {
-        this.patternElements.add(StreamParser.getStream(ctx, this.trigger, this.callback));
+        this.patternElements.add(StreamParser.getStream(ctx, this.trigger, this.callback, transactionId));
     }
 
 }

@@ -1,5 +1,8 @@
 package shared.streamProcessing;
 
+import shared.resources.operationImpl.Count;
+import shared.resources.operationImpl.Diff;
+import shared.resources.operationImpl.GreaterEqualThan10;
 import shared.resources.operationImpl.Max;
 import shared.streamProcessing.abstractOperators.CustomBinaryOperator;
 import shared.streamProcessing.abstractOperators.CustomFlatMapper;
@@ -49,6 +52,9 @@ public class OperationImplementations {
         streamFunctions = new HashMap<>();
 
         streamFunctions.put("max", new Max());
+        streamFunctions.put("greaterThan10", new GreaterEqualThan10());
+        streamFunctions.put("diff", new Diff());
+        streamFunctions.put("count", new Count());
     }
 
 }

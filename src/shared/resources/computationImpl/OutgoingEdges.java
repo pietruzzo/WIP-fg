@@ -10,11 +10,11 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Find max number of OutgoingEdges with the possibility to flood the maximum number.
- * Maximum will be register only to reachable nodes, otherwise some nodes could stuck to local max
+ * Find number of OutgoingEdges with the possibility to flood the maximum number.
+ * Maximum will be register only to reachable nodes
  *
  * Parameters:
- *          0: "spread" to spread maximum ( "true" to spread )
+ *          0: "spread" to spread maximum ( "true" to spread, false as Default)
  *
  * Return Values :
  *          0: (Maximum) outgoing edges label name
@@ -84,7 +84,12 @@ public class OutgoingEdges extends Computation {
     public void preStart() {
 
         outgoingEdgesNum = new ConcurrentHashMap<>();
-        this.spread = computationParameters.getParameter("spread").equals("true");
+        String spread = computationParameters.getParameter("spread");
+        if (spread != null) {
+            this.spread = spread.equals("true");
+        } else {
+            this.spread = false;
+        }
 
     }
 

@@ -40,7 +40,7 @@ public class ComputationRuntime {
     }
 
 
-    public void compute (int stepNumber) throws ExecutionException, InterruptedException {
+    public void compute (int stepNumber) {
 
         this.stepNumber = stepNumber;
 
@@ -110,7 +110,11 @@ public class ComputationRuntime {
     }
 
     public void setComputation(Computation computation) {
-            this.computation = computation;
+        try {
+            this.computation = computation.clone();
+        } catch (CloneNotSupportedException e) {
+            e.printStackTrace();
+        }
     }
 
     public void setVertices(Map<String, Vertex> vertices) { this.vertices = vertices; }

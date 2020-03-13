@@ -55,20 +55,24 @@ public interface Operations extends Serializable {
     class Reduce implements Operations{
 
         public final CustomBinaryOperator accumulator;
-        public final Long transaction_Id;
+        public final int transaction_id;
         public final ArrayList<String> fieldNames;
 
-        public Reduce(CustomBinaryOperator accumulator, @Nullable Long transaction_id, String[] fieldsNames) {
+        public Reduce(CustomBinaryOperator accumulator, int transaction_id, String[] fieldsNames) {
             this.accumulator = accumulator;
-            this.transaction_Id = transaction_id;
+            this.transaction_id = transaction_id;
             this.fieldNames = new ArrayList<>(Arrays.asList(fieldsNames));
+        }
+
+        public int getTransaction_id() {
+            return transaction_id;
         }
 
         @Override
         public String toString() {
             return "Reduce{" +
                     ", accumulator=" + accumulator +
-                    ", transaction_Id=" + transaction_Id +
+                    ", transaction_Id=" + transaction_id +
                     ", fieldNames=" + fieldNames +
                     '}';
         }
@@ -129,10 +133,10 @@ public interface Operations extends Serializable {
     class StreamVariable implements Operations{
 
         public final String VariableName;
-        public final String timeAgo;
+        public final long timeAgo;
         public final SelectionSolver.Operation.WindowType wType;
 
-        public StreamVariable(String variableName, String timeAgo, SelectionSolver.Operation.WindowType wType) {
+        public StreamVariable(String variableName, long timeAgo, SelectionSolver.Operation.WindowType wType) {
             VariableName = variableName;
             this.timeAgo = timeAgo;
             this.wType = wType;
@@ -173,12 +177,16 @@ public interface Operations extends Serializable {
 
         public final String variableName;
         public final long persistence;
-        public final Long transaction_id;
+        public final int transaction_id;
 
-        public Emit(String variableName, long persistence, @Nullable Long transaction_id) {
+        public Emit(String variableName, long persistence, int transaction_id) {
             this.variableName = variableName;
             this.persistence = persistence;
             this.transaction_id = transaction_id;
+        }
+
+        public int getTransaction_id() {
+            return transaction_id;
         }
 
         @Override
@@ -194,15 +202,19 @@ public interface Operations extends Serializable {
     class Evaluate implements Operations{
 
         public final SelectionSolver.Operation.Operator operator;
-        public final Long transaction_id;
+        public final int transaction_id;
         public final String value;
         public final String fireEvent;
 
-        public Evaluate(SelectionSolver.Operation.Operator operator, Long transaction_id, String value, String fireEvent) {
+        public Evaluate(SelectionSolver.Operation.Operator operator, int transaction_id, String value, String fireEvent) {
             this.operator = operator;
             this.transaction_id = transaction_id;
             this.value = value;
             this.fireEvent = fireEvent;
+        }
+
+        public int getTransaction_id() {
+            return transaction_id;
         }
 
         @Override

@@ -16,11 +16,11 @@ public class ConnectedGraph {
 
         final ParameterTool param = ParameterTool.fromArgs(args);
 
-        final int size = Integer.parseInt(param.get("size", "9000"));
+        final int size = Integer.parseInt(param.get("size", "100000"));
 
-        final String outputPath = param.get("name", "./dataset9k.txt");
+        final String outputPath = param.get("name", "./dataset100k.txt");
 
-        final double otherRandomEdges = param.getDouble("addedEdgesOnVerticesRatio", 1.0);
+        final double otherRandomEdges = param.getDouble("addedEdgesOnVerticesRatio", 1.2);
 
         final int updates = param.getInt("nUpdates", 100);
 
@@ -99,11 +99,11 @@ public class ConnectedGraph {
         PrintWriter out = Utils.getFileWriter(outputPath);
 
         for (String usedVertex : usedVertices) {
-            out.println("vertex insert: " + usedVertex + ", " + generateLabelString(labels) + timestamp.next());
+            out.println("vertex insert: " + usedVertex + ", "  + timestamp.next());
         }
 
         edges.forEach((key, value) -> value
-                .forEach(edge -> out.println("edge insert: " + key + ", " + edge + ", " + generateLabelString(labels) + timestamp.next())));
+                .forEach(edge -> out.println("edge insert: " + key + ", " + edge + ", "  + timestamp.next())));
 
 
         //Generate updates

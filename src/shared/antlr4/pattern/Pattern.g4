@@ -50,7 +50,7 @@ evaluation
     ;
 
 operation
-    :   '.' operationFunction
+    :   operationFunction
     ;
 
 computationFunction
@@ -113,14 +113,14 @@ partitionFunction
     ;
 
 operationFunction
-    :   ( 'map' | 'flatmap' | 'reduce' | 'filter' ) '(' functionName (tupleField (',' tupleField)*)? ')'
-    |   ('groupby' | 'Merge') '(' tupleField (',' tupleField)* ')'
-    |   'collect'
+    :   ( '.map' | '.flatmap' | '.reduce' | '.filter' ) '(' functionName (tupleField (',' tupleField)*)? ')'
+    |   ('.groupby' | '.Merge') '(' tupleField (',' tupleField)* ')'
+    |   '.collect'
     |   oneFieldOperationAlias ('(' tupleField ')')?
     ;
 
 oneFieldOperationAlias
-    :   'avg' | 'max' | 'min' | 'count' | 'select'
+    :   '.avg' | '.max' | '.min' | '.count' | '.select'
     ;
 
 triggerComputation
@@ -187,12 +187,14 @@ OR : 'or' ;
 
 //UnaryBoolOperator: 'not' ;
 
+DOT: '.';
+
 Litterals : ( [a-z] | [A-Z] | Number | DOT )+ ;
 
 Timeunit : (Number+ ('-ms' | '-s' | '-m' | '-h'))+ ;
 
 Number : [0-9] ;
 
-DOT: '.';
+
 
 Skip : [ \t\n]+ -> skip;
