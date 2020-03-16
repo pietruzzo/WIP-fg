@@ -24,6 +24,7 @@ public interface ExtractedIf extends SubstitutableLabels{
 
     ExtractedIf filter(CustomPredicate filterFunction, ArrayList<String> args);
 
+    ExtractedStream.StreamType getStreamType();
 
     static Map<String, String> initializePartitionIfNull (@Nullable Map<String, String> partition) {
         if (partition != null) {

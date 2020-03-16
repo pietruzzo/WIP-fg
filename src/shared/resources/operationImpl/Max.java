@@ -1,6 +1,8 @@
 package shared.resources.operationImpl;
 
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import shared.streamProcessing.ExtractedStream;
 import shared.streamProcessing.abstractOperators.CustomBinaryOperator;
@@ -29,7 +31,15 @@ public class Max extends CustomBinaryOperator<Tuple3<String[], String[], Long>> 
 
     @Override
     public Function<Tuple3<String[],String[],  Long>, Tuple> extractResult() {
-        return longTuple2 -> new Tuple3<>(longTuple2.f0, longTuple2.f1,  new String[]{String.valueOf(longTuple2.f2)});
+        return longTuple2 -> {
+            if (longTuple2.f0 == null) {
+                return new Tuple1<>(new String[]{String.valueOf(longTuple2.f2)});
+            } else if (longTuple2.f1 == null) {
+                return new Tuple2<>(longTuple2.f0, new String[]{String.valueOf(longTuple2.f2)});
+            } else {
+                return new Tuple3<>(longTuple2.f0, longTuple2.f1, new String[]{String.valueOf(longTuple2.f2)});
+            }
+        };
     }
 
 

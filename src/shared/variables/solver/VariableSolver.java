@@ -531,8 +531,7 @@ public class VariableSolver implements Serializable {
     }
 
     public void removeOldVersions() {
-        this.varablesNew.entrySet().stream().forEach(entry -> {
-            NavigableMap<Long, Variable> versions = entry.getValue();
+        this.varablesNew.forEach((key, versions) -> {
             long keepTimestamp = this.currentTimestamp - versions.get(versions.lastKey()).getPersistence();
             long lastToKeep;
 
@@ -545,10 +544,10 @@ public class VariableSolver implements Serializable {
 
             Iterator<Long> iterator = versions.keySet().iterator();
 
-            while (iterator.hasNext()){
+            while (iterator.hasNext()) {
                 long current = iterator.next();
 
-                if (current < lastToKeep){
+                if (current < lastToKeep) {
                     iterator.remove();
                 } else {
                     break;
@@ -576,7 +575,7 @@ public class VariableSolver implements Serializable {
     public void printVariable(String name) {
         try {
             System.out.println(this.varablesNew.get(name).lastEntry().getValue().toString());
-        } catch (Exception e) {}
+        } catch (Exception ignored) {}
     }
 
     public void printAllVariables() {

@@ -81,6 +81,11 @@ public class ExtractedGroupedStream implements ExtractedIf {
 
     }
 
+    @Override
+    public StreamType getStreamType() {
+        return streamType;
+    }
+
     public Map<String, String> getPartition() {
         return partition;
     }

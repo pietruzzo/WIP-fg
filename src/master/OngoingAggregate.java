@@ -125,22 +125,27 @@ public class OngoingAggregate {
             Set<Tuple> toRemove = new HashSet<>();
             for (int i = 0; i < values.size(); i++) {
                 for (int j = i+1; j < values.size(); j++) {
-                    boolean deleteI = false;
-                        if (values.get(i).getArity() == values.get(j).getArity()) {
+                    boolean deleteI = true;
+                        if (values.get(i).getArity() != values.get(j).getArity()) {
+                            deleteI = false;
+                        } else {
                             for (int k = 0; k < values.get(i).getArity(); k++) {
-                                boolean allFieldsEqual = true;
                                 String[] a = values.get(i).getField(k);
                                 String[] b = values.get(j).getField(k);
-                                if (a.length == b.length){
-                                    for (int l = 0; l < a.length; l++) {
-                                        if (!(a[l].equals(b[l]))){
-                                            allFieldsEqual = false;
-                                            break;
+                                if (a != null || b != null) {
+                                    if (a == null || b == null) {
+                                        deleteI = false;
+                                    } else if (a.length == b.length) {
+                                        for (int l = 0; l < a.length; l++) {
+                                            if (!(a[l].equals(b[l]))) {
+                                                deleteI = false;
+                                                break;
+                                            }
                                         }
                                     }
-                                    if (allFieldsEqual) deleteI = true;
                                 }
                             }
+
                         }
                     if (deleteI) toRemove.add(values.get(i));
                 }

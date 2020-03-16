@@ -3,12 +3,12 @@ package shared;
 import java.io.*;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
 
 public class PropertyHandler {
 
     static private PropertyHandler propertyHandler;
     static public AtomicInteger processes = new AtomicInteger(0);
+    static AtomicInteger spaceLogRequests = new AtomicInteger(0);
 
     private final String DEFAULT_PROP_LOCATION1 = "config.properties";
     private final String DEFAULT_PROP_LOCATION2 = "src/shared/resources/config.properties";
@@ -34,6 +34,7 @@ public class PropertyHandler {
         }
     }
 
+
     public static void writeSpacePerformanceLog(String msg) {
 
         try {
@@ -43,11 +44,16 @@ public class PropertyHandler {
             long pid = ProcessHandle.current().pid();
             Runtime runtime = Runtime.getRuntime();
 
+            if (msg.contains("BEFORE_EMISSION_MEM")) return;
 
-            System.out.println("launching GC: " + msg + " " + Utils.getUsedMemoryMB());
-            Process pr1 = runtime.exec("jcmd " + pid + " GC.run");
-            pr1.waitFor();
-            System.out.println("finished GC: " + msg + " " + Utils.getUsedMemoryMB());
+            int i = spaceLogRequests.incrementAndGet();
+            if (i == Integer.parseInt(PropertyHandler.getProperty("numOfWorkers"))){
+                spaceLogRequests.set(0);
+                //System.out.println("launching GC: " + msg + " " + Utils.getUsedMemoryMB());
+                Process pr1 = runtime.exec("jcmd " + pid + " GC.run");
+                pr1.waitFor();
+                System.out.println("finished GC: " + msg + " " + Utils.getUsedMemoryMB());
+            }
 
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();

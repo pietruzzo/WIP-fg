@@ -235,7 +235,8 @@ public class PartitionStreamsHandler {
 
                     Operations.Reduce opReduce = (Operations.Reduce) operation;
                     final MultiKeyMap<Map<Tuple, Object>> reduced = new MultiKeyMap<>(partitions.getKeys());
-                    final ArrayList<String> fieldNames = opReduce.accumulator.getNewFieldNames(null);
+                    ExtractedStream.StreamType oldType = partitions.getAllElements().values().iterator().next().getStreamType();
+                    final ArrayList<String> fieldNames = opReduce.accumulator.getNewFieldNames(oldType);
                     partitions.getAllElements().entrySet().stream().forEach(entry -> reduced.putValue(entry.getKey(), entry.getValue().reduce(opReduce.accumulator, opReduce.fieldNames)));
 
                     //send to master reduced results -> USE ASK to get response

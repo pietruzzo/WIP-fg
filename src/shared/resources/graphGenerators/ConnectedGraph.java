@@ -110,7 +110,7 @@ public class ConnectedGraph {
 
 
         for (int i = 0; i < updates; i++) {
-            out.println("vertex update: " + "v" + (i+100) + ", labelU = A ,"+ timestamp.next());
+            out.println("vertex update: " + usedVertices.get(randomExtractor.nextInt(size)) + ", labelU = A ,"+ timestamp.next());
         }
 
 

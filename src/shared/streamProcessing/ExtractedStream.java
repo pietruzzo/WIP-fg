@@ -125,6 +125,7 @@ public class ExtractedStream implements ExtractedIf{
     }
 
 
+    @Override
     public StreamType getStreamType() {
         return streamType;
     }
