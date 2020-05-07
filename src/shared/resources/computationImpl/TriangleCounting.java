@@ -1,12 +1,11 @@
 package shared.resources.computationImpl;
 
 import akka.japi.Pair;
-import shared.AkkaMessages.StepMsg;
 import shared.computation.Computation;
 import shared.computation.Vertex;
+import shared.data.StepMsg;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Implementation of triangle counting

@@ -1,4 +1,4 @@
-package shared.AkkaMessages;
+package shared.data;
 
 import java.io.Serializable;
 

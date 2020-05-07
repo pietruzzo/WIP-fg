@@ -3,13 +3,13 @@ package shared.computation;
 import akka.actor.ActorRef;
 import akka.japi.Pair;
 import org.apache.flink.api.java.tuple.Tuple2;
-import shared.AkkaMessages.StepMsg;
+import shared.PropertyHandler;
 import shared.data.BoxMsg;
+import shared.data.StepMsg;
 import shared.exceptions.ComputationFinishedException;
 
+import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
 
 public class ComputationRuntime {
 
@@ -17,6 +17,7 @@ public class ComputationRuntime {
     private Computation computation;
     private final LinkedHashMap<String, String> freeVars; //FreeVars, can be null
     private HashMap<String, Vertex> vertices; //with runtime view of edges
+    private static final int msgThreshold = retrieveMsgThreshold();
 
     private int stepNumber;
     private Map<ActorRef, BoxMsg> outgoingMessages;
@@ -87,7 +88,7 @@ public class ComputationRuntime {
             //It isn't the first iteration
 
             for (Vertex vertex: activeVertices.values()) {
-                ArrayList<StepMsg> messages = (ArrayList<StepMsg>) inboxMessages.getData().get(vertex.getNodeId());
+                ArrayList<StepMsg> messages = (ArrayList<StepMsg>) inboxMessages.get(vertex.getNodeId());
                 if ( messages == null ) {
                     messages = new ArrayList<>();
                 }
@@ -190,20 +191,19 @@ public class ComputationRuntime {
             this.inboxMessages = new BoxMsg(ingoingMessages.getStepNumber());
         }
 
-        Set<Map.Entry<String, ArrayList<TMes>>> entrySet = ingoingMessages.getData().entrySet();
+        Set<Map.Entry<String, ArrayList<TMes>>> entrySet = ingoingMessages.entrySet();
 
         for (Map.Entry<String, ArrayList<TMes>> entry : entrySet) {
 
 
-            if (this.inboxMessages.getData().containsKey(entry.getKey())) {
+            if (this.inboxMessages.containsKey(entry.getKey())) {
                 // Vertex already in in inbox -> append new messages
                 for (TMes message : entry.getValue()) {
-                    this.inboxMessages.put(entry.getKey(), message);
-
+                    this.inboxMessages.addToValue(entry.getKey(), message);
                 }
             } else {
                 // Generate the entry with the list of incoming messages in inbox
-                this.inboxMessages.getData().put(entry.getKey(), entry.getValue());
+                this.inboxMessages.put(entry.getKey(), entry.getValue());
                 //Vertex receiving message becomes active
                 this.activeVertices.putIfAbsent(entry.getKey(), vertices.get(entry.getKey()));
             }
@@ -222,9 +222,22 @@ public class ComputationRuntime {
             ActorRef actor = taskManager.getActor(sm.destinationVertex);
             BoxMsg actorBox = outgoingMessages.get(actor);
 
-            actorBox.getData().computeIfAbsent(sm.destinationVertex, k-> new ArrayList<>());
-            actorBox.put(sm.destinationVertex, sm);
+            actorBox.addToValue(sm.destinationVertex, sm);
 
+            //Send partial outboxes
+            if (actorBox.numMessages() > this.msgThreshold){
+                taskManager.sendPartialOutbox(actorBox, actor);
+                outgoingMessages.put(actor, new BoxMsg(actorBox.getStepNumber()));
+            }
+
+        }
+    }
+
+    private static int retrieveMsgThreshold () {
+        try {
+            return Integer.parseInt(PropertyHandler.getProperty("outboxSizeThreshold"));
+        } catch (IOException e) {
+            return 10000;
         }
     }
 

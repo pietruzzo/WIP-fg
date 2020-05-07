@@ -49,7 +49,6 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 //LAST USED: private static final long serialVersionUID = 200063L;
 
@@ -123,7 +122,7 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 			match(NewTimestampMsg.class, this::onNewTimestampMsg).
 			match(SaveVariableGraphMsg.class, this::onSaveVariableGraphMsg). //
 			match(RestoreVariableGraphMsg.class, this::onRestoreVariableGraphMsg). //
-			match(BoxMsg.class, x->stash()). //
+			match(BoxMsg.class, x-> log.error("BoxMsg in wrong place")). //
 			match(ValidateNodesMsg.class, x->stash()). //
 			match(Serializable.class, x-> log.error("received wrong message: " + x + " from " + sender() + " I am " + self())).
 		    build();
@@ -470,6 +469,10 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 		computationRuntime.updateIncomingMsgs(incoming);
 		getSender().tell(new AckMsg(), self());
 
+		if (incoming.isLast()) {
+			self().tell(new AckMsg(), self());
+		}
+
 	}
 
 	/**
@@ -686,9 +689,11 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 	private void sendOutBox(Map<ActorRef, BoxMsg> outgoingBox){
 
 		//Increase waiting response and send also if empty
-		this.waitingResponses.addAndGet(outgoingBox.size());
+		//increment for waiting ack and last message from other partitions
+		this.waitingResponses.addAndGet(outgoingBox.size() * 2);
 		for (Map.Entry<ActorRef, BoxMsg> destOutbox: outgoingBox.entrySet()) {
 
+			destOutbox.getValue().setLastFlag(true);
 			destOutbox.getKey().tell(destOutbox.getValue(), self());
 
 		}
@@ -728,6 +733,15 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 	public ActorRef getActor(String vertex) {
 		return this.slaves.get(Utils.getPartition(vertex, this.slaves.size()));
 	}
+
+	@Override
+	public void sendPartialOutbox(BoxMsg outbox, ActorRef actor) {
+
+		this.waitingResponses.incrementAndGet();
+		actor.tell(outbox, self());
+
+	}
+
 
 	/**
 	 *

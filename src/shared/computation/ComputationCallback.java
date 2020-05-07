@@ -3,7 +3,7 @@ package shared.computation;
 import akka.actor.ActorRef;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.jetbrains.annotations.Nullable;
-import shared.variables.solver.VariableSolver;
+import shared.data.BoxMsg;
 
 import java.util.Map;
 
@@ -14,4 +14,7 @@ public interface ComputationCallback {
     Map<Integer, ActorRef> getActors ();
 
     ActorRef getActor (String name);
+
+    void sendPartialOutbox (BoxMsg outbox, ActorRef actor);
+
 }

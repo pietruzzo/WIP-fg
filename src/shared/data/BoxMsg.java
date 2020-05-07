@@ -21,13 +21,25 @@ public class BoxMsg<TMsg> implements Serializable {
     private Map<String, String> partition;
 
     /**
+     * True: no more messages to transmit from Actors A to B
+     */
+    private boolean lastBox;
+
+    /**
+     * number of inserted msgs
+     */
+    private int insertedMsgs;
+
+    /**
      * Destination, ListOfMessages
      */
     private final HashMap<String, ArrayList<TMsg>> data;
 
     public BoxMsg(long stepNumber) {
         this.stepNumber = stepNumber;
-        data = new HashMap<>();
+        this.data = new HashMap<>();
+        this.lastBox = false;
+        this.insertedMsgs = 0;
     }
 
     public long getStepNumber(){
@@ -42,8 +54,19 @@ public class BoxMsg<TMsg> implements Serializable {
         return this.partition;
     }
 
-    public void put(String destination, TMsg message){
+    public void addToValue(String destination, TMsg message){
+        data.computeIfAbsent(destination, k-> new ArrayList<>());
         data.get(destination).add(message);
+        insertedMsgs++;
+    }
+
+    public ArrayList<TMsg> put(String destination, ArrayList<TMsg> messageList){
+        insertedMsgs = insertedMsgs + messageList.size();
+        ArrayList<TMsg> oldValue = data.put(destination, messageList);
+        if (oldValue != null) {
+            insertedMsgs = insertedMsgs - oldValue.size();
+        }
+        return oldValue;
     }
 
     /**
@@ -57,11 +80,28 @@ public class BoxMsg<TMsg> implements Serializable {
         return this.data.isEmpty();
     }
 
-    public Set<String> keySet (){ return data.keySet();}
+    public Set<Map.Entry<String, ArrayList<TMsg>>> entrySet (){
+        return data.entrySet();
+    }
 
+    public boolean containsKey(String key) {
+        return data.containsKey(key);
+    }
+
+    public int numMessages () {
+        return this.insertedMsgs;
+    }
 
     public HashMap<String, ArrayList<TMsg>> getData(){
         return this.data;
+    }
+
+    public void setLastFlag(boolean lastBox) {
+        this.lastBox = lastBox;
+    }
+
+    public boolean isLast() {
+        return this.lastBox;
     }
 
     @Override
@@ -69,7 +109,10 @@ public class BoxMsg<TMsg> implements Serializable {
         return "BoxMsg{" +
                 "stepNumber=" + stepNumber +
                 ", partition=" + partition +
+                ", lastBox=" + lastBox +
                 ", data=" + data +
                 '}';
     }
+
+
 }

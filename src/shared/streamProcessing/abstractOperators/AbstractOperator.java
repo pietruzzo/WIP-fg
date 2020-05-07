@@ -6,7 +6,6 @@ import shared.streamProcessing.SubstitutableLabels;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
 
 public abstract class AbstractOperator implements Serializable {
 

@@ -4,7 +4,6 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import shared.PropertyHandler;
-import shared.Utils;
 import shared.computation.ComputationRuntime;
 import shared.data.MultiKeyMap;
 import shared.exceptions.InvalidOperationChain;

@@ -43,6 +43,8 @@ autonomousMode = true (use dataset inputs and do not permit user interaction at 
 
 numOfWorkers = 4 (number of workers actor per instance)
 
+outboxSizeThreshold = 10000 (size of outbox, it need to be optimized based on tha application)
+
 appendLog = false (open log field in append mode)
 
 debugLog = true (do not suppress INFO log)

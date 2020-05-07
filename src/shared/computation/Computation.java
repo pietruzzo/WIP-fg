@@ -1,7 +1,7 @@
 package shared.computation;
 
 import akka.japi.Pair;
-import shared.AkkaMessages.StepMsg;
+import shared.data.StepMsg;
 
 import java.io.Serializable;
 import java.util.List;

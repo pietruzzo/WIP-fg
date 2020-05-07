@@ -1,14 +1,13 @@
 package shared.resources.computationImpl;
 
 import akka.japi.Pair;
-import shared.AkkaMessages.StepMsg;
 import shared.computation.Computation;
 import shared.computation.Vertex;
+import shared.data.StepMsg;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Find max number of IngoingEdges with the possibility to flood the maximum number.
