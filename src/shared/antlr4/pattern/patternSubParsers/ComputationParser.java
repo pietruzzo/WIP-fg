@@ -7,7 +7,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import shared.antlr4.pattern.PatternBaseListener;
 import shared.antlr4.pattern.PatternParser;
-import shared.computation.ComputationParameters;
+import shared.computation.ComputationParametersImpl;
 import shared.patterns.Computation;
 import shared.patterns.Trigger;
 import shared.selection.SelectionSolver;
@@ -21,8 +21,7 @@ public class ComputationParser extends PatternBaseListener {
     private PatternCallback callback;
     private Computation computation;
     private String functionName;
-    private ComputationParameters computationParameters;
-    private List<Tuple2<String, Long>> returnVariablesNames;
+    private ComputationParametersImpl computationParameters;
 
     private ComputationParser(Trigger trigger, PatternCallback callback) {
         this.trigger = trigger;
@@ -45,14 +44,16 @@ public class ComputationParser extends PatternBaseListener {
      * Entrypoint to ComputationTree parsing
      * @param ctx computation subTree
      */
-    @Override public void enterComputation(shared.antlr4.pattern.PatternParser.ComputationContext ctx) { }
+    @Override public void enterComputation(shared.antlr4.pattern.PatternParser.ComputationContext ctx) {
+        this.computationParameters = new ComputationParametersImpl();
+    }
     /**
      * Generate pattern.Computation object
      */
     @Override public void exitComputationFunction(shared.antlr4.pattern.PatternParser.ComputationFunctionContext ctx) {
 
         this.computation = new Computation(this.trigger, null, this.callback);
-        this.computation.setComputation(this.functionName, this.returnVariablesNames, this.computationParameters);
+        this.computation.setComputation(this.functionName, this.computationParameters);
 
     }
 
@@ -69,19 +70,21 @@ public class ComputationParser extends PatternBaseListener {
         }
         PatternParser.PatternEntryContext fRoot = (PatternParser.PatternEntryContext)root;
         // Name of target label
-        this.returnVariablesNames = ctx.variable()
+        List<Tuple2<String, Long>> returnVariablesNames;
+        returnVariablesNames = ctx.variable()
                 .stream()
                 .map(ctxVar -> CommonsParser.getVarName(ctxVar))
                 .map(var -> new Tuple2<>(var, CommonsParser.getMaxTemporalWindow(fRoot, var)))
                 .collect(Collectors.toList());
+
+        //Add return Variables to Computation Parameters
+        computationParameters.setReturnVarNames(returnVariablesNames);
     }
 
     /**
-     * Get initialize parameters
      * @param ctx
      */
     @Override public void enterComputationParameters(PatternParser.ComputationParametersContext ctx){
-        this.computationParameters = new ComputationParameters();
     }
 
     @Override public void enterAliasedParameter(PatternParser.AliasedParameterContext ctx){
@@ -90,21 +93,21 @@ public class ComputationParser extends PatternBaseListener {
             String value = CommonsParser.getValue(ctx.operands().value());
             this.computationParameters.put(
                     ctx.Litterals().getText(),
-                    new ComputationParameters.Parameter(value)
+                    new ComputationParametersImpl.Parameter(value)
             );
         }
         else if (ctx.operands().label() != null){
             String label = CommonsParser.getLabel(ctx.operands().label());
             this.computationParameters.put(
                     ctx.Litterals().getText(),
-                    new ComputationParameters.Parameter(label, false, true, null, null)
+                    new ComputationParametersImpl.Parameter(label, 1, null, null)
             );
         }
         else if (ctx.operands().temporalVariable() != null){
             Tuple3<String, String, SelectionSolver.Operation.WindowType> temporalVar = CommonsParser.getTemporalVar(ctx.operands().temporalVariable());
             this.computationParameters.put(
                     ctx.Litterals().getText(),
-                    new ComputationParameters.Parameter(temporalVar.f0, false, false, temporalVar.f1, temporalVar.f2)
+                    new ComputationParametersImpl.Parameter(temporalVar.f0, 2, temporalVar.f1, temporalVar.f2)
             );
         }
     }

@@ -6,6 +6,7 @@ import shared.computation.Computation;
 import shared.computation.Vertex;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -23,7 +24,7 @@ public class IngoingEdges extends Computation {
 
     private boolean spread;
 
-    private ConcurrentHashMap<String, Integer> ingoingEdgeNum;
+    private HashMap<String, Integer> ingoingEdgeNum;
 
     @Override
     public List<StepMsg> iterate(Vertex vertex, List<StepMsg> incoming, int iterationStep) {
@@ -33,35 +34,38 @@ public class IngoingEdges extends Computation {
         if (iterationStep == 1) {
             ingoingEdgeNum.put(vertex.getNodeId(), incoming.size());
 
-            for (String destination: vertex.getEdges()) {
-                outbox.add( new StepMsg(destination, vertex.getNodeId(), incoming.size()) );
+            if (!spread) {
+                voteToHalt();
+            } else {
+                for (String destination: vertex.getEdges()) {
+                    outbox.add(new StepMsg<>(destination, vertex.getNodeId(), incoming.size()) );
+                }
             }
 
-            return outbox;
-        }
+        } else {
+            // From superstep = 2 -> collect maximum of neighbor and, if major that current, update and spread
 
-        if (!spread)
-            return null;
+            int max = ingoingEdgeNum.get(vertex.getNodeId());
 
-        else {
-
-            int max = incoming
-                    .stream()
-                    .map(msg -> (int)msg.computationValues)
-                    .reduce((i1, i2) -> i1 > i2 ? i1 : i2)
-                    .get();
-
-            //STOP if new max is not greater than older one
-            if (max <= ingoingEdgeNum.get(vertex.getNodeId()))
-                return null;
-
-            ingoingEdgeNum.put(vertex.getNodeId(), max);
-
-            for (String destination: vertex.getEdges()) {
-                outbox.add( new StepMsg(destination, vertex.getNodeId(), max) );
+            //Update max
+            for (StepMsg sm: incoming) {
+                if (((Integer) sm.computationValues) > max){
+                    max = ((Integer) sm.computationValues);
+                }
             }
-            return outbox;
+
+            //if max is changed -> update and send
+            if (max != ingoingEdgeNum.get(vertex.getNodeId())){
+                ingoingEdgeNum.put(vertex.getNodeId(), max);
+                for (String destination: vertex.getEdges()) {
+                    outbox.add(new StepMsg<>(destination, vertex.getNodeId(), max) );
+                }
+            } else { // Otherwise don't send and halt
+                voteToHalt();
+            }
+
         }
+        return outbox;
     }
 
     @Override
@@ -81,7 +85,7 @@ public class IngoingEdges extends Computation {
 
         List<Pair<String, String[]>> returnValues = new ArrayList<>();
 
-        returnValues.add(new Pair<>(this.returnVarNames().get(0), new String[]{
+        returnValues.add(new Pair<>(this.computationParameters.returnVarNames().get(0), new String[]{
                 String.valueOf(this.ingoingEdgeNum.get(vertex.getNodeId()))
         }));
 
@@ -92,7 +96,7 @@ public class IngoingEdges extends Computation {
     public void preStart() {
 
         this.spread = computationParameters.getParameter("spread").equals("true");
-        ingoingEdgeNum = new ConcurrentHashMap<>();
+        ingoingEdgeNum = new HashMap<>();
     }
 
 }

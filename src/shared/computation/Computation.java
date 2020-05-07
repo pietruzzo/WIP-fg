@@ -1,45 +1,45 @@
 package shared.computation;
 
 import akka.japi.Pair;
-import org.apache.flink.api.java.tuple.Tuple2;
 import shared.AkkaMessages.StepMsg;
 
 import java.io.Serializable;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
- * Datastructures shared between nodes must be threadsafe
  * Class variables has the partition+group scope, hence you cannot retrieve values from different workers or groups
  * Class variables must be initialized in PRESTART method
  */
 public abstract class Computation implements Serializable, Cloneable {
 
+
     protected ComputationParameters computationParameters;
-    private List<Tuple2<String, Long>> returnVarNames;
+    private boolean haltVote;
 
-
-    public ComputationParameters getComputationParameters() {
-        return computationParameters;
+    protected final void voteToHalt () {
+        haltVote = true;
     }
 
-    public void setComputationParameters(ComputationParameters computationParameters) {
+    /**
+     * set haltVote to false
+     * @return previous haltVote
+     */
+    public final boolean resetHalted () {
+        if (haltVote) {
+            haltVote = false;
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    // region: Methods handled by framework, do not call it
+
+    public final void setComputationParameters(ComputationParameters computationParameters) {
         this.computationParameters = computationParameters;
     }
 
-    public void setReturnVarNames(List<Tuple2<String, Long>> returnVarNames) {
-        this.returnVarNames = returnVarNames;
-    }
-
-    public List<String> returnVarNames (){
-        return returnVarNames.stream().map(var -> var.f0).collect(Collectors.toList());
-    }
-
-    public List<Tuple2<String, Long>> getVarsTemporalWindow (){
-        return returnVarNames;
-    }
-
-
+    // endregion
 
     /**
      * @param vertex copy of the vertex
@@ -65,6 +65,7 @@ public abstract class Computation implements Serializable, Cloneable {
 
     /**
      * Run this method one time just before first iteration
+     * It is executed 1 time per worker before superstep zero
      */
     public abstract void preStart();
 

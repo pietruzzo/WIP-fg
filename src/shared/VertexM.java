@@ -26,6 +26,7 @@ public class VertexM implements Serializable, Vertex {
         this.edges = edges;
     }
 
+    @Override
     public String getNodeId(){
         return this.nodeId;
     }
@@ -46,6 +47,7 @@ public class VertexM implements Serializable, Vertex {
         return state.get(labelName);
     }
 
+    @Override
     public String[] getEdges(){
         return this.edges.keySet().toArray(String[]::new);
     }

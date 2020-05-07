@@ -7,6 +7,7 @@ import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.jetbrains.annotations.Nullable;
 import shared.Utils;
+import shared.VertexM;
 import shared.computation.ComputationRuntime;
 import shared.exceptions.InvalidOperationChain;
 import shared.streamProcessing.abstractOperators.CustomBinaryOperator;
@@ -56,13 +57,13 @@ public class ExtractedStream implements ExtractedIf{
         this.tupleFields.addAll(tupleFields);
 
 
-        //Create parallel stream
+        //Create stream
         if (!isEdgeExtraction) {
             this.stream = computationRuntime.getVertices().values().stream().map(value -> {
                 Tuple t = Tuple.newInstance(this.tupleFields.size());
                 t.setField(new String[]{value.getNodeId()}, 0);
                 for (int i = 1; i < t.getArity(); i++) {
-                    t.setField(value.getLabelVertex(this.tupleFields.get(i)), i);
+                    t.setField(((VertexM)value).getLabelVertex(this.tupleFields.get(i)), i);
                 }
                 return t;
             });
@@ -71,12 +72,12 @@ public class ExtractedStream implements ExtractedIf{
                 ArrayList<Tuple> returnTuples = new ArrayList<>();
                 for (String edgeLink: value.getEdges()) {
                     //Add edges only from source
-                    if (value.getLabelEdge(edgeLink, JobManagerActor.DESTINATION_EDGE.first()) == null) {
+                    if (((VertexM)value).getLabelEdge(edgeLink, JobManagerActor.DESTINATION_EDGE.first()) == null) {
                         Tuple t = Tuple.newInstance(this.tupleFields.size());
                         t.setField(new String[]{value.getNodeId()}, 0);
                         t.setField(new String[]{edgeLink}, 1);
                         for (int i = 2; i < t.getArity(); i++) {
-                            t.setField(value.getLabelEdge(edgeLink, this.tupleFields.get(i)), i);
+                            t.setField(((VertexM)value).getLabelEdge(edgeLink, this.tupleFields.get(i)), i);
                         }
                         returnTuples.add(t);
                     }

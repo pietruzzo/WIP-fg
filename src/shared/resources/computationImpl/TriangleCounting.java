@@ -5,10 +5,7 @@ import shared.AkkaMessages.StepMsg;
 import shared.computation.Computation;
 import shared.computation.Vertex;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -24,7 +21,7 @@ public class TriangleCounting extends Computation {
 
     private boolean cyclic;
 
-    private ConcurrentHashMap<String, ArrayList<ArrayList<String>>> results;
+    private HashMap<String, ArrayList<ArrayList<String>>> results;
 
 
 
@@ -57,6 +54,7 @@ public class TriangleCounting extends Computation {
                     });
 
             results.put(vertex.getNodeId(), triangles);
+            voteToHalt();
             return null;
         }
 
@@ -76,6 +74,7 @@ public class TriangleCounting extends Computation {
                     });
 
             results.put(vertex.getNodeId(), triangles);
+            voteToHalt();
             return null;
         }
 
@@ -147,7 +146,7 @@ public class TriangleCounting extends Computation {
             triangles.add(triangleString);
         });
 
-        Pair<String, String[]> pair = new Pair<>(this.returnVarNames().get(0), triangles.toArray(String[]::new));
+        Pair<String, String[]> pair = new Pair<>(this.computationParameters.returnVarNames().get(0), triangles.toArray(String[]::new));
         returnResults.add(pair);
         return returnResults;
     }
@@ -163,7 +162,7 @@ public class TriangleCounting extends Computation {
             this.cyclic = false;
         }
 
-        this.results = new ConcurrentHashMap<>();
+        this.results = new HashMap<>();
     }
 
 }

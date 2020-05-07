@@ -359,9 +359,7 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 	private  final void onRestoreVariableGraphMsg(RestoreVariableGraphMsg msg) {
 		log.info(msg.toString());
 
-		/*
-		For each partition, for each node, keep only vertices and nodes not deleted
-		 */
+
 
 		if	(msg.getVariableName() == null) {
 
@@ -371,23 +369,20 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 
 		} else {
 
+			/*
+			Restore old graph
+		 	*/
+
 			MultiKeyMap<Map<String, Vertex>> newPartitions = this.variables.getGraphs(msg.getVariableName(), msg.getTimeAgo());
+			this.partitionComputations = new MultiKeyMap<>(newPartitions.getKeys());
 
-			newPartitions.getAllElements().entrySet().forEach(entryP -> {
+			newPartitions.getAllElements().entrySet().stream()
+					.map(partition -> new ComputationRuntime(
+							this,
+							new LinkedHashMap<>(partition.getKey().getKeysMapping()),
+							new HashMap<>(partition.getValue())))
+					.forEach(runtime -> this.partitionComputations.putValue(new HashMap<>(runtime.getPartition()), runtime));
 
-				entryP.getValue().values().stream()
-						.filter(vertex -> this.vertices.get(vertex.getNodeId()) != null)
-						.forEach(vertex -> {
-							Arrays.asList(vertex.getEdges()).stream().forEach(edge -> {
-								VertexM vertexM = ((VertexM) vertex);
-								String[] edges = vertexM.getEdges();
-								if (!(Arrays.asList(edges).contains(edge))) {
-									vertexM.deleteEdge(edge);
-								}
-							});
-						});
-			});
-			//todo create runtimes
 		}
 		master.tell(new AckMsg(), self());
 
@@ -444,15 +439,11 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 		if (msg.getFreeVars() == null) {
 			//Get all Runtimes, set return value variable name and send messages
 			for (ComputationRuntime computationRuntime: partitionComputations.getAllElements().values()) {
-				Computation currentComputation = computationRuntime.getComputation();
-				currentComputation.setReturnVarNames(msg.getReturnVarNames());
 				computationRuntime.computeResults();
 			}
 		} else {
 			//get and run the specific runtime and send messages
 			ComputationRuntime computationRuntime = partitionComputations.getValue(msg.getFreeVars());
-			Computation currentComputation = computationRuntime.getComputation();
-			currentComputation.setReturnVarNames(msg.getReturnVarNames());
 			computationRuntime.computeResults();
 		}
 
@@ -578,7 +569,7 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 					}).collect(Collectors.toMap(vertex -> vertex.getNodeId(), vertex -> vertex));
 
 					newRuntimes.putValue(key, new ComputationRuntime(this, new LinkedHashMap<>(key)));
-					newRuntimes.getValue(key).setVertices(newVertices);
+					newRuntimes.getValue(key).setVertices(new HashMap<>(newVertices));
 
 				});
 
@@ -661,7 +652,7 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 			Select select = new Select(msg.operations, verticesM, this.variables, newPartition);
 
 			try {
-				Map<String, Vertex> selected = select.performSelection();
+				HashMap<String, Vertex> selected = new HashMap<>(select.performSelection());
 				computationRuntime.setVertices(selected);
 			} catch (ExecutionException | InterruptedException e) {
 				e.printStackTrace();
@@ -684,7 +675,7 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 		return Props.create(TaskManagerActor.class, name, jobManagerAddr);
 	}
 
-	private Map<String, Vertex> getAllReadOnlyVertices(){
+	private HashMap<String, Vertex> getAllReadOnlyVertices(){
 		return new HashMap<>(this.vertices);
 	}
 

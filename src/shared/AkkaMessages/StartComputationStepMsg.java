@@ -1,7 +1,7 @@
 package shared.AkkaMessages;
 
 import org.jetbrains.annotations.Nullable;
-import shared.computation.ComputationParameters;
+import shared.computation.ComputationParametersImpl;
 
 import java.io.Serializable;
 import java.util.LinkedHashMap;
@@ -14,10 +14,10 @@ public class StartComputationStepMsg implements Serializable {
     private final LinkedHashMap<String, String> freeVars;
     private final int stepNumber;
     private final long timestamp;
-    private final ComputationParameters computationParameters;
+    private final ComputationParametersImpl computationParameters;
 
 
-    public StartComputationStepMsg(String computationId, LinkedHashMap<String, String> freeVars, int stepNumber, long timestamp, @Nullable ComputationParameters computationParameters) {
+    public StartComputationStepMsg(String computationId, LinkedHashMap<String, String> freeVars, int stepNumber, long timestamp, @Nullable ComputationParametersImpl computationParameters) {
         this.computationId = computationId;
         this.freeVars = freeVars;
         this.stepNumber = stepNumber;
@@ -25,7 +25,7 @@ public class StartComputationStepMsg implements Serializable {
         if (computationParameters != null) {
             this.computationParameters = computationParameters;
         } else {
-            this.computationParameters = new ComputationParameters();
+            this.computationParameters = new ComputationParametersImpl();
         }
     }
 
@@ -48,7 +48,7 @@ public class StartComputationStepMsg implements Serializable {
         return timestamp;
     }
 
-    public ComputationParameters getComputationParameters() {
+    public ComputationParametersImpl getComputationParameters() {
         return computationParameters;
     }
 

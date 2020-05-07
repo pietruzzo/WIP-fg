@@ -1,21 +1,18 @@
 package shared.patterns;
 
 import master.PatternCallback;
-import org.apache.flink.api.java.tuple.Tuple2;
 import shared.AkkaMessages.AckMsgComputationTerminated;
 import shared.AkkaMessages.ComputeResultsMsg;
 import shared.AkkaMessages.StartComputationStepMsg;
 import shared.PropertyHandler;
-import shared.computation.ComputationParameters;
+import shared.computation.ComputationParametersImpl;
 
 import java.io.Serializable;
-import java.util.List;
 
 public class Computation extends Pattern {
 
     private String computationId;
-    private List<Tuple2<String, Long>> outputLabels;
-    private ComputationParameters parameters;
+    private ComputationParametersImpl parameters;
     private int stepNumber;
     private int completedSlaves;
     private boolean resultComputed;
@@ -24,9 +21,8 @@ public class Computation extends Pattern {
         super(trigger, variablesToBeGenerated, transportLayer);
     }
 
-    public void setComputation (String computationName, List<Tuple2<String, Long>> outputLabels, ComputationParameters parameters) {
+    public void setComputation (String computationName, ComputationParametersImpl parameters) {
         this.computationId = computationName;
-        this.outputLabels = outputLabels;
         this.parameters = parameters;
     }
 
@@ -75,7 +71,7 @@ public class Computation extends Pattern {
 
     private void computeResult () {
 
-        transportLayer.sendToAllSlaves(new ComputeResultsMsg(null, outputLabels));
+        transportLayer.sendToAllSlaves(new ComputeResultsMsg(null));
         transportLayer.becomeAwaitAckFromAll();
         resultComputed = true;
 
@@ -83,7 +79,7 @@ public class Computation extends Pattern {
 
     private boolean performStepMessage() {
 
-        ComputationParameters params = null;
+        ComputationParametersImpl params = null;
         completedSlaves = 0;
 
         if (stepNumber == 0) params = parameters;

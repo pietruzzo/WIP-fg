@@ -32,19 +32,25 @@ public class OutgoingEdges extends Computation {
 
         int max = incoming
                 .stream()
-                .map(msg -> (int)msg.computationValues)
+                .map(msg -> (int) msg.computationValues)
                 .reduce((i1, i2) -> i1 > i2 ? i1 : i2)
                 .get();
 
         //STOP if new max is not greater than older one
-        if (max <= outgoingEdgesNum.get(vertex.getNodeId()))
-            return null;
+        if (max <= outgoingEdgesNum.get(vertex.getNodeId())) {
+            voteToHalt();
 
-        outgoingEdgesNum.put(vertex.getNodeId(), max);
+        }else {
 
-        for (String destination: vertex.getEdges()) {
-            outbox.add( new StepMsg(destination, vertex.getNodeId(), max) );
+            //Update value
+            outgoingEdgesNum.put(vertex.getNodeId(), max);
+
+            //Spread Value
+            for (String destination: vertex.getEdges()) {
+                outbox.add( new StepMsg(destination, vertex.getNodeId(), max) );
+            }
         }
+
         return outbox;
     }
 
@@ -56,16 +62,15 @@ public class OutgoingEdges extends Computation {
         this.outgoingEdgesNum.put(vertex.getNodeId(), vertex.getEdges().length);
 
         if (!this.spread)
-            return null;
+            voteToHalt();
 
         else {
-
             for (String destination : vertex.getEdges()) {
                 outbox.add(new StepMsg(destination, vertex.getNodeId(), vertex.getEdges().length));
             }
-            return outbox;
-
         }
+
+        return outbox;
     }
 
     @Override
@@ -73,7 +78,7 @@ public class OutgoingEdges extends Computation {
 
         List<Pair<String, String[]>> returnValues = new ArrayList<>();
 
-        returnValues.add(new Pair<>(this.returnVarNames().get(0), new String[]{
+        returnValues.add(new Pair<>(this.computationParameters.returnVarNames().get(0), new String[]{
                 String.valueOf(this.outgoingEdgesNum.get(vertex.getNodeId()))
         }));
 

@@ -11,11 +11,9 @@ public class ComputeResultsMsg implements Serializable {
     private static final long serialVersionUID = 200020L;
 
     private final LinkedHashMap<String, String> freeVars;
-    private final List<Tuple2<String, Long>> returnVarNames;
 
-    public ComputeResultsMsg(LinkedHashMap<String, String> freeVars, List<Tuple2<String, Long>> returnVarNames) {
+    public ComputeResultsMsg(LinkedHashMap<String, String> freeVars) {
         this.freeVars = freeVars;
-        this.returnVarNames = returnVarNames;
     }
 
 
@@ -26,7 +24,4 @@ public class ComputeResultsMsg implements Serializable {
         return freeVars;
     }
 
-    public List<Tuple2<String, Long>> getReturnVarNames() {
-        return returnVarNames;
-    }
 }
