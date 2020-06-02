@@ -19,6 +19,7 @@ numberOfMachines="4"
 datasetName="dataset1M299.txt"
 localFolder=/home/pietro/flowgraph/
 localLogFolder=/home/pietro/Logs/
+datasetFolder=specialDatasets/   #Path is built as "${localFolder}${datasetFolder}"
 logFolderName=NULL  #NULL to avoid subfolder
 remoteFolder=/home/ec2-user/flowgraph/
 amazonKey=amazonPoli.pem
@@ -96,14 +97,14 @@ fi
 function oneDataset {
 
   # Set dataset on config.properties
-  sed -i -e "s:datasetPath =.*$:datasetPath = ${remoteFolder}specialDatasets/${datasetName}:" ${localFolder}config.properties
+  sed -i -e "s:datasetPath =.*$:datasetPath = ${remoteFolder}${datasetFolder}${datasetName}:" ${localFolder}config.properties
 
   # Set number of instances on config.properties
   sed -i -e "s:numberOfSlaves =.*$:numberOfSlaves = "${numberOfMachines}":" ${localFolder}config.properties
 
   # If M order, try only 10 updates
   if [[ $datasetName == *"M"* ]]; then
-    sed -i -e "s:numRecordsAsInput =.*$:numRecordsAsInput = 299:" ${localFolder}config.properties
+    sed -i -e "s:numRecordsAsInput =.*$:numRecordsAsInput = 9:" ${localFolder}config.properties
   else
     sed -i -e "s:numRecordsAsInput =.*$:numRecordsAsInput = 99:" ${localFolder}config.properties
   fi
@@ -135,7 +136,7 @@ function oneDataset {
 
 function allDatasets {
 
-  for i in "${localFolder}datasets"/*
+  for i in "${localFolder}${datasetFolder}"*
   do
     datasetName=$i
     datasetName=${datasetName##*/}
