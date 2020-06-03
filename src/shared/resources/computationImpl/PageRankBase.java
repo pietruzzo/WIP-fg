@@ -12,57 +12,49 @@ import java.util.List;
 /**
  * Implementation of PageRank working on DirectedGraphs
  *
- * PageRank with convergence condition
- * Convergence condition
+ * PageRank  as defined in Pregel: A System for Large-Scale Graph Processing
+ * (Grzegorz Malewicz, Matthew H. Austern, Aart J. C. Bik, James C. Dehnert, Ilan Horn,
+ * Naty Leiser, and Grzegorz Czajkowski)
+ * No convergence condition
  * The sum of Ranks is equal to numberOfVertices if numberVertices parameter isn't specified
  *
  * Parameters:
  *          0: maxIterations (default = 100)
  *          1: dumpingFactor (default = 0.85)
  *          2: numberVertices (default = 1)
- *          3: threshold (default 0.0)
  *
  * Return Values :
  *          0: Rank label name
  */
-public class PageRank extends Computation {
+public class PageRankBase extends Computation {
 
     private int maxNumOfIterations;
-    private double initialValue;
-    private double threshold;
-    private double dumpingFactor;
-    private double aFactor; // equal to ( 1 - dumpingFactor )
+    private Double initialValue;
+    private Double dumpingFactor;
+    private Double aFactor; // equal to ( 1 - dumpingFactor )
 
-    private HashMap<String, Double> ranks;
-    private HashMap<String, HashMap<String, Double>> receivedRanks;
+    private HashMap<String, Double> weights;
 
     @Override
     public List<StepMsg> iterate(Vertex vertex, List<StepMsg> incoming, int iterationStep) {
 
-        if (iterationStep == 1) {
-            receivedRanks.put(vertex.getNodeId(), new HashMap<>());
-        }
+
 
         //Calculate new weight for current vertex
         double sum = 0;
-        HashMap<String, Double> incomingRanks = receivedRanks.get(vertex.getNodeId());
         for (StepMsg msg : incoming) {
-            incomingRanks.put(msg.originVertex, (Double)msg.computationValues);
+            sum = sum + (Double)msg.computationValues;
         }
 
-        for (double w : incomingRanks.values()) {
-            sum = sum + w;
-        }
         double newWeight = aFactor + dumpingFactor * sum;
 
-        //Stop conditions
-        if (newWeight - ranks.get(vertex.getNodeId()) <= threshold || iterationStep >= maxNumOfIterations) {
-            ranks.put(vertex.getNodeId(), newWeight );
+        weights.put(vertex.getNodeId(), newWeight );
+
+        //Stop
+        if (iterationStep >= maxNumOfIterations){
             voteToHalt();
             return null;
         }
-
-        ranks.put(vertex.getNodeId(), newWeight );
 
         //Send weight
         List<StepMsg> outbox = new ArrayList<>();
@@ -80,12 +72,11 @@ public class PageRank extends Computation {
 
         List<StepMsg> outbox = new ArrayList<>();
         double weightToSend =  initialValue / vertex.getEdges().length;
-        this.ranks.put(vertex.getNodeId(), aFactor);
+        this.weights.put(vertex.getNodeId(), initialValue);
 
         for (String dest: vertex.getEdges()) {
             outbox.add(new StepMsg(dest, vertex.getNodeId(), weightToSend));
         }
-        voteToHalt();
         return outbox;
     }
 
@@ -96,7 +87,7 @@ public class PageRank extends Computation {
 
         returnLabels.add(new Pair<>(
                 this.computationParameters.returnVarNames().get(0),
-                new String[]{String.valueOf(this.ranks.get(vertex.getNodeId()))}
+                new String[]{String.valueOf(this.weights.get(vertex.getNodeId()))}
                 ));
 
         return returnLabels;
@@ -108,7 +99,6 @@ public class PageRank extends Computation {
         String maxNumOfIterations = computationParameters.getParameter("maxIterations");
         String dumpingFactor = computationParameters.getParameter("dumpingFactor");
         String numberVertices = computationParameters.getParameter("numberVertices");
-        String threshold = computationParameters.getParameter("threshold");
 
         try {
             this.maxNumOfIterations = Integer.parseInt(maxNumOfIterations);
@@ -128,15 +118,8 @@ public class PageRank extends Computation {
             this.initialValue = 1.0;
         }
 
-        try {
-            this.threshold = Double.parseDouble(threshold);
-        } catch (NullPointerException |NumberFormatException e) {
-            this.threshold = 0.0;
-        }
-
         this.aFactor = 1.0 - this.dumpingFactor;
-        this.ranks = new HashMap<>();
-        this.receivedRanks = new HashMap<>();
+        this.weights = new HashMap<>();
 
     }
 }

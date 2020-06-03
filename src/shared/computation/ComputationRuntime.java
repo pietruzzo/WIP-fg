@@ -6,7 +6,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import shared.PropertyHandler;
 import shared.data.BoxMsg;
 import shared.data.StepMsg;
-import shared.exceptions.ComputationFinishedException;
+import shared.exceptions.AllVerticesHalted;
 
 import java.io.IOException;
 import java.util.*;
@@ -80,9 +80,6 @@ public class ComputationRuntime {
                 }
             }
 
-        } else if (activeVertices.isEmpty()) {
-            //No message has arrived, and all vertices voted to halt -> computation has terminated
-            throw new ComputationFinishedException();
         } else {
 
             //It isn't the first iteration
@@ -106,8 +103,13 @@ public class ComputationRuntime {
             activeVertices.remove(deleted);
         }
 
+        if (activeVertices.isEmpty()) {
+            //all vertices voted to halt
+            throw new AllVerticesHalted();
+        }
+
         //Reset Inbox
-        this.inboxMessages = null;
+        this.inboxMessages = new BoxMsg(stepNumber);
 
     }
 
@@ -233,11 +235,11 @@ public class ComputationRuntime {
         }
     }
 
-    private static int retrieveMsgThreshold () {
+    private static Integer retrieveMsgThreshold () {
         try {
             return Integer.parseInt(PropertyHandler.getProperty("outboxSizeThreshold"));
-        } catch (IOException e) {
-            return 10000;
+        } catch (IOException | NumberFormatException | NullPointerException e) {
+            return null;
         }
     }
 

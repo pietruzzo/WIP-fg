@@ -27,11 +27,8 @@ import shared.computation.ComputationRuntime;
 import shared.computation.Vertex;
 import shared.data.BoxMsg;
 import shared.data.MultiKeyMap;
-import shared.exceptions.ComputationFinishedException;
-import shared.resources.computationImpl.IngoingEdges;
-import shared.resources.computationImpl.OutgoingEdges;
-import shared.resources.computationImpl.PageRank;
-import shared.resources.computationImpl.TriangleCounting;
+import shared.exceptions.AllVerticesHalted;
+import shared.resources.computationImpl.*;
 import shared.selection.Partition;
 import shared.selection.Select;
 import shared.streamProcessing.PartitionStreamsHandler;
@@ -68,7 +65,7 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 	private VariableSolver variables;
 
 	private final AtomicInteger waitingResponses = new AtomicInteger(0);
-	private Boolean computationResponse;
+	private int lastSuperstep;
 
 	private TaskManagerActor(String name, String masterAddress) {
 		this.name = name;
@@ -76,7 +73,7 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 		this.computations = new HashMap<>();
 		this.partitionComputations = null;
 		this.variables = new VariableSolver();
-		this.computationResponse = null;
+		this.lastSuperstep = -1;
 	}
 
 	@Override
@@ -122,7 +119,7 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 			match(NewTimestampMsg.class, this::onNewTimestampMsg).
 			match(SaveVariableGraphMsg.class, this::onSaveVariableGraphMsg). //
 			match(RestoreVariableGraphMsg.class, this::onRestoreVariableGraphMsg). //
-			match(BoxMsg.class, x-> log.error("BoxMsg in wrong place")). //
+			match(BoxMsg.class, this::onInboxMsg). //
 			match(ValidateNodesMsg.class, x->stash()). //
 			match(Serializable.class, x-> log.error("received wrong message: " + x + " from " + sender() + " I am " + self())).
 		    build();
@@ -390,9 +387,10 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 	private final void onStartComputationStepMsg(StartComputationStepMsg msg) throws ExecutionException, InterruptedException {
 
 		log.info(msg.toString());
-		computationResponse = false; //If true computation has terminated for all runtimes
+		boolean computationResponse = false; //If true computation has terminated for all runtimes
+		this.lastSuperstep = msg.getStepNumber();
 
-		//Performe it before first superstep only
+		//Applied only on first superstep
 		computationSetup(msg);
 
 
@@ -404,7 +402,7 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 			for (ComputationRuntime computationRuntime: partitionComputations.getAllElements().values()) {
 				try {
 					computationRuntime.compute(msg.getStepNumber());
-				} catch (ComputationFinishedException e) {
+				} catch (AllVerticesHalted e) {
 					numCompleted = numCompleted + 1;
 				}
 				if (numCompleted == partitionComputations.getAllElements().size()) {
@@ -419,7 +417,7 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 			ComputationRuntime computationRuntime = partitionComputations.getValue(msg.getFreeVars());
 			try {
 				computationRuntime.compute(msg.getStepNumber());
-			} catch (ComputationFinishedException e) {
+			} catch (AllVerticesHalted e) {
 				computationResponse = true;
 			}
 			sendOutBox(computationRuntime.getOutgoingMessages());
@@ -427,14 +425,21 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 		}
 
 
-
+		if (computationResponse && this.waitingResponses.get() == 0){
+			//no message has generated (I'm not waiting for acks) and all nodes has halted -> computation completed
+			master.tell(new AckMsgComputationTerminated(), self());
+		} else if (this.waitingResponses.get() == 0){
+			//Still active nodes, no messages generated
+			master.tell(new AckMsg(), self());
+		} //In all other cases wait ack for outbox sent
+		unstashAll();
 	}
 
 
 
 	private final void onComputeResultMsg(ComputeResultsMsg msg) throws ExecutionException, InterruptedException {
 		log.info(msg.toString());
-
+		lastSuperstep=-1;
 		if (msg.getFreeVars() == null) {
 			//Get all Runtimes, set return value variable name and send messages
 			for (ComputationRuntime computationRuntime: partitionComputations.getAllElements().values()) {
@@ -459,18 +464,22 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 	private final void onInboxMsg(BoxMsg incoming){
 		log.info("BoxMsg received from " + sender().toString() + " for stpnmb " + incoming.getStepNumber());
 
-		//Set message partition
-		Map<String, String> partition = incoming.getPartition();
-		if (incoming.getPartition() == null) {
-			partition = new HashMap<>();
-			partition.put("all", "all");
+		if (lastSuperstep > incoming.getStepNumber())
+			log.error("Old inbox - expecting: " + lastSuperstep + " arrived: " + incoming.getStepNumber());
+		else if (lastSuperstep < incoming.getStepNumber()) {
+			log.info("Inbox Message stashed");
+			stash(); //Not ready to handle it
 		}
-		ComputationRuntime computationRuntime = this.partitionComputations.getValue(partition);
-		computationRuntime.updateIncomingMsgs(incoming);
-		getSender().tell(new AckMsg(), self());
-
-		if (incoming.isLast()) {
-			self().tell(new AckMsg(), self());
+		else {
+			//Set message partition
+			Map<String, String> partition = incoming.getPartition();
+			if (incoming.getPartition() == null) {
+				partition = new HashMap<>();
+				partition.put("all", "all");
+			}
+			ComputationRuntime computationRuntime = this.partitionComputations.getValue(partition);
+			computationRuntime.updateIncomingMsgs(incoming);
+			getSender().tell(new AckMsg(), self());
 		}
 
 	}
@@ -481,25 +490,14 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 	private final void onAckMsg(AckMsg msg){
 		log.info(msg.toString() + " from " + sender().path() + ", I am " + self().path());
 
-		if (this.waitingResponses.decrementAndGet() == 0){
+		if (this.waitingResponses.decrementAndGet() <= 0) {
 			getContext().become(initializedState());
 			unstashAll();
+			master.tell(new AckMsg(), self());
 
-			if (computationResponse != null && computationResponse) {
-					master.tell(new AckMsgComputationTerminated(), self());
-					log.info("Computation has terminated");
-					computationResponse = null;
-			} else if (computationResponse != null){
-				log.info("Computation requires more steps: end of step ");
-				master.tell(new AckMsg(), self());
-				computationResponse = null;
-			}
+			if (this.waitingResponses.get() < 0)
+				log.error("Warning: waiting responses = " + this.waitingResponses.get());
 
-		} else if (this.waitingResponses.get() < 0 ) {
-			log.info("Warning: waiting responses = " + this.waitingResponses.get());
-			this.waitingResponses.set(0);
-			getContext().become(initializedState());
-			unstashAll();
 		}
 
 		log.info("Waiting " + this.waitingResponses + " responses");
@@ -683,25 +681,29 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 	}
 
 	/**
-	 * Sent ougoing messages to other actors
+	 * Sent ougoing messages to other actors if not empty
+	 * Switch to waiting response if at least a message has been sent
 	 * @param outgoingBox
 	 */
 	private void sendOutBox(Map<ActorRef, BoxMsg> outgoingBox){
-
+		boolean sent = false;
 		//Increase waiting response and send also if empty
 		//increment for waiting ack and last message from other partitions
-		this.waitingResponses.addAndGet(outgoingBox.size() * 2);
 		for (Map.Entry<ActorRef, BoxMsg> destOutbox: outgoingBox.entrySet()) {
 
-			destOutbox.getValue().setLastFlag(true);
-			destOutbox.getKey().tell(destOutbox.getValue(), self());
+			if( ! destOutbox.getValue().isEmpty() ) {
+				sent = true;
+				this.waitingResponses.incrementAndGet();
+				destOutbox.getKey().tell(destOutbox.getValue(), self());
+			}
 
 		}
 
-		//Switch to waiting response state
-		getContext().become(waitingResponseState());
-		unstashAll();
-		//End
+		//Switch to waiting response state if something has been sent
+		if (sent) {
+			getContext().become(waitingResponseState());
+			unstashAll();
+		}
 	}
 
 	private void computationSetup(StartComputationStepMsg msg) {
@@ -834,7 +836,9 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 	private void defaultComputations() {
 		this.computations.putIfAbsent("IngoingEdges", new IngoingEdges());
 		this.computations.putIfAbsent("OutgoingEdges", new OutgoingEdges());
+		this.computations.putIfAbsent("PageRankB", new PageRankBase());
 		this.computations.putIfAbsent("PageRank", new PageRank());
+		this.computations.putIfAbsent("PageRankS", new PageRankSimplified());
 		this.computations.putIfAbsent("TriangleCounting", new TriangleCounting());
 	}
 

@@ -21,11 +21,6 @@ public class BoxMsg<TMsg> implements Serializable {
     private Map<String, String> partition;
 
     /**
-     * True: no more messages to transmit from Actors A to B
-     */
-    private boolean lastBox;
-
-    /**
      * number of inserted msgs
      */
     private int insertedMsgs;
@@ -38,7 +33,6 @@ public class BoxMsg<TMsg> implements Serializable {
     public BoxMsg(long stepNumber) {
         this.stepNumber = stepNumber;
         this.data = new HashMap<>();
-        this.lastBox = false;
         this.insertedMsgs = 0;
     }
 
@@ -96,20 +90,12 @@ public class BoxMsg<TMsg> implements Serializable {
         return this.data;
     }
 
-    public void setLastFlag(boolean lastBox) {
-        this.lastBox = lastBox;
-    }
-
-    public boolean isLast() {
-        return this.lastBox;
-    }
 
     @Override
     public String toString() {
         return "BoxMsg{" +
                 "stepNumber=" + stepNumber +
                 ", partition=" + partition +
-                ", lastBox=" + lastBox +
                 ", data=" + data +
                 '}';
     }
