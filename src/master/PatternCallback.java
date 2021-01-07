@@ -5,6 +5,9 @@ import akka.event.LoggingAdapter;
 
 import java.io.Serializable;
 
+/**
+ * Used by master business logic to communicate with workers
+ */
 public interface PatternCallback {
 
 

@@ -13,9 +13,6 @@ public class VariableAggregate extends Variable {
 
     private static final long serialVersionUID = 200040L;
 
-    /**
-     * Valore Aggregato, solitamente sul master
-     */
     private final Tuple[] value;
     private ArrayList<String> tupleNames;
 

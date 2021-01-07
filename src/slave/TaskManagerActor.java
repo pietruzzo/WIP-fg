@@ -616,6 +616,11 @@ public class TaskManagerActor extends AbstractActorWithStash implements Computat
 
 	}
 
+	/**
+	 * Perform stream operations
+	 * @param msg
+	 * @throws Exception
+	 */
 	private final void onExtractMsg (ExtractMsg msg) throws Exception {
 		log.info(msg.toString());
 

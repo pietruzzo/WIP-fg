@@ -32,6 +32,9 @@ public interface Operations extends Serializable {
         }
     }
 
+    /**
+     * Extract values from graph
+     */
     class Extract implements Operations{
 
         public final String[] labels;
@@ -129,6 +132,9 @@ public interface Operations extends Serializable {
         }
     }
 
+    /**
+     * Streams variable associated values
+     */
     class StreamVariable implements Operations{
 
         public final String VariableName;
@@ -170,8 +176,14 @@ public interface Operations extends Serializable {
         }
     }
 
+    /**
+     * !! not implemented
+     */
     class Collect implements Operations{}
 
+    /**
+     * Emit a variable
+     */
     class Emit implements Operations{
 
         public final String variableName;
@@ -198,6 +210,10 @@ public interface Operations extends Serializable {
         }
     }
 
+    /**
+     * Fire (communicate with client) if a condition is satisfied
+     * Requires to be evaluated on collected values
+     */
     class Evaluate implements Operations{
 
         public final SelectionSolver.Operation.Operator operator;
